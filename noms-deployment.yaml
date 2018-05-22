@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noms-deployment
+  labels:
+    app: noms
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: noms
+  template:
+    metadata:
+      labels:
+        app: noms
+    spec:
+      containers:
+      - name: noms-container
+        image: noms:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+          - mountPath: "/data"
+            name: noms-volume
+      volumes:
+      - name: noms-volume
+        emptyDir: {}
