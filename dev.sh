@@ -34,6 +34,21 @@ else
     echo "minikube already present"
 fi
 
+# install tendermint if not already there
+if [ -z "$(which tendermint)" ]; then
+    echo_green "Installing tendermint"
+    go get -u github.com/golang/dep/... && \
+    mkdir -p $GOPATH/src/github.com/tendermint && \
+    git clone https://github.com/tendermint/tendermint.git \
+    $GOPATH/src/github.com/tendermint/tendermint && \
+    cd $GOPATH/src/github.com/tendermint/tendermint && \
+    git checkout v0.18.0 && \
+    dep ensure && \
+    go install -v -a -ldflags '-extldflags "-static"' ./cmd/tendermint
+else
+    echo "Tendermint already installed"
+fi
+
 # installs the docker machine driver for docker's hypervisor
 # https://github.com/kubernetes/minikube/blob/master/docs/drivers.md#hyperkit-driver
 if [ -z "$(which docker-machine-driver-hyperkit)" ]; then

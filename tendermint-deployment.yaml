@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tendermint-deployment
+  labels:
+    app: tendermint
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tendermint
+  template:
+    metadata:
+      labels:
+        app: tendermint
+    spec:
+      containers:
+      - name: tendermint-container
+        image: tendermint:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 46656
+        - containerPort: 46657
+        volumeMounts:
+        - mountPath: /tendermint
+          name: tendermint-home-volume
+        - mountPath: /tendermint/config/genesis.json
+          subPath: genesis.json  
+          name: genesis-file
+        - mountPath: /tendermint/config/priv_validator.json
+          subPath: priv_validator.json  
+          name: priv-validator-file
+        env:
+        - name: TMHOME
+          value: "/tendermint"
+      volumes:
+        - name: tendermint-home-volume
+          emptyDir: {}
+        - name: genesis-file
+          configMap:
+            name: tendermint-config-genesis
+        - name: priv-validator-file
+          configMap:
+            name: tendermint-config-priv-validator
+
+

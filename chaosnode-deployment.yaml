@@ -1,22 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: chaos-deployment
+  name: chaosnode-deployment
   labels:
-    app: chaos
+    app: chaosnode
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: chaos
+      app: chaosnode
   template:
     metadata:
       labels:
-        app: chaos
+        app: chaosnode
     spec:
       containers:
-      - name: chaos-container
+      - name: chaosnode-container
         image: chaosnode:latest
+        args: ["-spec","http://localhost:8000"]
         imagePullPolicy: Never
         ports:
         - containerPort: 46658
@@ -27,31 +28,17 @@ spec:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
 
-      - name: tendermint-container
-        image: tendermint:latest
-        imagePullPolicy: Never
-        ports:
-        - containerPort: 46656
-        - containerPort: 46657
-        volumeMounts:
-        - mountPath: /tendermint
-          name: tm-home-volume
-        env:
-        - name: TMHOME
-          value: "/tendermint"
-
       - name: noms-container
         image: noms:latest
         imagePullPolicy: Never
         ports:
-        - containerPort: 8080
+        - containerPort: 8000
         volumeMounts:
           - mountPath: "/data"
             name: noms-volume
+
       volumes:
-      - name: tm-home-volume
+      - name: noms-volume
         emptyDir: {}
       - name: ndau-home-volume
-        emptyDir: {}
-      - name: noms-volume
         emptyDir: {}

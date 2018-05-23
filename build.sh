@@ -17,5 +17,13 @@ docker build -t chaosnode --build-arg SSH_KEY_FILE="gomu" ./chaosnode
 # build tendermint
 docker build -t tendermint ./chaosnode/tm-docker
 
+# initialize tendermint
+if [ ! -f "$HOME/.tendermint/config/genesis.json" ]; then
+    echo "initializing tendermint"
+    tendermint init
+else
+    echo "genesis.json detected"
+fi
+
 # build noms
 docker build -t noms ./chaosnode/noms-docker
