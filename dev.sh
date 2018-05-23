@@ -34,6 +34,14 @@ else
     echo "minikube already present"
 fi
 
+# install jq if not already there
+if [ -z "$(which jq)" ]; then
+    echo_green "Installing jq"
+    brew install jq
+else
+    echo "jq already present"
+fi
+
 # install tendermint if not already there
 if [ -z "$(which tendermint)" ]; then
     echo_green "Installing tendermint"
@@ -61,4 +69,3 @@ if [ -z "$(which docker-machine-driver-hyperkit)" ]; then
 else
     echo "docker-machine-driver-hyperkit already present"
 fi
-
