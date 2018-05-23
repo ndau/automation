@@ -18,7 +18,11 @@ if [ $? != 0 ]; then
     echo "using $sed as sed"
 fi
 
-# install chaosnode and noms
+# install noms
+kubectl apply -f noms-deployment.yaml
+kubectl apply -f noms-service.yaml
+
+# install chaosnode
 kubectl apply -f chaosnode-deployment.yaml
 kubectl apply -f chaosnode-service.yaml
 

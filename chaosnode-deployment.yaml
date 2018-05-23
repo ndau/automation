@@ -4,6 +4,14 @@ metadata:
   name: chaosnode-deployment
   labels:
     app: chaosnode
+  annotations:
+    pod.beta.kubernetes.io/init-containers: '[
+        {
+            "name": "init-db",
+            "image": "busybox",
+            "command": ["sh", "-c", "until nslookup noms-service; do echo waiting for noms-service; sleep 2; done;"]
+        }
+    ]'
 spec:
   replicas: 1
   selector:
@@ -17,7 +25,7 @@ spec:
       containers:
       - name: chaosnode-container
         image: chaosnode:latest
-        args: ["-spec", "http://localhost:8000"]
+        args: ["-spec", "http://noms-service:8000"]
         imagePullPolicy: Never
         ports:
         - containerPort: 46658
@@ -27,18 +35,6 @@ spec:
         volumeMounts:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
-
-      - name: noms-container
-        image: noms:latest
-        imagePullPolicy: Never
-        ports:
-        - containerPort: 8000
-        volumeMounts:
-        - mountPath: "/data"
-          name: noms-volume
-
       volumes:
-      - name: noms-volume
-        emptyDir: {}
       - name: ndau-home-volume
         emptyDir: {}

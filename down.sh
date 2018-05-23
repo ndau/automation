@@ -12,3 +12,5 @@ kubectl delete -f tendermint-service.yaml
 
 # This should be gone already, but just incase it isn't.
 kubectl delete -f empty-hash-get-job.yaml
+
+exit 0

@@ -39,7 +39,8 @@ spec:
       volumes:
         - name: tendermint-home-volume
           emptyDir: {}
-        - name: config-toml
+        # TODO: This is problematic because it needs to point to the chaosnode. Hard to template.
+        - name: config-toml 
           configMap:
             name: tendermint-config-toml
         - name: genesis-file

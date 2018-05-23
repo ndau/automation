@@ -9,6 +9,6 @@ spec:
       - name: empty-hash-get-container
         image: chaosnode:latest
         imagePullPolicy: Never
-        args: ["-echo-empty-hash", "&&", "sleep 5"]
+        args: ["-echo-empty-hash"]
       restartPolicy: Never
   backoffLimit: 4
