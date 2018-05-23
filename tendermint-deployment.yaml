@@ -30,12 +30,18 @@ spec:
         - mountPath: /tendermint/config/priv_validator.json
           subPath: priv_validator.json  
           name: priv-validator-file
+        - mountPath: /tendermint/config/config.toml
+          subPath: config.toml
+          name: config-toml
         env:
         - name: TMHOME
           value: "/tendermint"
       volumes:
         - name: tendermint-home-volume
           emptyDir: {}
+        - name: config-toml
+          configMap:
+            name: tendermint-config-toml
         - name: genesis-file
           configMap:
             name: tendermint-config-genesis
