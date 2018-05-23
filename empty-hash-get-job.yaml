@@ -1,0 +1,14 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: empty-hash-get-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: empty-hash-get-container
+        image: chaosnode:latest
+        imagePullPolicy: Never
+        args: ["-echo-empty-hash", "&&", "sleep 5"]
+      restartPolicy: Never
+  backoffLimit: 4

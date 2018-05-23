@@ -16,9 +16,8 @@ spec:
     spec:
       containers:
       - name: chaosnode-container
-        # TODO: initContainer
         image: chaosnode:latest
-        args: ["-spec","http://localhost:8000"]
+        args: ["-spec", "http://localhost:8000"]
         imagePullPolicy: Never
         ports:
         - containerPort: 46658

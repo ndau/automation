@@ -22,11 +22,14 @@ fi
 kubectl apply -f chaosnode-deployment.yaml
 kubectl apply -f chaosnode-service.yaml
 
+# get empty-hash
+kubectl apply -f empty-hash-get-job.yaml
+
 # get chaosnode's pod name
 retries=5
 for i in $(seq $retries 0); do
     podname=$(
-        kubectl get pods --selector=app=chaosnode --output=json |\
+        kubectl get pods --selector=job-name=empty-hash-get-job --output=json |\
         jq -r ".items[0].metadata.name"
     )
     if [ "$podname" != "null" ]; then
@@ -38,15 +41,14 @@ for i in $(seq $retries 0); do
     fi
 done
 
+# get the chaosnode's log and extract the empty hash
 retries=5
 for i in $(seq $retries 0); do
-    containerLog=$(kubectl logs $podname -c chaosnode-container 2>&1)
-    if [ -z "$(grep 'Error' <<< $containerLog)" ]; then
-        emptyHash=$( echo $containerLog |\
-            grep -o -E 'emptyHash=(.*)' |\
-            head -n 1 |\
-            sed 's/.*=//'
-        )
+    containerLog=$(kubectl logs $podname | tr -d '[:space:]')
+    if [ -z "$containerLog" ]; then
+        sleep 5 # get at least 5 seconds worth of logs
+        containerLog=$(kubectl logs $podname)
+        emptyHash=$(echo $containerLog | tr -d '[:space:]')
         echo "Got empty hash: $emptyHash"
         break
     else
@@ -54,6 +56,7 @@ for i in $(seq $retries 0); do
         sleep 5
     fi
 done
+kubectl delete -f empty-hash-get-job.yaml
 
 # update genesis.json
 cp $HOME/.tendermint/config/genesis.json $HOME/.tendermint/config/genesis.bak
