@@ -86,8 +86,7 @@ A node is a computer or VM that is running an installation of Kubernetes. It can
 A bunch of nodes.
 
 ### Pod
-
-A pod is an abstraction of a container or group of containers. Docker containers are whales A pod is best employed as a stateless program that will handle a request on some specified port. A pod may consist of multiple containers, each listening on different ports.
+A pod is an abstraction of a container or group of containers. Docker containers are whales. A pod can be understood as a stateless program that will handle a request on some specified port. A pod may consist of multiple containers, each listening on different ports.
 
 ### Deployment
 
@@ -147,3 +146,5 @@ Jumping into kubernetes is really confusing and bewildering and can make anyone 
 
 http://kubernetesbyexample.com - in the vein of gobyexample.com another great learning resource.
 https://www.katacoda.com/courses/kubernetes - interactive browser-based courses.
+https://github.com/Praqma/LearnKubernetes/blob/master/kamran/Kubernetes-kubectl-cheat-sheet.md - Nice cheatsheet for kubectl commands.
+https://kubernetes.io/docs/reference/kubectl/cheatsheet - Official cheatsheet.
