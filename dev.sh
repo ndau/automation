@@ -7,7 +7,7 @@ GREEN='\033[0;32m'
 NC='\033[0m' # no color
 
 echo_green() {
-    echo "${GREEN}$@${NC}"
+    echo -e "${GREEN}$@${NC}"
 }
 
 # install brew if it's not already installed

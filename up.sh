@@ -19,15 +19,15 @@ if [ $? != 0 ]; then
 fi
 
 # install noms
-kubectl apply -f noms-deployment.yaml
-kubectl apply -f noms-service.yaml
+kubectl apply -f manifests/noms-deployment.yaml
+kubectl apply -f manifests/noms-service.yaml
 
 # install chaosnode
-kubectl apply -f chaosnode-deployment.yaml
-kubectl apply -f chaosnode-service.yaml
+kubectl apply -f manifests/chaosnode-deployment.yaml
+kubectl apply -f manifests/chaosnode-service.yaml
 
 # get empty-hash
-kubectl apply -f empty-hash-get-job.yaml
+kubectl apply -f manifests/empty-hash-get-job.yaml
 
 # get chaosnode's pod name
 retries=5
@@ -60,15 +60,21 @@ for i in $(seq $retries 0); do
         sleep 5
     fi
 done
-kubectl delete -f empty-hash-get-job.yaml
+kubectl delete -f manifests/empty-hash-get-job.yaml
+
+# initialize tendermint locally
+TMOLD=$TMHOME
+export TMHOME=$(pwd)/tmp
+tendermint init
+export TMHOME=$TMOLD
 
 # update genesis.json
-cp $HOME/.tendermint/config/genesis.json $HOME/.tendermint/config/genesis.bak
-jq ".app_hash=\"$emptyHash\"" $HOME/.tendermint/config/genesis.bak > $HOME/.tendermint/config/genesis.json
-rm $HOME/.tendermint/config/genesis.bak
+cp tmp/config/genesis.json tmp/config/genesis.bak
+jq ".app_hash=\"$emptyHash\"" tmp/config/genesis.bak > tmp/config/genesis.json
+rm tmp/config/genesis.bak
 
 # update config.toml
-cp $HOME/.tendermint/config/config.toml $HOME/.tendermint/config/config.bak 
+cp tmp/config/config.toml tmp/config/config.bak 
 $sed -E \
     -e '/^proxy_app/s|://[^:]*:|://chaosnode-service:|' \
     -e '/^create_empty_blocks_interval/s/[[:digit:]]+/10/' \
@@ -77,15 +83,15 @@ $sed -E \
             s/(.*)/# \1/
             i # tendermint respects create_empty_blocks *OR* create_empty_blocks_interval
         }' \
-    $HOME/.tendermint/config/config.bak > $HOME/.tendermint/config/config.toml
-rm $HOME/.tendermint/config/config.bak
+    tmp/config/config.bak > tmp/config/config.toml
+rm tmp/config/config.bak
 
 # make configmaps for tendermint
-kubectl apply -f tendermint-config-init.yaml
-kubectl create configmap tendermint-config-toml --from-file=$HOME/.tendermint/config/config.toml
-kubectl create configmap tendermint-config-genesis --from-file=$HOME/.tendermint/config/genesis.json
-kubectl create configmap tendermint-config-priv-validator --from-file=$HOME/.tendermint/config/priv_validator.json 
+kubectl apply -f manifests/tendermint-config-init.yaml
+kubectl create configmap tendermint-config-toml --from-file=tmp/config/config.toml
+kubectl create configmap tendermint-config-genesis --from-file=tmp/config/genesis.json
+kubectl create configmap tendermint-config-priv-validator --from-file=tmp/config/priv_validator.json 
 
 # install tendermint
-kubectl apply -f tendermint-deployment.yaml
-kubectl apply -f tendermint-service.yaml
+kubectl apply -f manifests/tendermint-deployment.yaml
+kubectl apply -f manifests/tendermint-service.yaml
