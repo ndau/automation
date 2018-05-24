@@ -81,6 +81,7 @@ $sed -E \
 rm $HOME/.tendermint/config/config.bak
 
 # make configmaps for tendermint
+kubectl apply -f tendermint-config-init.yaml
 kubectl create configmap tendermint-config-toml --from-file=$HOME/.tendermint/config/config.toml
 kubectl create configmap tendermint-config-genesis --from-file=$HOME/.tendermint/config/genesis.json
 kubectl create configmap tendermint-config-priv-validator --from-file=$HOME/.tendermint/config/priv_validator.json 

@@ -12,6 +12,25 @@ spec:
       labels:
         app: tendermint
     spec:
+      initContainers:
+      - name: copy-ro
+        image: busybox
+        command: ["/bin/sh", "/tendermint/init.sh"]
+        volumeMounts:
+        - name: tendermint-home-volume
+          mountPath: /tendermint
+        - name: tendermint-init
+          mountPath: /tendermint/init.sh
+          subPath: init.sh
+        - mountPath: /tendermint/config-ro/genesis.json
+          subPath: genesis.json  
+          name: genesis-file
+        - mountPath: /tendermint/config-ro/priv_validator.json
+          subPath: priv_validator.json  
+          name: priv-validator-file
+        - mountPath: /tendermint/config-ro/config.toml
+          subPath: config.toml
+          name: config-toml
       containers:
       - name: tendermint-container
         image: tendermint:latest
@@ -22,19 +41,13 @@ spec:
         volumeMounts:
         - mountPath: /tendermint
           name: tendermint-home-volume
-        - mountPath: /tendermint/config/genesis.json
-          subPath: genesis.json  
-          name: genesis-file
-        - mountPath: /tendermint/config/priv_validator.json
-          subPath: priv_validator.json  
-          name: priv-validator-file
-        - mountPath: /tendermint/config/config.toml
-          subPath: config.toml
-          name: config-toml
         env:
         - name: TMHOME
           value: "/tendermint"
       volumes:
+        - name: tendermint-init
+          configMap:
+            name: tendermint-config-init
         - name: tendermint-home-volume
           emptyDir: {}
         # TODO: This is problematic because it needs to point to the chaosnode. Hard to template.
