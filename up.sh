@@ -29,7 +29,7 @@ kubectl apply -f manifests/chaosnode-service.yaml
 # get empty-hash
 kubectl apply -f manifests/empty-hash-get-job.yaml
 
-# get chaosnode's pod name
+# get empty hash get job's pod name
 retries=5
 for i in $(seq $retries 0); do
     podname=$(
@@ -45,7 +45,7 @@ for i in $(seq $retries 0); do
     fi
 done
 
-# get the chaosnode's log and extract the empty hash
+# get the empty hash get job's log and extract the empty hash
 retries=5
 for i in $(seq $retries 0); do
     containerLog=$(kubectl logs $podname | tr -d '[:space:]')

@@ -5,11 +5,39 @@ This repo is for all things related to getting a Chaos node up and running.
 
 ## tldr;
 
-```
+```shell
 ./dev.sh
 ./build.sh
 ./up.sh
 ```
+
+After a few seconds the services should all be up and running.
+
+### Port forwarding
+
+```shell
+pod_name=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].metadata.name")
+kubectl $pod_name port-forward 46657:46657
+```
+
+### Logs
+
+To see the logs of one pod
+
+```shell
+pod_name=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].metadata.name")
+kubectl logs $pod_name -f # -f for follow
+```
+
+or you can use kubetail to see both with different colors
+
+```shell
+brew tap johanhaleby/kubetail && brew install kubetail
+t_pod=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].metadata.name")
+c_pod=$(kubectl get pods --selector=app=chaosnode -o json | jq -r ".items[0].metadata.name")
+kubetail $c_pod,$t_pod
+```
+
 
 ## Machine requirements
 
