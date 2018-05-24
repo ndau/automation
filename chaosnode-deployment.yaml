@@ -2,14 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: chaosnode-deployment
-  annotations:
-    pod.beta.kubernetes.io/init-containers: '[
-        {
-            "name": "init-db",
-            "image": "busybox",
-            "command": ["sh", "-c", "until nslookup noms-service; do echo waiting for noms-service; sleep 2; done;"]
-        }
-    ]'
 spec:
   replicas: 1
   selector:
@@ -20,6 +12,10 @@ spec:
       labels:
         app: chaosnode
     spec:
+      initContainers:
+      - name: init-db
+        image: busybox
+        command: ["sh", "-c", "until nslookup noms-service; do echo waiting for noms-service; sleep 2; done;"]
       containers:
       - name: chaosnode-container
         image: chaosnode:latest
