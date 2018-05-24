@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: chaosnode-deployment
-  labels:
-    app: chaosnode
   annotations:
     pod.beta.kubernetes.io/init-containers: '[
         {

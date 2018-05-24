@@ -8,4 +8,4 @@ spec:
       targetPort: 8000
       name: db
   selector:
-    app: noms-deployment
+    app: noms
