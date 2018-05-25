@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chaosnode-service
+spec:
+  ports:
+    - port: 46658
+      targetPort: 46658
+  selector:
+    app: chaosnode

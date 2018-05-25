@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tendermint
+spec:
+  ports:
+    - port: 46656
+      targetPort: 46656
+      name: p2p
+    - port: 46657
+      targetPort: 46657
+      name: rpc
+  selector:
+    app: tendermint
