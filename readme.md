@@ -1,9 +1,11 @@
 # k-os
-## Choas node on Kubernetes
+## Chaos node on Kubernetes
 
 This repo is for all things related to getting a Chaos node up and running.
 
 ## tldr;
+
+Copy `gomu` to this project's root and run the following commands
 
 ```shell
 ./dev.sh
@@ -17,8 +19,10 @@ After a few seconds the services should all be up and running.
 
 ```shell
 pod_name=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].metadata.name")
-kubectl $pod_name port-forward 46657:46657
+kubectl port-forward $pod_name 46657:46657
 ```
+
+Use `ctrl+c` to stop port forwarding.
 
 ### Logs
 
