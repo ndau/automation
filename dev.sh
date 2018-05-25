@@ -29,7 +29,7 @@ fi
 # install minikube if not already there
 if [ -z "$(which minikube)" ]; then
     echo_green "Installing minikube"
-    brew install minikube
+    brew cask install minikube
 else
     echo "minikube already present"
 fi
