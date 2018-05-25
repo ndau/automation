@@ -24,7 +24,7 @@ for i in $(seq $retries 0); do
         break
     else
         echo "Minikube not ready. Retrying $i more times."
-        minikube start --vm-driver=hyperkit
+        minikube start --vm-driver=hyperkit --disk-size 10g
         sleep 5
     fi
 done
