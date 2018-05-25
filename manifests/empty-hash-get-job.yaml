@@ -11,4 +11,3 @@ spec:
         imagePullPolicy: Never
         args: ["-echo-empty-hash"]
       restartPolicy: Never
-  backoffLimit: 4
