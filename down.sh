@@ -14,6 +14,6 @@ kubectl delete -f manifests/noms-deployment.yaml
 kubectl delete -f manifests/noms-service.yaml
 
 # This should be gone already, but just incase it isn't.
-kubectl delete -f manifests/empty-hash-get-job.yaml
+kubectl delete -f manifests/empty-hash-get-job.yaml 2>/dev/null
 
 exit 0
