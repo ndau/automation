@@ -18,6 +18,9 @@ if [ $? != 0 ]; then
     echo "using $sed as sed"
 fi
 
+# volumes
+kubectl apply -f manifests/volumes.yaml
+
 # install noms
 kubectl apply -f manifests/noms-deployment.yaml
 kubectl apply -f manifests/noms-service.yaml
@@ -95,3 +98,6 @@ kubectl create configmap tendermint-config-priv-validator --from-file=tmp/config
 # install tendermint
 kubectl apply -f manifests/tendermint-deployment.yaml
 kubectl apply -f manifests/tendermint-service.yaml
+
+# expose tendermint to the outside world
+kubectl apply -f manifests/tendermint-ingress.yaml
