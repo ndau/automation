@@ -7,7 +7,6 @@ spec:
     spec:
       containers:
       - name: empty-hash-get-container
-        image: chaosnode:latest
-        imagePullPolicy: Never
+        image: 578681496768.dkr.ecr.us-east-1.amazonaws.com/chaosnode:latest
         args: ["-echo-empty-hash"]
       restartPolicy: Never
