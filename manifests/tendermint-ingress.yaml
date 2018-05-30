@@ -1,0 +1,15 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: tendermint-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: api.dev.cluster.ndau.tech
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: tendermint
+          servicePort: 80
