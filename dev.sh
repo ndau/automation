@@ -3,6 +3,8 @@
 # This script gets your machine up and running.
 # Please install docker prior to running this script.
 
+REQUIRE_TENDERMINT_VERSION="0.18.0"
+
 GREEN='\033[0;32m'
 NC='\033[0m' # no color
 
@@ -55,6 +57,10 @@ if [ -z "$(which tendermint)" ]; then
     go install -v -a -ldflags '-extldflags "-static"' ./cmd/tendermint
 else
     echo "Tendermint already installed"
+    if [ "$(tendermint version)" == "$REQUIRED_TENDERMINT_VERSION" ]; then 
+        echo "Wanted Tendermint version ${REQUIRED_TENDERMINT_VERSION}, got $(tendermint version)."
+        exit 1 
+    fi
 fi
 
 # installs the docker machine driver for docker's hypervisor
