@@ -2,11 +2,13 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: tendermint-ingress
+  labels:
+    app: tendermint
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-  - host: api.dev.cluster.ndau.tech
+  - host: API_DOMAIN
     http:
       paths:
       - path: /
