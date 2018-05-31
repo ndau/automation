@@ -18,6 +18,9 @@ if [ $? != 0 ]; then
     echo "using $sed as sed"
 fi
 
+# enable minikube ingress
+minikube addons enable ingress
+
 # volumes
 kubectl apply -f manifests/volumes.yaml
 
