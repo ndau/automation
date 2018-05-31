@@ -21,4 +21,9 @@ kubectl delete -f manifests/volumes.yaml 2>/dev/null
 
 kubectl delete -f manifests/tendermint-ingress.yaml
 
+kubectl delete -f ../manifests/nginx-ingress/mandatory.yaml
+kubectl delete -f ../manifests/nginx-ingress/service-l4.yaml
+kubectl delete -f ../manifests/nginx-ingress/patch-configmap-l4.yaml
+
+
 exit 0

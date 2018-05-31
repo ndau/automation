@@ -18,9 +18,8 @@ spec:
         command: ["sh", "-c", "until nslookup noms-service; do echo waiting for noms-service; sleep 2; done;"]
       containers:
       - name: chaosnode-container
-        image: chaosnode:latest
+        image: 578681496768.dkr.ecr.us-east-1.amazonaws.com/chaosnode:latest
         args: ["-spec", "http://noms-service:8000"]
-        imagePullPolicy: Never
         ports:
         - containerPort: 46658
         env:

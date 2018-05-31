@@ -7,7 +7,7 @@ spec:
     - port: 46656
       targetPort: 46656
       name: p2p
-    - port: 46657
+    - port: 80
       targetPort: 46657
       name: rpc
   selector:

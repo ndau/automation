@@ -14,8 +14,7 @@ spec:
     spec:
       containers:
       - name: noms-container
-        image: noms:latest
-        imagePullPolicy: Never
+        image: 578681496768.dkr.ecr.us-east-1.amazonaws.com/noms:latest
         ports:
         - containerPort: 8000
         volumeMounts:
@@ -23,4 +22,5 @@ spec:
           name: noms-volume
       volumes:
       - name: noms-volume
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: noms-claim

@@ -33,8 +33,7 @@ spec:
           name: config-toml
       containers:
       - name: tendermint-container
-        image: tendermint:latest
-        imagePullPolicy: Never
+        image: 578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint:latest
         ports:
         - containerPort: 46656
         - containerPort: 46657
@@ -49,8 +48,10 @@ spec:
           configMap:
             name: tendermint-config-init
         - name: tendermint-home-volume
-          emptyDir: {}
-        # TODO: This is problematic because it needs to point to the chaosnode. Hard to template.
+          persistentVolumeClaim:
+            claimName: tendermint-claim
+        # TODO: This might be problematic because it needs to point to 
+        # the chaosnode. Which could be hard to template.
         - name: config-toml 
           configMap:
             name: tendermint-config-toml
@@ -60,5 +61,4 @@ spec:
         - name: priv-validator-file
           configMap:
             name: tendermint-config-priv-validator
-
 
