@@ -4,7 +4,7 @@
 usage() {
     echo "Usage"
     echo "For dev.cluster.ndau.tech:"
-    echo "CLUSTER_NAME=dev SD=cluster.ndau.tech ./bootstrap.sh"
+    echo "CLUSTER_NAME=dev SD=cluster.ndau.tech REGION=us-east-1 ./bootstrap-cluster.sh"
 }
 
 if [ -z "$CLUSTER_NAME" ]; then
@@ -12,6 +12,19 @@ if [ -z "$CLUSTER_NAME" ]; then
     usage
     exit 1
 fi
+
+if [ -z "$REGION" ]; then
+    echo "Missing region."
+    usage
+    exit 1
+fi
+
+if [ -z "$SD" ]; then
+    echo "Missing subdomain."
+    usage
+    exit 1
+fi
+
 
 AZ=us-east-1a
 BUCKET=ndau-${CLUSTER_NAME}-cluster-state-store
@@ -33,3 +46,4 @@ export KOPS_STATE_STORE=s3://$BUCKET
 
 # use kops to create the cluster in the availability zone specified.
 kops create cluster --zones $AZ $NAME
+kops update cluster $NAME --yes

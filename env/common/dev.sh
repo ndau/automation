@@ -1,16 +1,8 @@
 #!/bin/bash
 
-# This script gets your machine up and running.
-# Please install docker prior to running this script.
+source ./helpers.sh
 
-REQUIRE_TENDERMINT_VERSION="0.18.0"
-
-GREEN='\033[0;32m'
-NC='\033[0m' # no color
-
-echo_green() {
-    echo -e "${GREEN}$@${NC}"
-}
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # install brew if it's not already installed
 if [ -z "$(which brew)" ]; then
@@ -18,6 +10,49 @@ if [ -z "$(which brew)" ]; then
     /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 else
     echo "homebrew already present"
+fi
+
+# get the right sed
+sed="sed"
+sed --version > /dev/null 2>&1
+if [ $? != 0 ]; then
+    which gsed >/dev/null
+    if [ $? != 0 ]; then
+        echo_green "Installing gnu-sed"
+        brew install gnu-sed
+    else
+        echo "sed is ok"
+    fi
+else
+    echo "sed is ok"
+fi
+
+# Check gomu
+if [ ! -f $DIR/../../gomu ]; then
+    echo "Keyfile gomu not in project root directory."
+    exit 1
+fi
+
+# check tendermint
+REQUIRE_TENDERMINT_VERSION="0.18.0"
+
+# install tendermint if not already there
+if [ -z "$(which tendermint)" ]; then
+    echo_green "Installing tendermint"
+    go get -u github.com/golang/dep/... && \
+    mkdir -p $GOPATH/src/github.com/tendermint && \
+    git clone https://github.com/tendermint/tendermint.git \
+    $GOPATH/src/github.com/tendermint/tendermint && \
+    cd $GOPATH/src/github.com/tendermint/tendermint && \
+    git checkout v0.18.0 && \
+    dep ensure && \
+    go install -v -a -ldflags '-extldflags "-static"' ./cmd/tendermint
+else
+    echo "Tendermint already installed"
+    if [ "$(tendermint version)" == "$REQUIRED_TENDERMINT_VERSION" ]; then
+        echo "Wanted Tendermint version ${REQUIRED_TENDERMINT_VERSION}, got $(tendermint version)."
+        exit 1
+    fi
 fi
 
 # install kubectl if not already there
@@ -42,25 +77,6 @@ if [ -z "$(which jq)" ]; then
     brew install jq
 else
     echo "jq already present"
-fi
-
-# install tendermint if not already there
-if [ -z "$(which tendermint)" ]; then
-    echo_green "Installing tendermint"
-    go get -u github.com/golang/dep/... && \
-    mkdir -p $GOPATH/src/github.com/tendermint && \
-    git clone https://github.com/tendermint/tendermint.git \
-    $GOPATH/src/github.com/tendermint/tendermint && \
-    cd $GOPATH/src/github.com/tendermint/tendermint && \
-    git checkout v0.18.0 && \
-    dep ensure && \
-    go install -v -a -ldflags '-extldflags "-static"' ./cmd/tendermint
-else
-    echo "Tendermint already installed"
-    if [ "$(tendermint version)" == "$REQUIRED_TENDERMINT_VERSION" ]; then 
-        echo "Wanted Tendermint version ${REQUIRED_TENDERMINT_VERSION}, got $(tendermint version)."
-        exit 1 
-    fi
 fi
 
 # installs the docker machine driver for docker's hypervisor

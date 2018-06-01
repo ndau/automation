@@ -1,21 +1,38 @@
 # k-os
+
 ## Chaos node on Kubernetes
 
 This repo is for all things related to getting a Chaos node up and running.
 
 ## tldr;
 
-Copy `gomu` to this project's root and run the following commands
+1. Copy `gomu` to this project's root.
+2. Pick your target environment by setting an environment variable.
 
 ```shell
-./dev.sh
-./build.sh
-./up.sh
+k8s_target=aws
+# or
+k8s_target=local
 ```
 
-After a few seconds the services should all be up and running.
+If you're going with `aws`, please also set the following environment variables to something like the following:
 
-### Port forwarding
+_For more info, see [AWS specific readme](./env/aws/readme.md)._
+
+```
+export SD=cluster.ndau.tech
+export CLUSTER_NAME=dev
+export REGION=us-east-1
+```
+
+And then
+
+```shell
+./env/$k8s_target/quickstart.sh
+```
+
+
+## Minikube port forwarding
 
 ```shell
 pod_name=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].metadata.name")
@@ -24,7 +41,7 @@ kubectl port-forward $pod_name 46657:46657
 
 Use `ctrl+c` to stop port forwarding.
 
-### Logs
+## Logs
 
 To see the logs of one pod
 
@@ -41,7 +58,6 @@ t_pod=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].me
 c_pod=$(kubectl get pods --selector=app=chaosnode -o json | jq -r ".items[0].metadata.name")
 kubetail $c_pod,$t_pod
 ```
-
 
 ## Machine requirements
 
@@ -82,7 +98,7 @@ Once minikube and hyperkit are installed, you can start your local cluster with 
 minikube start --vm-driver=hyperkit
 ```
 
-If that all worked, you'll have a single node cluster running on your machine. You can test it with a simple echo service. 
+If that all worked, you'll have a single node cluster running on your machine. You can test it with a simple echo service.
 
 ```
 # download an image from google and run it as a deployment
@@ -101,13 +117,17 @@ If you're interested, you can ssh into the machine and inspect it further with `
 
 There is a web ui for a kubernetes cluster that great for seeing things at a glance, but isn't generally good for making changes to your cluster. To run it and connect: `minikube dashboard`.
 
+# Philosophy
+
+This set of scripts tries to follow a 12 factor approach as much as possible for a set of scripts.
+
 # Glossary
 
 This section is provided as a way to have a common grasp on terms and technologies we use.
 
 ## Kubernetes
 
-Kubernetes is a container orchestration platform. Kubernetes means _helmsman_ in ancient Greek, hence the helm logo. It allows you to specify how containers and resources should be managed. 
+Kubernetes is a container orchestration platform. Kubernetes means _helmsman_ in ancient Greek, hence the helm logo. It allows you to specify how containers and resources should be managed.
 
 ### Node
 
@@ -122,11 +142,11 @@ A pod is an abstraction of a container or group of containers. Docker containers
 
 ### Deployment
 
-A deployment is a way of specifying the desired state of a `pod` and `replica set`, which typically means you specify a `pod` spec and how many replicas should run. 
+A deployment is a way of specifying the desired state of a `pod` and `replica set`, which typically means you specify a `pod` spec and how many replicas should run.
 
 ### Service
 
-A `service` specifies which ports to make available from each `pod`. 
+A `service` specifies which ports to make available from each `pod`.
 
 ### Volume
 
@@ -134,7 +154,7 @@ Volumes connect pods to storage. They get mounted within the container's file sy
 
 ### PersistentVolume
 
-`PersistentVolumes` have lifecycles that are independent from a `pod`'s lifecycle. 
+`PersistentVolumes` have lifecycles that are independent from a `pod`'s lifecycle.
 
 ### PersistentVolumeClaim
 
@@ -142,7 +162,7 @@ A request for storage from a `PersistentVolume`.
 
 ### Namespace
 
-All `kubectl` commands run within a `namespace`. The default `namespace` is configured in `~/.kube/config`. 
+All `kubectl` commands run within a `namespace`. The default `namespace` is configured in `~/.kube/config`.
 
 ### Labels
 
@@ -154,11 +174,11 @@ Everything in kubernetes has a set of key-value pairs called `labels`. They're h
 
 ## Docker
 
-Docker is a set of tools that make it easier to use containers or cgroups. On non-linux machines docker uses a virtual machine to take advantage of cgroups. The docker commandline tool sends commands to the virtual machine, which means the docker commandline tool can be configured to connect to docker daemons running on another machine, such as minikube. 
+Docker is a set of tools that make it easier to use containers or cgroups. On non-linux machines docker uses a virtual machine to take advantage of cgroups. The docker commandline tool sends commands to the virtual machine, which means the docker commandline tool can be configured to connect to docker daemons running on another machine, such as minikube.
 
 ### Dockerfile
 
-Dockerfiles are used to create docker images. They provide a starting point (e.g. alpine, scratch, ubuntu) and save the state of the machine after commands are run. 
+Dockerfiles are used to create docker images. They provide a starting point (e.g. alpine, scratch, ubuntu) and save the state of the machine after commands are run.
 
 ### Image
 
