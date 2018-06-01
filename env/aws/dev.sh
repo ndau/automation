@@ -1,22 +1,10 @@
 #!/bin/bash
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 # Run the parent dev script
-../dev.sh
-
-
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m' # no color
-
-err() {
-    echo -e "${RED}$@${NC}"
-    exit 1
-}
-
-echo_green() {
-    echo -e "${GREEN}$@${NC}"
-}
-
+source $DIR/../common/dev.sh
+source $DIR/../common/helpers.sh
 
 # require awscli
 if [ -z "$(which aws)" ]; then
@@ -27,7 +15,7 @@ else
     echo "awscli already installed"
 fi
 
-# Ensure awscli is configured 
+# Ensure awscli is configured
 if [ ! -f $HOME/.aws/credentials ]; then
     echo_green "Please configure awscli."
     echo_green "See https://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html to create a key."
@@ -39,11 +27,11 @@ fi
 # test aws
 aws iam list-users > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-    echo_red "aws not configured properly or permissions incorrect"
-    echo_red "aws response: $(aws iam list-users)"
+    echo_red "awscli not configured properly or permissions incorrect"
+    echo_red "awscli response: $(aws iam list-users)"
     exit 1
 else
-    echo "aws working"
+    echo "awscli config working"
 fi
 
 # require kops

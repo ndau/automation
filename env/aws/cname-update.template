@@ -2,9 +2,9 @@
   "Comment": "Create a DNS record to point the subdomain to the cluster",
   "Changes": [
     {
-      "Action": "UPSERT",
+      "Action": "CREATE",
       "ResourceRecordSet": {
-        "Name": "PARENT_CLUSTER",
+        "Name": "CLUSTER_NAME",
         "Type": "CNAME",
         "TTL": 300,
         "ResourceRecords": [
