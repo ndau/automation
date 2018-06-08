@@ -16,8 +16,6 @@ export CLUSTER_NAME=dev
 export REGION=us-east-1
 ./bootstrap-cluster.sh
 
-./build.sh
-
 ./up.sh
 
 # cd to your chaostool
