@@ -26,10 +26,10 @@ me=`basename "$0"`
 usage() {
     echo "Usage"
     echo "For dude.ndau.tech:"
-    echo "CLUSTER_NAME=dude PD=ndau.tech BUCKET=ndau-dude-cluster-state-store ./up.sh"
+    echo "CLUSTER_NAME=dude PARENT_DOMAIN=ndau.tech BUCKET=ndau-dude-cluster-state-store ./up.sh"
 }
 
-if [ -z "$PD" ]; then
+if [ -z "$PARENT_DOMAIN" ]; then
     echo "Missing parent domain name."
     usage
     exit 1
@@ -81,7 +81,7 @@ get_empty_hash() {
             echo "Got empty hash: $emptyHash"
             break
         else
-			if [ $i -eq 0 ]; then
+			if [ $i -eq 0 ]; then``
 				confirm "Keep waiting?" || err $me "Could not get empty hash from chaosnode"
 				get_empty_hash
 			fi
@@ -146,7 +146,7 @@ initialize_tendermint_config() {
 # volumes
 kubectl apply -f $DIR/../../manifests/volumes.yaml
 
-# nginx ingress
+# nginx ingress controller
 kubectl apply -f $DIR/../../manifests/nginx-ingress/mandatory.yaml
 kubectl apply -f $DIR/../../manifests/nginx-ingress/service-l4.yaml
 kubectl apply -f $DIR/../../manifests/nginx-ingress/patch-configmap-l4.yaml
@@ -177,7 +177,7 @@ kubectl apply -f $DIR/../../manifests/tendermint-service.yaml
 
 # customize ingress template to make accessible through internet
 cp $DIR/../../manifests/tendermint-ingress.template $DIR/../../manifests/tendermint-ingress.yaml
-$sed -i "s/API_DOMAIN/${CLUSTER_NAME}.${PD}/" $DIR/../../manifests/tendermint-ingress.yaml
+$sed -i "s/API_DOMAIN/${CLUSTER_NAME}.${PARENT_DOMAIN}/" $DIR/../../manifests/tendermint-ingress.yaml
 kubectl apply -f $DIR/../../manifests/tendermint-ingress.yaml
 rm $DIR/../../manifests/tendermint-ingress.yaml
 
@@ -189,7 +189,7 @@ $sed -i "s/CLUSTER_NAME/$CLUSTER_NAME/" $DIR/cname-update.json
 $sed -i "s/ELB_ADDRESS/$elb/" $DIR/cname-update.json
 
 # get hosted zone for the parent domain
-parent_HZ=$(aws route53 list-hosted-zones | jq -r ".HostedZones[] | select(.Name==\"${PD}.\") | .Id")
+parent_HZ=$(aws route53 list-hosted-zones | jq -r ".HostedZones[] | select(.Name==\"${PARENT_DOMAIN}.\") | .Id")
 
 # give a cname to the hosted zone
 aws route53 change-resource-record-sets \

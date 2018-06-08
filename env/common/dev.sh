@@ -44,7 +44,7 @@ if [ -z "$(which tendermint)" ]; then
     git clone https://github.com/tendermint/tendermint.git \
     $GOPATH/src/github.com/tendermint/tendermint && \
     cd $GOPATH/src/github.com/tendermint/tendermint && \
-    git checkout v0.18.0 && \
+    git checkout "v${REQUIRE_TENDERMINT_VERSION}" && \
     dep ensure && \
     go install -v -a -ldflags '-extldflags "-static"' ./cmd/tendermint
 else
