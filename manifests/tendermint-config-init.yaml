@@ -1,8 +1,0 @@
-kind: ConfigMap
-metadata:
-  name: tendermint-config-init
-apiVersion: v1
-data:
-  init.sh: |
-    mkdir /tendermint/config;
-    cp /tendermint/config-ro/* /tendermint/config;

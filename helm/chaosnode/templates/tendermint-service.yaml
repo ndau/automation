@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "chaos.fullname" . }}-tendermint-service
+  labels:
+    app: {{ template "chaos.name" . }}
+    chart: {{ template "chaos.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.tendermint.service.type }}
+  ports:
+    - name: p2p
+      port: {{ .Values.tendermint.ports.p2p }}
+      targetPort: {{ .Values.tendermint.ports.p2p }}
+    - name: rpc
+      port: {{ .Values.tendermint.ports.rpc }}
+      targetPort: {{ .Values.tendermint.ports.rpc }}
+  selector:
+    app: {{ template "chaos.name" . }}-tendermint
+    release: {{ .Release.Name }}
