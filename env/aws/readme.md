@@ -7,21 +7,25 @@ The clusters that are set up this way are accessible through the `*.cluster.ndau
 # tldr;
 
 ```
-# check dependencies
+# Check local dependencies
 ./dev.sh
 
-export SUB_DOMAIN=cluster.ndau.tech # subdomain
+# Set up a subdomain
+export SUBDOMAIN=cluster.ndau.tech
 ./subdomain.sh
 
+# Set up a cluster at dev.cluster.ndau.tech in us-east-1
 export CLUSTER_NAME=dev
 export REGION=us-east-1
 ./bootstrap-cluster.sh
 
+# Install app with kubernetes
+export ENDPOINT_DOMAIN=dev-chaos.ndau.tech
 ./up.sh
 
 # cd to your chaostool
 
-./chaos conf http://dev.ndau.tech:80
+./chaos conf https://dev.ndau.tech:80
 ```
 
 # KOPS
