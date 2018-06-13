@@ -12,6 +12,14 @@ else
     echo "homebrew already present"
 fi
 
+# install helm if it's not already installed
+if [ -z "$(which helm)" ]; then
+    echo_green "Installing helm"
+    brew install kubernetes-helm
+else
+    echo "helm already present"
+fi
+
 # get the right sed
 sed="sed"
 sed --version > /dev/null 2>&1
