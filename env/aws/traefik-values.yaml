@@ -1,0 +1,16 @@
+ssl:
+  enabled: true
+  enforced: true
+debug:
+  enabled: true
+rbac:
+  enabled: true # otherwise throws errors on kubernetes 1.9+
+acme:
+  enabled: true
+  email: josh.anderson@oneiro.io
+  challengeType: dns-01
+  dnsProvider:
+    name: route53
+    route53:
+      # The keys are provided via command-line
+      AWS_REGION: us-east-1

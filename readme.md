@@ -25,6 +25,7 @@ _For more info, see [AWS specific readme](./env/aws/readme.md)._
 # in region us-east-1, availability zone us-east-1b
 export SUB_DOMAIN=cluster.ndau.tech
 export CLUSTER_NAME=dev-chaos
+export ENDPOINT=dev-chaos.ndau.tech
 export REGION=us-east-1
 export AZ=us-east-1b
 ```
