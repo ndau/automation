@@ -13,7 +13,7 @@ me=`basename "$0"`
 usage() {
     echo "Usage"
     echo "For dev.cluster.ndau.tech:"
-    echo "CLUSTER_NAME=dev SUB_DOMAIN=cluster.ndau.tech REGION=us-east-1 AZ=us-east-1b ./bootstrap-cluster.sh"
+    echo "CLUSTER_NAME=dev SUBDOMAIN=cluster.ndau.tech REGION=us-east-1 AZ=us-east-1b ./bootstrap-cluster.sh"
 }
 
 missing_env_vars=()
@@ -25,8 +25,8 @@ if [ -z "$REGION" ]; then
 	missing_env_vars+=('REGION')
 fi
 
-if [ -z "$SUB_DOMAIN" ]; then
-	missing_env_vars+=('SUB_DOMAIN')
+if [ -z "$SUBDOMAIN" ]; then
+	missing_env_vars+=('SUBDOMAIN')
 fi
 
 if [ -z "$AZ" ]; then
@@ -39,7 +39,7 @@ if [ ${#missing_env_vars[@]} != 0 ]; then
     exit 1
 fi
 
-BUCKET=ndau-${CLUSTER_NAME}-cluster-state-store
+export BUCKET=ndau-${CLUSTER_NAME}-cluster-state-store
 
 # create a bucket
 aws s3api create-bucket \
@@ -53,7 +53,7 @@ aws s3api put-bucket-versioning \
     Status=Enabled
 
 # format the name for the cluster
-export NAME=${CLUSTER_NAME}.${SUB_DOMAIN}
+export NAME=${CLUSTER_NAME}.${SUBDOMAIN}
 export KOPS_STATE_STORE=s3://$BUCKET
 
 # use kops to create the cluster in the availability zone specified.
