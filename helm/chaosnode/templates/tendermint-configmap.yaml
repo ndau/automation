@@ -208,6 +208,7 @@ data:
     # IndexAllTags (i.e. when given both, IndexTags will be indexed).
     index_all_tags = false
 
+
   init.sh: |
     # ensure directory for read-writeable config files
     mkdir -p /tendermint/config
@@ -222,7 +223,7 @@ data:
     # Set config.toml variables
     # point tendermint's config to chaosnode-service
     sed -E \
-        -e '/^proxy_app/s|://[^:]*:|://chaosnode-service:|' \
+        -e '/^proxy_app/s|://[^:]*:|://{{ include "chaos.fullname" . }}-chaosnode-service:|' \
         -e '/^create_empty_blocks_interval/s/[[:digit:]]+/10/' \
         -e '/^create_empty_blocks\b/{
                 s/true/false/
@@ -231,4 +232,3 @@ data:
             }' \
         /tendermint/config-ro/config.toml > /tendermint/config/config.toml
 
-    find /tendermint

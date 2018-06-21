@@ -10,22 +10,37 @@ The clusters that are set up this way are accessible through the `*.cluster.ndau
 # Check local dependencies
 ./dev.sh
 
-# Set up a subdomain
-export SUBDOMAIN=cluster.ndau.tech
+# Set up a subdomain for clusters, for kubectl access
+export CLUSTER_SUBDOMAIN=cluster.ndau.tech
 ./subdomain.sh
 
-# Set up a cluster at dev.cluster.ndau.tech in us-east-1
-export CLUSTER_NAME=dev
+# Set up a cluster at dev-chaos.cluster.ndau.tech in us-east-1
+export CLUSTER_NAME=dev-chaos
 export REGION=us-east-1
 ./bootstrap-cluster.sh
 
-# Install app with kubernetes
-export ENDPOINT_DOMAIN=dev-chaos.ndau.tech
+# Install app with kubernetes, accessible at rpc.dev-chaos.ndau.tech and p2p.dev-chaos.ndau.tech
+export ENDPOINT_SUBDOMAIN=dev-chaos.ndau.tech
 ./up.sh
 
 # cd to your chaostool
+./chaos conf http://rpc.dev-chaos.ndau.tech:80
+```
 
-./chaos conf https://dev.ndau.tech:80
+## One Password
+
+install the `op` commandline tool from https://support.1password.com/command-line-getting-started/
+
+Get your signin information from your 1password emergency kit and use `op` to sign in.
+
+```
+op signin https://oneiro.1password.com your.name@oneiro.io <secret-key>
+```
+
+Then you'll be able to sign in with this command
+
+```
+eval $(op signin oneiro)
 ```
 
 # KOPS

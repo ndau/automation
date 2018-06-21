@@ -68,7 +68,7 @@ if [ -z "$(dig +short *.$ENDPOINT_SUBDOMAIN | grep $elb)" ]; then
 		--change-batch file://cname-update.json >&2
 
 else
-  errcho "Nothing updated. DNS ${ENDPOINT_DOMAIN} already points to ${elb}."
+  errcho "Nothing updated. DNS ${ENDPOINT_SUBDOMAIN} already points to ${elb}."
 fi
 
 rm $DIR/cname-update.json # cleanup

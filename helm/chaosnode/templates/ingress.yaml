@@ -8,18 +8,26 @@ metadata:
     chart: {{ template "chaos.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
-{{- with .Values.ingress.annotations }}
+
   annotations:
+    traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip
+{{- with .Values.ingress.annotations }}
 {{ toYaml . | indent 4 }}
 {{- end }}
 spec:
   rules:
-    - host: {{.Values.ingress.host }}
+    - host: rpc.{{.Values.ingress.host }}
       http:
-        port: {{ .Values.tendermint.ports.rpc }}
         paths:
-          - path: {{ .Values.ingress.path }}
+          - path: /
             backend:
               serviceName: {{ template "chaos.fullname" . }}-tendermint-service
               servicePort: {{ .Values.tendermint.ports.rpc }}
+    - host: p2p.{{.Values.ingress.host }}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: {{ template "chaos.fullname" . }}-tendermint-service
+              servicePort: {{ .Values.tendermint.ports.p2p }}
 {{- end }}

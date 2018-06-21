@@ -1,6 +1,5 @@
 ssl:
   enabled: true
-  enforced: true
 debug:
   enabled: true
 rbac:

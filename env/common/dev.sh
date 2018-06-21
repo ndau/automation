@@ -23,7 +23,7 @@ fi
 # Ask the user to install op from 1password
 if [ -z "$(which op)" ]; then
 	echo "op not detected"
-	echo "Please install op from 1password https://app-updates.agilebits.com/product_history/CLI"
+	echo "Please install op from 1password https://support.1password.com/command-line-getting-started/"
 	echo "Unzip the binary and copy it to /usr/local/bin"
 else
 	echo "op already present"

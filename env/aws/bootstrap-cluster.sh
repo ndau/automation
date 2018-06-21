@@ -63,13 +63,21 @@ kops update cluster $NAME --yes
 # wait for the cluster to become available
 wait_for_cluster $BUCKET
 
-# Set up subdomain and ingress controller
+# See if 1password is set up, try to sign in
 if (! op list vaults); then
-	err $me "Please sign in to 1password using op. Remember to set the session environment variable."
-fi
+	errcho "Not signed in to 1passsword. Please sign in."
+	op_result=$(op sign oneiro)
+	if [ -z "$(echo "$op_result" | grep -i OP_SESSION)"]; then
+		err $me "You have no signed in to oneiro using op before. Please run `op signin --help`."
+	else
+		if (! op list vaults); then
+		    err $me "Could not sign in to 1password."
+		fi
+	fi
+ fi
 
 # install traefik ingress controller
-# get the keys for the kubernetes-lets-encrypt user from 1password
+# get the aws keys for the kubernetes-lets-encrypt user from 1password
 eval "$(op get document du6igtjmjncu5ba6taut76dite)"
 helm install stable/traefik --name tic --values $DIR/traefik-values.yaml --tls \
 	--set acme.dnsProvider.route53.AWS_ACCESS_KEY_ID=$KLE_KEY \

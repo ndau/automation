@@ -4,7 +4,7 @@
     {
       "Action": "CREATE",
       "ResourceRecordSet": {
-        "Name": "NEW_SUBDOMAIN",
+        "Name": "NEW_CLUSTER_SUBDOMAIN",
         "Type": "NS",
         "TTL": 300,
         "ResourceRecords": [
