@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "chaos.fullname" . }}-chaosnode
+  labels:
+    app: {{ template "chaos.name" . }}
+    chart: {{ template "chaos.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "chaos.name" . }}-chaosnode
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "chaos.name" . }}-chaosnode
+        release: {{ .Release.Name }}
+    spec:
+      initContainers:
+      - name: noms-wait
+        image: busybox
+        command: ["sh", "-c", "until nslookup {{ template "chaos.fullname" . }}-noms-service; do echo waiting for {{ template "chaos.fullname" . }}-noms-service; sleep 2; done;"]
+      containers:
+      - name: chaosnode
+        image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
+        imagePullPolicy: {{ .Values.chaosnode.image.pullPolicy }}
+        args: ["-spec", "http://{{ template "chaos.fullname" . }}-noms-service:{{ .Values.noms.port }}"]
+        ports:
+        - containerPort: 46658
+        env:
+        - name: NDAUHOME
+          value: "/root/.ndau"
+        volumeMounts:
+        - mountPath: "/root/.ndau"
+          name: ndau-home-volume
+      volumes:
+      - name: ndau-home-volume
+        persistentVolumeClaim:
+          claimName: {{ template "chaos.fullname" . }}-chaosnode-claim
+

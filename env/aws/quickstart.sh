@@ -12,8 +12,5 @@ $DIR/subdomain.sh
 # bring up a new cluster
 $DIR/bootstrap-cluster.sh
 
-# build the images and push them to ECR
-$DIR/build.sh
-
 # deploy chaosnode to the new cluster
 $DIR/up.sh

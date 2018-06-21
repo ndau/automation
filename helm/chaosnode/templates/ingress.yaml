@@ -1,0 +1,25 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ template "chaos.fullname" . }}-ingress
+  labels:
+    app: {{ template "chaos.name" . }}
+    chart: {{ template "chaos.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+{{- with .Values.ingress.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  rules:
+    - host: {{.Values.ingress.host }}
+      http:
+        port: {{ .Values.tendermint.ports.rpc }}
+        paths:
+          - path: {{ .Values.ingress.path }}
+            backend:
+              serviceName: {{ template "chaos.fullname" . }}-tendermint-service
+              servicePort: {{ .Values.tendermint.ports.rpc }}
+{{- end }}

@@ -8,28 +8,28 @@ source $DIR/../common/helpers.sh
 # Configure kops
 usage() {
     echo "Usage"
-    echo "SD=cluster.ndau.tech ./subdomain.sh"
+    echo "SUBDOMAIN=cluster.ndau.tech ./subdomain.sh"
 }
 
-if [ -z "$SD" ]; then
-    echo "Missing SD (subdomain)."
+if [ -z "$SUBDOMAIN" ]; then
+    echo "Missing SUBDOMAIN."
     usage
     exit 1
 fi
 
 # Get the parent domain
-export PD=$(sed "s/[^\.]*\.//" <<< "$SD")
+export PARENT_DOMAIN=$(sed "s/[^\.]*\.//" <<< "$SUBDOMAIN")
 
 # get hosted zone for the parent domain
-parent_HZ=$(aws route53 list-hosted-zones | jq -r ".HostedZones[] | select(.Name==\"${PD}.\") | .Id")
+parent_HZ=$(aws route53 list-hosted-zones | jq -r ".HostedZones[] | select(.Name==\"${PARENT_DOMAIN}.\") | .Id")
 
 # check to see if the dns info is already there
 record=$(aws route53 list-resource-record-sets --hosted-zone-id $parent_HZ |\
-	jq ".ResourceRecordSets[] | select(.Name==\"$SD.\")")
+	jq ".ResourceRecordSets[] | select(.Name==\"$SUBDOMAIN.\")")
 
 # early exit if subdomain already exists
 if [ ! -z "$record" ]; then
-	echo "Subdomain $SD already exists. Will not create."
+	echo "Subdomain $SUBDOMAIN already exists. Will not create."
 	exit 0
 fi
 
@@ -38,7 +38,7 @@ ID=$(uuidgen)
 
 # create a new hosted zone and get nameservers
 NS=$(aws route53 create-hosted-zone \
-        --name "$SD" \
+        --name "$SUBDOMAIN" \
         --caller-reference "$ID" |\
     jq .DelegationSet.NameServers)
 
@@ -48,7 +48,7 @@ $sed -i "s/DNS_1/$(jq -r '.[0]' <<< "$NS")/g" $DIR/subdomain.json
 $sed -i "s/DNS_2/$(jq -r '.[1]' <<< "$NS")/g" $DIR/subdomain.json
 $sed -i "s/DNS_3/$(jq -r '.[2]' <<< "$NS")/g" $DIR/subdomain.json
 $sed -i "s/DNS_4/$(jq -r '.[3]' <<< "$NS")/g" $DIR/subdomain.json
-$sed -i "s/NEW_SUB_DOMAIN/${SD}/g" $DIR/subdomain.json
+$sed -i "s/NEW_SUBDOMAIN/${SUBDOMAIN}/g" $DIR/subdomain.json
 
 # give a cname to the hosted zone
 aws route53 change-resource-record-sets \

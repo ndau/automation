@@ -20,9 +20,15 @@ If you're going with `aws`, please also set the following environment variables 
 _For more info, see [AWS specific readme](./env/aws/readme.md)._
 
 ```
-export SD=cluster.ndau.tech
-export CLUSTER_NAME=dev
+# This will set up a subdomain at cluster.ndau.tech
+# and a k8s cluster at dev-chaos.cluster.ndau.tech
+# with tendermint accessible from dev-chaos.ndau.tech
+# in region us-east-1, availability zone us-east-1b
+export SUBDOMAIN=cluster.ndau.tech
+export CLUSTER_NAME=dev-chaos
+export ENDPOINT_DOMAIN=dev-chaos.ndau.tech
 export REGION=us-east-1
+export AZ=us-east-1b
 ```
 
 And then
@@ -30,7 +36,6 @@ And then
 ```shell
 ./env/$k8s_target/quickstart.sh
 ```
-
 
 ## Minikube port forwarding
 

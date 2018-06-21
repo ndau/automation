@@ -1,0 +1,6 @@
+# This image is to provide jq
+
+FROM alpine:3.7
+
+# Install jq
+RUN apk add --no-cache jq

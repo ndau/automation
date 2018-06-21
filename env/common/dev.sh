@@ -12,6 +12,23 @@ else
     echo "homebrew already present"
 fi
 
+# install helm if it's not already installed
+if [ -z "$(which helm)" ]; then
+    echo_green "Installing helm"
+    brew install kubernetes-helm
+else
+    echo "helm already present"
+fi
+
+# Ask the user to install op from 1password
+if [ -z "$(which op)" ]; then
+	echo "op not detected"
+	echo "Please install op from 1password https://app-updates.agilebits.com/product_history/CLI"
+	echo "Unzip the binary and copy it to /usr/local/bin"
+else
+	echo "op already present"
+fi
+
 # get the right sed
 sed="sed"
 sed --version > /dev/null 2>&1
@@ -44,7 +61,7 @@ if [ -z "$(which tendermint)" ]; then
     git clone https://github.com/tendermint/tendermint.git \
     $GOPATH/src/github.com/tendermint/tendermint && \
     cd $GOPATH/src/github.com/tendermint/tendermint && \
-    git checkout v0.18.0 && \
+    git checkout "v${REQUIRE_TENDERMINT_VERSION}" && \
     dep ensure && \
     go install -v -a -ldflags '-extldflags "-static"' ./cmd/tendermint
 else

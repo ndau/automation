@@ -29,3 +29,8 @@ confirm() {
             false ;;
     esac
 }
+
+# echos a joins arrays by a ", " delimiter
+join() {
+    shift; printf "$1"; shift; printf "%s" "${@/#/, }";
+}

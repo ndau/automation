@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "chaos.fullname" . }}-tendermint
+  labels:
+    app: {{ template "chaos.name" . }}
+    chart: {{ template "chaos.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "chaos.name" . }}-tendermint
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "chaos.name" . }}-tendermint
+        release: {{ .Release.Name }}
+    spec:
+      initContainers:
+      # Uses chaosnode image to get empty hash and saves it
+      - name: hash
+        image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.tendermint.image.tag }}"
+        imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
+        command: ["/bin/sh"]
+        args: [
+          "-c",
+          "/bin/chaosnode -echo-empty-hash &> /tendermint/empty_hash",
+        ]
+        volumeMounts:
+        - name: tendermint-home-volume
+          mountPath: /tendermint
+      # copy/ammend read only config files to real config folder
+      - name: config
+        image: {{ .Values.alpineJQ.image.repository }}:{{ .Values.alpineJQ.image.tag }}
+        command: ["/bin/sh", "/tendermint/init.sh"]
+        volumeMounts:
+        - name: tendermint-home-volume
+          mountPath: /tendermint
+        - name: tendermint-init
+          mountPath: /tendermint/init.sh
+          subPath: init.sh
+        - name: genesis-json
+          mountPath: /tendermint/config-ro/genesis.json
+          subPath: genesis.json
+        - name: priv-json
+          mountPath: /tendermint/config-ro/priv_validator.json
+          subPath: priv_validator.json
+        - name: config-toml
+          mountPath: /tendermint/config-ro/config.toml
+          subPath: config.toml
+      containers:
+      - name: tendermint
+        image: "{{ .Values.tendermint.image.repository }}:{{ .Values.tendermint.image.tag }}"
+        imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
+        ports:
+          - containerPort: {{ .Values.tendermint.ports.p2p }}
+          - containerPort: {{ .Values.tendermint.ports.rpc }}
+        volumeMounts:
+        - mountPath: /tendermint
+          name: tendermint-home-volume
+        env:
+        - name: TMHOME
+          value: "/tendermint"
+      volumes:
+        - name: tendermint-home-volume
+          persistentVolumeClaim:
+            claimName: {{ template "chaos.fullname" . }}-tendermint-claim
+        - name: tendermint-init
+          configMap:
+            name: {{ template "chaos.fullname" . }}-tendermint-config
+            items:
+            - key: init.sh
+              path: init.sh
+        - name: config-toml
+          configMap:
+            name: {{ template "chaos.fullname" . }}-tendermint-config
+            items:
+            - key: config.toml
+              path: config.toml
+        - name: genesis-json
+          configMap:
+            name: {{ template "chaos.fullname" . }}-tendermint-config
+            items:
+            - key: genesis.json
+              path: genesis.json
+        - name: priv-json
+          configMap:
+            name: {{ template "chaos.fullname" . }}-tendermint-config
+            items:
+            - key: priv_validator.json
+              path: priv_validator.json
+
+
