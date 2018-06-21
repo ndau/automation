@@ -12,5 +12,8 @@ $DIR/subdomain.sh
 # bring up a new cluster
 $DIR/bootstrap-cluster.sh
 
+# connect endpoint subdomain to elb
+$DIR/endpoint-subdomain.sh
+
 # deploy chaosnode to the new cluster
 $DIR/up.sh
