@@ -6,19 +6,6 @@ The clusters that are set up this way are accessible through the `*.cluster.ndau
 
 # tldr;
 
-
-```
-# with tendermint accessible at rpc.dev-chaos.ndau.tech and p2p.dev-chaos.ndau.tech
-# in region us-east-1, availability zone us-east-1b
-ENDPOINT_SUBDOMAIN=cn.ndau.tech
-```
-
-export NDAU_ENDPOINT=.ndau.tech
-export NDAU_ENDPOINT=.ndau.tech
-```
-
-
-
 ```
 # Check local dependencies
 ./dev.sh
@@ -44,13 +31,17 @@ export NDAU_ENDPOINT=one.nn.ndau.tech
 export CHAOS_ENDPOINT=one.cn.ndau.tech
 ./up.sh
 
-# cd to your chaostool
+# Test it with your chaostool
 ./chaos conf http://rpc.one.nn.ndau.tech:80
 ```
 
 ## One Password
 
-install the `op` commandline tool from https://support.1password.com/command-line-getting-started/
+One password has a command-line tool, `op`, for interacting with the secure things stored in your 1password vaults. It is used in the aws scripts to retrieve AWS credentials from a secure document.
+
+### Installation
+
+Install and verify `op` from https://support.1password.com/command-line-getting-started/
 
 Get your signin information from your 1password emergency kit and use `op` to sign in.
 
@@ -64,10 +55,23 @@ Then you'll be able to sign in with this command
 eval $(op signin oneiro)
 ```
 
-# KOPS
+## KOPS
 
 _Kubernetes OPerationS._ Kops is a tool that automates setting up a cluster on AWS.
 
-These permissions need to be given to the user
+These permissions need to be given to the user currently logged in with `aws-cli`
 AmazonEC2FullAccess, AmazonRoute53FullAccess, AmazonS3FullAccess,IAMFullAccess, AmazonVPCFullAccess, autoscalling:*
 
+## Monitoring
+
+Basic cluster monitoring is available through [Prometheus](https://prometheus.io/) and [Grafana](https://grafana.com/).
+
+To install run the following command:
+
+```
+./env/aws/monitoring.sh
+```
+
+It will also install the [kubernetes app](https://grafana.com/plugins/grafana-kubernetes-app) for grafana with a basic dashboard.
+
+At the end of installation, instructions for connecting and viewing should appear.
