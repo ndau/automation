@@ -12,10 +12,10 @@ source $DIR/../common/wait_for_cluster.sh
 usage() {
     echo "Usage"
     echo "For dude.ndau.tech:"
-    echo "ENDPOINT_DOMAIN=dude.ndau.tech BUCKET=ndau-dude-cluster-state-store ./up.sh"
+    echo "ENDPOINT_SUBDOMAIN=dude.ndau.tech BUCKET=ndau-dude-cluster-state-store ./up.sh"
 }
 
-if [ -z "$ENDPOINT_DOMAIN" ]; then
+if [ -z "$ENDPOINT_SUBDOMAIN" ]; then
     echo "Missing endpoint domain."
     usage
     exit 1
@@ -33,4 +33,4 @@ wait_for_cluster $BUCKET
 # Install chaosnode
 helm install --name cn-1 $DIR/../../helm/chaosnode \
   --set ingress.enabled=true \
-  --set ingress.host=$ENDPOINT_DOMAIN
+  --set ingress.host=$ENDPOINT_SUBDOMAIN

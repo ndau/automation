@@ -8,28 +8,27 @@ source $DIR/../common/helpers.sh
 # Configure kops
 usage() {
     echo "Usage"
-    echo "SUBDOMAIN=cluster.ndau.tech ./subdomain.sh"
+    echo "CLUSTER_SUBDOMAIN=cluster.ndau.tech ./cluster-subdomain.sh"
 }
 
-if [ -z "$SUBDOMAIN" ]; then
-    echo "Missing SUBDOMAIN."
+if [ -z "$CLUSTER_SUBDOMAIN" ]; then
+    echo "Missing CLUSTER_SUBDOMAIN."
     usage
     exit 1
 fi
 
 # Get the parent domain
-export PARENT_DOMAIN=$(sed "s/[^\.]*\.//" <<< "$SUBDOMAIN")
+export PARENT_DOMAIN=$(sed "s/[^\.]*\.//" <<< "$CLUSTER_SUBDOMAIN")
 
 # get hosted zone for the parent domain
 parent_HZ=$(aws route53 list-hosted-zones | jq -r ".HostedZones[] | select(.Name==\"${PARENT_DOMAIN}.\") | .Id")
 
 # check to see if the dns info is already there
 record=$(aws route53 list-resource-record-sets --hosted-zone-id $parent_HZ |\
-	jq ".ResourceRecordSets[] | select(.Name==\"$SUBDOMAIN.\")")
+	jq ".ResourceRecordSets[] | select(.Name==\"$CLUSTER_SUBDOMAIN.\")")
 
-# early exit if subdomain already exists
 if [ ! -z "$record" ]; then
-	echo "Subdomain $SUBDOMAIN already exists. Will not create."
+	echo "Subdomain $CLUSTER_SUBDOMAIN already exists. Will not create."
 	exit 0
 fi
 
@@ -38,22 +37,22 @@ ID=$(uuidgen)
 
 # create a new hosted zone and get nameservers
 NS=$(aws route53 create-hosted-zone \
-        --name "$SUBDOMAIN" \
+        --name "$CLUSTER_SUBDOMAIN" \
         --caller-reference "$ID" |\
     jq .DelegationSet.NameServers)
 
 # sed all the things
-cp $DIR/subdomain.template $DIR/subdomain.json
-$sed -i "s/DNS_1/$(jq -r '.[0]' <<< "$NS")/g" $DIR/subdomain.json
-$sed -i "s/DNS_2/$(jq -r '.[1]' <<< "$NS")/g" $DIR/subdomain.json
-$sed -i "s/DNS_3/$(jq -r '.[2]' <<< "$NS")/g" $DIR/subdomain.json
-$sed -i "s/DNS_4/$(jq -r '.[3]' <<< "$NS")/g" $DIR/subdomain.json
-$sed -i "s/NEW_SUBDOMAIN/${SUBDOMAIN}/g" $DIR/subdomain.json
+cp $DIR/cluster-subdomain.template $DIR/cluster-subdomain.json
+$sed -i "s/DNS_1/$(jq -r '.[0]' <<< "$NS")/g" $DIR/cluster-subdomain.json
+$sed -i "s/DNS_2/$(jq -r '.[1]' <<< "$NS")/g" $DIR/cluster-subdomain.json
+$sed -i "s/DNS_3/$(jq -r '.[2]' <<< "$NS")/g" $DIR/cluster-subdomain.json
+$sed -i "s/DNS_4/$(jq -r '.[3]' <<< "$NS")/g" $DIR/cluster-subdomain.json
+$sed -i "s/NEW_CLUSTER_SUBDOMAIN/${CLUSTER_SUBDOMAIN}/g" $DIR/cluster-subdomain.json
 
 # give a cname to the hosted zone
 aws route53 change-resource-record-sets \
     --hosted-zone-id ${parent_HZ} \
-    --change-batch file://subdomain.json
+    --change-batch file://cluster-subdomain.json
 
 # cleanup
-rm $DIR/subdomain.json
+rm $DIR/cluster-subdomain.json

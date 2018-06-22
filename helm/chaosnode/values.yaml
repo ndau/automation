@@ -26,7 +26,6 @@ chaosnode:
   service:
     type: ClusterIP
 
-
 noms:
   image:
     repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/noms

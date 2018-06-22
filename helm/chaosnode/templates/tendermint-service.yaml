@@ -8,7 +8,6 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
-  type: {{ .Values.tendermint.service.type }}
   ports:
     - name: p2p
       port: {{ .Values.tendermint.ports.p2p }}
