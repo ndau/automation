@@ -1,0 +1,66 @@
+# Default values for ndau.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+tendermint:
+  image:
+    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint
+    tag: latest
+    pullPolicy: IfNotPresent
+  ports:
+    p2p: 46656
+    rpc: 46657
+  persistence:
+    size: 1Gi
+  service:
+    type: ClusterIP
+
+ndaunode:
+  image:
+    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/ndaunode
+    tag: latest
+    pullPolicy: IfNotPresent
+  persistence:
+    size: 100Mi
+  port: 46658
+  service:
+    type: ClusterIP
+
+noms:
+  image:
+    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/noms
+    tag: latest
+    pullPolicy: IfNotPresent
+  persistence:
+    size: 4Gi
+  port: 8000
+  service:
+    type: ClusterIP
+
+alpineJQ:
+  image:
+    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/alpine-jq
+    tag: latest
+
+ingress:
+  enabled: true
+  path: /
+  host: dev-ndau.ndau.tech
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #  cpu: 100m
+  #  memory: 128Mi
+  # requests:
+  #  cpu: 100m
+  #  memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

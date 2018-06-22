@@ -1,0 +1,33 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ template "ndau.fullname" . }}-ingress
+  labels:
+    app: {{ template "ndau.name" . }}
+    chart: {{ template "ndau.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+
+  annotations:
+    traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip
+{{- with .Values.ingress.annotations }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  rules:
+    - host: rpc.{{.Values.ingress.host }}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: {{ template "ndau.fullname" . }}-tendermint-service
+              servicePort: {{ .Values.tendermint.ports.rpc }}
+    - host: p2p.{{.Values.ingress.host }}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: {{ template "ndau.fullname" . }}-tendermint-service
+              servicePort: {{ .Values.tendermint.ports.p2p }}
+{{- end }}

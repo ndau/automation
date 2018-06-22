@@ -1,0 +1,51 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ template "ndau.fullname" . }}-noms-claim
+  labels:
+    app: {{ template "ndau.name" . }}
+    chart: {{ template "ndau.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.noms.persistence.size }}
+
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ template "ndau.fullname" . }}-tendermint-claim
+  labels:
+    app: {{ template "ndau.name" . }}
+    chart: {{ template "ndau.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.tendermint.persistence.size }}
+
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ template "ndau.fullname" . }}-ndaunode-claim
+  labels:
+    app: {{ template "ndau.name" . }}
+    chart: {{ template "ndau.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.tendermint.persistence.size }}

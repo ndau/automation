@@ -6,6 +6,19 @@ The clusters that are set up this way are accessible through the `*.cluster.ndau
 
 # tldr;
 
+
+```
+# with tendermint accessible at rpc.dev-chaos.ndau.tech and p2p.dev-chaos.ndau.tech
+# in region us-east-1, availability zone us-east-1b
+ENDPOINT_SUBDOMAIN=cn.ndau.tech
+```
+
+export NDAU_ENDPOINT=.ndau.tech
+export NDAU_ENDPOINT=.ndau.tech
+```
+
+
+
 ```
 # Check local dependencies
 ./dev.sh
@@ -17,14 +30,22 @@ export CLUSTER_SUBDOMAIN=cluster.ndau.tech
 # Set up a cluster at dev-chaos.cluster.ndau.tech in us-east-1
 export CLUSTER_NAME=dev-chaos
 export REGION=us-east-1
+export AZ=us-east-1b
 ./bootstrap-cluster.sh
 
-# Install app with kubernetes, accessible at rpc.dev-chaos.ndau.tech and p2p.dev-chaos.ndau.tech
-export ENDPOINT_SUBDOMAIN=dev-chaos.ndau.tech
+# Create subdomains at cn.ndau.tech and nn.ndau.tech and point them to the ELB.
+ENDPOINT_SUBDOMAIN=cn.ndau.tech ./endpoint-subdomain.sh
+ENDPOINT_SUBDOMAIN=nn.ndau.tech ./endpoint-subdomain.sh
+
+# Install app with kubernetes, accessible via the follwing addresses
+# chaos: rpc.one.cn.ndau.tech and p2p.one.cn.ndau.tech
+# ndau: rpc.one.nn.ndau.tech and p2p.one.nn.ndau.tech
+export NDAU_ENDPOINT=one.nn.ndau.tech
+export CHAOS_ENDPOINT=one.cn.ndau.tech
 ./up.sh
 
 # cd to your chaostool
-./chaos conf http://rpc.dev-chaos.ndau.tech:80
+./chaos conf http://rpc.one.nn.ndau.tech:80
 ```
 
 ## One Password

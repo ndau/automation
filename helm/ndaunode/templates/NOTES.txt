@@ -1,0 +1,6 @@
+Your ndaunode is accessible at the following URLs.
+
+{{- if .Values.ingress.enabled }}
+http://p2p.{{ .Values.ingress.host }}
+http://rpc.{{ .Values.ingress.host }}
+{{ end }}

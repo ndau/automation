@@ -10,7 +10,11 @@ me=$0
 # usage displays help
 usage() {
     errcho "Usage"
-    errcho "ENDPOINT_SUBDOMAIN=dev-chaos.ndau.tech ./endpoint-subdomain.sh"
+	errcho "This will create a subdomain pointing to the traefik ELB in kubectl's current context."
+	errcho "Select your context in kubectl first, before performing this action."
+	errcho ""
+	errcho "If your nodes are going on *.cn.ndau.tech, then use the following example."
+    errcho "ENDPOINT_SUBDOMAIN=cn.ndau.tech ./endpoint-subdomain.sh"
 }
 
 if [ -z "$ENDPOINT_SUBDOMAIN" ]; then
@@ -68,7 +72,7 @@ if [ -z "$(dig +short *.$ENDPOINT_SUBDOMAIN | grep $elb)" ]; then
 		--change-batch file://cname-update.json >&2
 
 else
-  errcho "Nothing updated. DNS ${ENDPOINT_SUBDOMAIN} already points to ${elb}."
+    errcho "Nothing updated. DNS ${ENDPOINT_SUBDOMAIN} already points to ${elb}."
 fi
 
 rm $DIR/cname-update.json # cleanup

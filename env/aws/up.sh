@@ -7,30 +7,31 @@ set -e
 # preflight checks
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source $DIR/../common/wait_for_cluster.sh
 
 usage() {
     echo "Usage"
-    echo "For dude.ndau.tech:"
-    echo "ENDPOINT_SUBDOMAIN=dude.ndau.tech BUCKET=ndau-dude-cluster-state-store ./up.sh"
+    echo "For [rpc/p2p].cn.ndau.tech and [rpc/p2p].nn.ndau.tech.:"
+    echo "CHAOS_ENDPOINT=one.cn.ndau.tech NDAU_ENDPOINT=one.nn.ndau.tech ./up.sh"
 }
 
-if [ -z "$ENDPOINT_SUBDOMAIN" ]; then
-    echo "Missing endpoint domain."
+if [ -z "$CHAOS_ENDPOINT" ]; then
+    echo "Missing chaos node endpoint."
     usage
     exit 1
 fi
 
-if [ -z "$BUCKET" ]; then
-    echo "Missing bucket name."
+if [ -z "$NDAU_ENDPOINT" ]; then
+    echo "Missing ndau node endpoint."
     usage
     exit 1
 fi
-
-# make sure the cluster is ready
-wait_for_cluster $BUCKET
 
 # Install chaosnode
 helm install --name cn-1 $DIR/../../helm/chaosnode \
   --set ingress.enabled=true \
-  --set ingress.host=$ENDPOINT_SUBDOMAIN
+  --set ingress.host=$CHAOS_ENDPOINT
+
+# Install ndaunode
+helm install --name nn-1 $DIR/../../helm/ndaunode \
+  --set ingress.enabled=true \
+  --set ingress.host=$NDAU_ENDPOINT
