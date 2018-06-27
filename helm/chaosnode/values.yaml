@@ -14,6 +14,14 @@ tendermint:
     size: 1Gi
   service:
     type: ClusterIP
+  moniker: anonymous
+
+# Node ports from which the tendermint service will be accessible.
+p2pPort: 30000
+rcpPort: 30001
+
+# amount of time in seconds tendermint should create empty blocks
+createEmptyBlocksInterval: 10
 
 chaosnode:
   image:
@@ -43,7 +51,7 @@ alpineJQ:
     tag: latest
 
 ingress:
-  enabled: true
+  enabled: false
   path: /
   host: dev-chaos.ndau.tech
 
@@ -64,3 +72,44 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# default configuration for tendermint's priv_validator.json file in base64
+# This should be supplied in the commandline.
+privValidator: e30= # e30= is base64 for {}
+# priv_validator.json has the following structure
+#  {
+#    "address":"D0EA8F8997AFFC3393A015959B0CED47AFCCA56E",
+#    "pub_key": {
+#      "type":"ed25519",
+#      "data":"F14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
+#    },
+#    "last_height":0,
+#    "last_round":0,
+#    "last_step":0,
+#    "last_signature":null,
+#    "priv_key": {
+#      "type":"ed25519",
+#      "data":"43931D5CAA5D7BDA868FB5A79F92A45C4DE4C8602B45B0B38BD7E4ACAC76245CF14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
+#    }
+#  }
+
+
+# default configuration for tendermint'e genesis.json file in base64
+# This should be supplied in the commandline.
+genesis: e30= # e30= is base64 for {}
+# genesis.json has the following structure
+# {
+#   "genesis_time": "0001-01-01T00:00:00Z",
+#   "chain_id": "test-chain-3EAL70",
+#   "validators": [
+#     {
+#       "pub_key": {
+#         "type": "ed25519",
+#         "data": "F14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
+#       },
+#       "power": 10,
+#       "name": ""
+#     }
+#   ],
+#   "app_hash": "f5d9bc5c359ff6a9e20b929f27e6753c488c1860"
+# }

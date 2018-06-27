@@ -3,38 +3,10 @@ metadata:
   name: {{ template "chaos.fullname" . }}-tendermint-config
 apiVersion: v1
 data:
-  genesis.json: |
-    {
-      "genesis_time": "0001-01-01T00:00:00Z",
-      "chain_id": "test-chain-3EAL70",
-      "validators": [
-        {
-          "pub_key": {
-            "type": "ed25519",
-            "data": "F14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
-          },
-          "power": 10,
-          "name": ""
-        }
-      ],
-      "app_hash": "f5d9bc5c359ff6a9e20b929f27e6753c488c1860"
-    }
-  priv_validator.json: |
-    {
-      "address":"D0EA8F8997AFFC3393A015959B0CED47AFCCA56E",
-      "pub_key": {
-        "type":"ed25519",
-        "data":"F14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
-      },
-      "last_height":0,
-      "last_round":0,
-      "last_step":0,
-      "last_signature":null,
-      "priv_key": {
-        "type":"ed25519",
-        "data":"43931D5CAA5D7BDA868FB5A79F92A45C4DE4C8602B45B0B38BD7E4ACAC76245CF14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
-      }
-    }
+  genesis.json: {{ b64dec .Values.genesis | quote }}
+
+  priv_validator.json: {{ b64dec .Values.privValidator | quote }}
+
   config.toml: |
     # This is a TOML config file.
     # For more information, see https://github.com/toml-lang/toml
@@ -43,7 +15,7 @@ data:
 
     # TCP or UNIX socket address of the ABCI application,
     # or the name of an ABCI application compiled in with the Tendermint binary
-    proxy_app = "tcp://chaosnode-service:46658"
+    proxy_app = "tcp://{{ include "chaos.fullname" . }}-chaosnode-service:46658"
 
     # A custom human readable name for this node
     moniker = "Joshs-MacBook-Pro.local"
@@ -115,7 +87,7 @@ data:
     addr_book_file = "config/addrbook.json"
 
     # Set true for strict address routability rules
-    addr_book_strict = true
+    addr_book_strict = false # fet: false means multiple nodes can run on the same ip
 
     # Time to wait before flushing messages out on the connection, in ms
     flush_throttle_timeout = 100
@@ -142,7 +114,7 @@ data:
     seed_mode = false
 
     # Authenticated encryption
-    auth_enc = true
+    auth_enc = false # fet: this has to be set until we upgrade tendermint to a version that has the gen_node command.
 
     # Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
     private_peer_ids = ""
@@ -180,7 +152,7 @@ data:
     # EmptyBlocks mode and possible interval between empty blocks in seconds
     # tendermint respects create_empty_blocks *OR* create_empty_blocks_interval
     # create_empty_blocks = false
-    create_empty_blocks_interval = 10
+    create_empty_blocks_interval = {{ .Values.createEmptyBlocksInterval | default 10 }}
 
     # Reactor sleep duration parameters are in milliseconds
     peer_gossip_sleep_duration = 100
@@ -219,16 +191,3 @@ data:
     # update genesis.json with chaosnode's empty hash
     empty_hash=$(cat /tendermint/empty_hash)
     jq ".app_hash=\"$empty_hash\"" /tendermint/config-ro/genesis.json > /tendermint/config/genesis.json
-
-    # Set config.toml variables
-    # point tendermint's config to chaosnode-service
-    sed -E \
-        -e '/^proxy_app/s|://[^:]*:|://{{ include "chaos.fullname" . }}-chaosnode-service:|' \
-        -e '/^create_empty_blocks_interval/s/[[:digit:]]+/10/' \
-        -e '/^create_empty_blocks\b/{
-                s/true/false/
-                s/(.*)/# \1/
-                i # tendermint respects create_empty_blocks *OR* create_empty_blocks_interval
-            }' \
-        /tendermint/config-ro/config.toml > /tendermint/config/config.toml
-
