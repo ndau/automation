@@ -54,6 +54,8 @@ spec:
       containers:
       - name: tendermint
         image: "{{ .Values.tendermint.image.repository }}:{{ .Values.tendermint.image.tag }}"
+        cmd: ["tendermint"]
+        args: ["node", "--moniker={{ .Values.tendermint.moniker }}","--log_level", "debug", "--p2p.persistent_peers", "$(PERSISTENT_PEERS)"]
         imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
         ports:
           - containerPort: {{ .Values.tendermint.ports.p2p }}
@@ -64,6 +66,11 @@ spec:
         env:
         - name: TMHOME
           value: "/tendermint"
+        - name: PERSISTENT_PEERS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "chaos.fullname" . }}-tendermint-peers
+              key: addresses
       volumes:
         - name: tendermint-home-volume
           persistentVolumeClaim:

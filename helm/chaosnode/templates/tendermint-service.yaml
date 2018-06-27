@@ -8,13 +8,16 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
+  type: NodePort
   ports:
     - name: p2p
       port: {{ .Values.tendermint.ports.p2p }}
       targetPort: {{ .Values.tendermint.ports.p2p }}
+      nodePort: {{ .Values.p2pPort }}
     - name: rpc
       port: {{ .Values.tendermint.ports.rpc }}
       targetPort: {{ .Values.tendermint.ports.rpc }}
+      nodePort: {{ .Values.rpcPort }}
   selector:
     app: {{ template "chaos.name" . }}-tendermint
     release: {{ .Release.Name }}
