@@ -18,7 +18,7 @@ data:
     proxy_app = "tcp://{{ include "chaos.fullname" . }}-chaosnode-service:46658"
 
     # A custom human readable name for this node
-    moniker = "Joshs-MacBook-Pro.local"
+    moniker = "anonymous"
 
     # If this node is many blocks behind the tip of the chain, FastSync
     # allows them to catchup quickly by downloading blocks in parallel
@@ -61,7 +61,7 @@ data:
     [rpc]
 
     # TCP or UNIX socket address for the RPC server to listen on
-    laddr = "tcp://0.0.0.0:46657"
+    laddr = "tcp://0.0.0.0:{{ default 46657 .Values.tendermint.ports.rpc }}"
 
     # TCP or UNIX socket address for the gRPC server to listen on
     # NOTE: This server only supports /broadcast_tx_commit
@@ -74,7 +74,7 @@ data:
     [p2p]
 
     # Address to listen for incoming connections
-    laddr = "tcp://0.0.0.0:46656"
+    laddr = "tcp://0.0.0.0:{{ default 46656 .Values.tendermint.ports.p2p }}"
 
     # Comma separated list of seed nodes to connect to
     seeds = ""
@@ -182,8 +182,21 @@ data:
 
 
   init.sh: |
+
     # ensure directory for read-writeable config files
     mkdir -p /tendermint/config
+
+    # Add an environment variable for persistent peers
+    #  if it's not already there OR
+    #  if the update persistent peers variable is set to true
+    if [ ! -f "/tendermint/config/persistent-peers" ] || [ "$UPDATE_PERSISTENT_PEERS" == "true" ]; then
+      echo "$PERSISTENT_PEERS" > /tendermint/config/persistent-peers
+    fi
+
+    # early exit. do not initialize if config already exists
+    if [ -f "/tendermint/config/init-done" ]; then
+      exit 0
+    fi
 
     # copy all read only files from config map to real config directory
     cp /tendermint/config-ro/* /tendermint/config
@@ -191,3 +204,6 @@ data:
     # update genesis.json with chaosnode's empty hash
     empty_hash=$(cat /tendermint/empty_hash)
     jq ".app_hash=\"$empty_hash\"" /tendermint/config-ro/genesis.json > /tendermint/config/genesis.json
+
+    # mark this
+    touch /tendermint/config/init-done

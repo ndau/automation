@@ -13,6 +13,12 @@ data:
     Key = "c3Zp"
   mock-chaos.msgp: gapOYW1lc3BhY2VzkoKpTmFtZXNwYWNlxAZzeXN0ZW2kRGF0YZKSxAXEA29uZcQRsHN5c3RlbSB2YWx1ZSBvbmWSxAXEA3R3b8QRsHN5c3RlbSB2YWx1ZSB0d2+CqU5hbWVzcGFjZcQgm+f2euwJnj00cy/A+vLkhvYm+Hs6k0z1VY/6qhC9DSKkRGF0YZOSxAXEA29uZcQMq2JwYyB2YWwgb25lksQFxANiYXLEBKNiYXqSxAXEA3N2acT/g6Nmb2+Dp0N1cnJlbnSSxCCb5/Z67AmePTRzL8D68uSG9ib4ezqTTPVVj/qqEL0NIsQDYmFypkZ1dHVyZZLEIJvn9nrsCZ49NHMvwPry5Ib2Jvh7OpNM9VWP+qoQvQ0ixANiYXKoQ2hhbmdlT24Ao29uZYOnQ3VycmVudJLEIJvn9nrsCZ49NHMvwPry5Ib2Jvh7OpNM9VWP+qoQvQ0ixANvbmWmRnV0dXJlksQGc3lzdGVtxANvbmWoQ2hhbmdlT27NA+ijdHdvg6dDdXJyZW50ksQGc3lzdGVtxAN0d2+mRnV0dXJlksQGc3lzdGVtxAN0d2+oQ2hhbmdlT24A
   init.sh: |
+
+    # early exit. do not initialize if config already exists
+    if [ -d "/root/.ndau/ndau" ]; then
+      exit 0
+    fi
+
     # Copy readonly config files to real config files
     mkdir -p /root/.ndau/ndau
     cp /root/config-ro/* /root/.ndau/ndau

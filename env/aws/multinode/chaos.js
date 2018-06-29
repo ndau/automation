@@ -2,9 +2,10 @@
 
 // This script deploys new chaos nodes in a two node network.
 
+const fs = require('fs')
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
-const readFile = util.promisify(require('fs').readFile)
+const readFile = util.promisify(fs.readFile)
 const path = require('path');
 
 
@@ -35,7 +36,7 @@ async function main() {
     console.log(`
     Please supply a port to start and some node names.
     Usage
-    ./multinode.js 30000 phobos deimos
+    ./chaos.js 30000 phobos deimos
     `)
     process.exit(1)
   }
@@ -131,34 +132,21 @@ async function main() {
     process.exit(1)
   }
 
-  console.log("Your nodes are configured as follows")
-  console.log(JSON.stringify(nodes, null, 2))
-  console.log('on ' + masterIP)
+  let logConfigFile = `chaos-config-${new Date().toISOString().
+    replace(/T/g, '_').
+    replace(/\:/g, '-').
+    replace(/\..+/, '')}.json`
 
-  //console.log("Connect the nodes with this command")
-  //console.log(`
-  //  curl -v "rpc.${deimosSubdomain}/dial_peers?persistent=true&peers=\\[\\"${deimosURL}\\",\\"${phobosURL}\\"\\]'"
-  //  `)
+  let finalConfig = {
+    nodes: nodes,
+    peers: peers
+  }
+
+  console.log(`Your nodes are configured as follows:\n${JSON.stringify(finalConfig, null, 2)}`)
+  console.log(`on ${masterIP}`)
+  console.log(`config log saved to: ${logConfigFile}`)
+  fs.writeFile(path.join(__dirname, logConfigFile), JSON.stringify(finalConfig, null, 2), ()=>{})
 
 }
 
 main()
-/*
-// generate configuration for multiple nodes
-
-
-        {
-          "pub_key": {
-            "type": "ed25519",
-            "data": "F14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
-          },
-          "power": 10,
-          "name": ""
-        }
-
-# create those configuration objects
-
-# pass config refs to nodes
-
-# apply configuration
-*/
