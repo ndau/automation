@@ -118,8 +118,8 @@ async function main() {
         --set genesis=${str2b64(JSON.stringify(genesis))}\
         --set privValidator=${str2b64(JSON.stringify(node.priv))}\
         --set persistentPeers="${str2b64(peers)}" \
-        --set p2pPort=${node.port.p2p} \
-        --set rpcPort=${node.port.rpc} \
+        --set p2pNodePort=${node.port.p2p} \
+        --set rpcNodePort=${node.port.rpc} \
         --set tendermint.moniker=${node.name} \
         --tls
       `

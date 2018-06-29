@@ -1,8 +1,8 @@
 # AWS
 
-This document will detail the cloud environments we deploy to as well as the installation of chaos node.
+This document will detail the cloud environments we deploy to as well as the installation of chaos and ndau nodes.
 
-The clusters that are set up this way are accessible through the `*.cluster.ndau.tech`. That is, `kubectl` will point to that address. The chaos node api itself, however, is accessible through *.ndau.tech.
+The clusters that are set up this way are accessible through the `*.cluster.ndau.tech`. That is, `kubectl` will point to that address. The chaos node api itself, however, is accessible through the ip address of any of the node machines `kubectl get nodes -o wide`. The configured p2p and rpc ports will allow you to connect to either tendermint endpoint.
 
 # tldr;
 
@@ -20,26 +20,27 @@ export REGION=us-east-1
 export AZ=us-east-1b
 ./bootstrap-cluster.sh
 
-# Create subdomains at cn.ndau.tech and nn.ndau.tech and point them to the ELB.
-ENDPOINT_SUBDOMAIN=cn.ndau.tech ./endpoint-subdomain.sh
-ENDPOINT_SUBDOMAIN=nn.ndau.tech ./endpoint-subdomain.sh
+# Install a chaosnode
+helm install --name chaos-one ../../helm/chaos \
+    --set p2pPort=30500 \
+    --set rpcPort=30501 \
+    --set tendermint.moniker=chaos-one \
+    --tls
 
-# Install app with kubernetes, accessible via the follwing addresses
-# chaos: rpc.one.cn.ndau.tech and p2p.one.cn.ndau.tech
-# ndau: rpc.one.nn.ndau.tech and p2p.one.nn.ndau.tech
-export NDAU_ENDPOINT=one.nn.ndau.tech
-export CHAOS_ENDPOINT=one.cn.ndau.tech
-./up.sh
+# Install an ndaunode
+helm install --name ndau-one ../../helm/ndau \
+    --set p2pPort=30600 \
+    --set rpcPort=30601 \
+    --set tendermint.moniker=ndau-one \
+    --tls
 
-# Test it with your chaostool
-./chaos conf http://rpc.one.nn.ndau.tech:80
 ```
 
 ## One Password
 
 One password has a command-line tool, `op`, for interacting with the secure things stored in your 1password vaults. It is used in the aws scripts to retrieve AWS credentials from a secure document.
 
-### Installation
+### Install one password
 
 Install and verify `op` from https://support.1password.com/command-line-getting-started/
 
