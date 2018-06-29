@@ -36,6 +36,17 @@ spec:
       - name: config
         image: {{ .Values.alpineJQ.image.repository }}:{{ .Values.alpineJQ.image.tag }}
         command: ["/bin/sh", "/tendermint/init.sh"]
+        env:
+        - name: UPDATE_PERSISTENT_PEERS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "chaos.fullname" . }}-tendermint-peers
+              key: updatePeerAddresses
+        - name: PERSISTENT_PEERS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "chaos.fullname" . }}-tendermint-peers
+              key: addresses
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
@@ -54,8 +65,8 @@ spec:
       containers:
       - name: tendermint
         image: "{{ .Values.tendermint.image.repository }}:{{ .Values.tendermint.image.tag }}"
-        cmd: ["tendermint"]
-        args: ["node", "--moniker={{ .Values.tendermint.moniker }}","--log_level", "debug", "--p2p.persistent_peers", "$(PERSISTENT_PEERS)"]
+        command: ["/bin/sh"]
+        args: ["-c", "tendermint node --moniker={{ .Values.tendermint.moniker }} --log_level debug --p2p.persistent_peers $(cat /tendermint/config/persistent-peers)"]
         imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
         ports:
           - containerPort: {{ .Values.tendermint.ports.p2p }}
@@ -66,11 +77,6 @@ spec:
         env:
         - name: TMHOME
           value: "/tendermint"
-        - name: PERSISTENT_PEERS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "chaos.fullname" . }}-tendermint-peers
-              key: addresses
       volumes:
         - name: tendermint-home-volume
           persistentVolumeClaim:

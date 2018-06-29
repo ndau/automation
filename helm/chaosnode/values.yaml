@@ -1,6 +1,9 @@
-# Default values for chaos.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+# This values file is applied to the helm chart templates.
+# You can supply overrides via the commandline or provide them
+# in another yaml file with the -f option. Please take care in
+# supplying properties of objects. Your supplied overrides are
+# not merged, they are overrides. For this reason the `--set`
+# flag provides the dot notation for changing a single property.
 
 tendermint:
   image:
@@ -16,12 +19,15 @@ tendermint:
     type: ClusterIP
   moniker: anonymous
 
-# Node ports from which the tendermint service will be accessible.
-p2pPort: 30000
-rcpPort: 30001
+# Node ports from which the tendermint service will be accessible externally at the kubernetes node's IP address.
+p2pNodePort: 30000
+rcpNodePort: 30001
 
-# amount of time in seconds tendermint should create empty blocks
-createEmptyBlocksInterval: 10
+# persistent peers separated by a comma.
+persistentPeers: ""
+
+# trigger an update for the tendermint peer addresses.
+updatePeerAddresses: false
 
 chaosnode:
   image:
@@ -75,8 +81,8 @@ affinity: {}
 
 # default configuration for tendermint's priv_validator.json file in base64
 # This should be supplied in the commandline.
-privValidator: e30= # e30= is base64 for {}
-# priv_validator.json has the following structure
+privValidator: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQTU2RSIsInB1Yl9rZXkiOiB7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwibGFzdF9oZWlnaHQiOjAsImxhc3Rfcm91bmQiOjAsImxhc3Rfc3RlcCI6MCwibGFzdF9zaWduYXR1cmUiOm51bGwsInByaXZfa2V5IjogeyJ0eXBlIjoiZWQyNTUxOSIsImRhdGEiOiI0MzkzMUQ1Q0FBNUQ3QkRBODY4RkI1QTc5RjkyQTQ1QzRERTRDODYwMkI0NUIwQjM4QkQ3RTRBQ0FDNzYyNDVDRjE0Q0UyNzNBRjBCNTg4MDJERURGNEFFRENFOEI2MUUwNjAwODgyMUFFOUFBRTVEQURFNjcxMzYwNDI2Q0U3MCJ9fQo=
+# The json below (minute whitespace) is base64 encoded above.
 #  {
 #    "address":"D0EA8F8997AFFC3393A015959B0CED47AFCCA56E",
 #    "pub_key": {
@@ -93,11 +99,10 @@ privValidator: e30= # e30= is base64 for {}
 #    }
 #  }
 
-
 # default configuration for tendermint'e genesis.json file in base64
 # This should be supplied in the commandline.
-genesis: e30= # e30= is base64 for {}
-# genesis.json has the following structure
+genesis: eyJnZW5lc2lzX3RpbWUiOiIwMDAxLTAxLTAxVDAwOjAwOjAwWiIsImNoYWluX2lkIjoidGVzdC1jaGFpbi0zRUFMNzAiLCJ2YWxpZGF0b3JzIjpbeyJwdWJfa2V5Ijp7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwicG93ZXIiOjEwLCJuYW1lIjoiIn1dLCJhcHBfaGFzaCI6ICJmNWQ5YmM1YzM1OWZmNmE5ZTIwYjkyOWYyN2U2NzUzYzQ4OGMxODYwIn0K
+# The json below (minute whitespace) is base64 encoded above.
 # {
 #   "genesis_time": "0001-01-01T00:00:00Z",
 #   "chain_id": "test-chain-3EAL70",
