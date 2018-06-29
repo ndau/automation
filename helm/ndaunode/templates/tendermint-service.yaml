@@ -13,11 +13,11 @@ spec:
     - name: p2p
       port: {{ .Values.tendermint.ports.p2p }}
       targetPort: {{ .Values.tendermint.ports.p2p }}
-      nodePort: {{ .Values.p2pPort }}
+      nodePort: {{ .Values.p2pNodePort }}
     - name: rpc
       port: {{ .Values.tendermint.ports.rpc }}
       targetPort: {{ .Values.tendermint.ports.rpc }}
-      nodePort: {{ .Values.rpcPort }}
+      nodePort: {{ .Values.rpcNodePort }}
   selector:
     app: {{ template "ndau.name" . }}-tendermint
     release: {{ .Release.Name }}

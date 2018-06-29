@@ -21,7 +21,7 @@ tendermint:
 
 # Node ports from which the tendermint service will be accessible externally at the kubernetes node's IP address.
 p2pNodePort: 30000
-rcpNodePort: 30001
+rpcNodePort: 30001
 
 # persistent peers separated by a comma.
 persistentPeers: ""

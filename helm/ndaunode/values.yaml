@@ -20,7 +20,7 @@ tendermint:
 
 # Node ports from which the tendermint service will be accessible externally at the kubernetes node's IP address.
 p2pNodePort: 30000
-rcpNodePort: 30001
+rpcNodePort: 30001
 
 # amount of time in seconds tendermint should create empty blocks
 createEmptyBlocksInterval: 10
