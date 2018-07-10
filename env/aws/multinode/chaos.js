@@ -57,6 +57,8 @@ async function main() {
     await asyncForEach(nodes, async (node, i) => {
       let mkdirRes = await exec('mkdir -p $(pwd)/tmp')
       console.log(mkdirRes)
+      let lsRes = await exec('ls -apl')
+      console.log(lsRes)
       const genCommand = `docker run \
         -e TMHOME=/tendermint \
         --mount type=bind,src=$(pwd)/tmp,dst=/tendermint \
