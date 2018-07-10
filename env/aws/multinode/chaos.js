@@ -55,8 +55,8 @@ async function main() {
   // generate two validators
   try {
     await asyncForEach(nodes, async (node, i) => {
-      let res = await exec('mkdir -p $(pwd)/tmp')
-      console.log(res)
+      let mkdirRes = await exec('mkdir -p $(pwd)/tmp')
+      console.log(mkdirRes)
       const genCommand = `docker run \
         -e TMHOME=/tendermint \
         --mount type=bind,src=$(pwd)/tmp,dst=/tendermint \
@@ -72,8 +72,8 @@ async function main() {
 
   // generate genesis.json (et al)
   try {
-    let res = await exec('mkdir -p $(pwd)/tmp')
-    console.log(res)
+    let mkdirRes = await exec('mkdir -p $(pwd)/tmp')
+    console.log(mkdirRes)
     const initCommand = `docker run \
       -e TMHOME=/tendermint \
       --mount type=bind,src=$(pwd)/tmp,dst=/tendermint \
