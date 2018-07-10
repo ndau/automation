@@ -55,13 +55,11 @@ async function main() {
   // generate two validators
   try {
     await asyncForEach(nodes, async (node, i) => {
-      console.log(await exec('mkdir -p $(pwd)/tmp'))
-      console.log(await exec('ls -apl'))
-      console.log(await exec('echo $(pwd)'))
+      console.log(await exec(`mkdir -p ${__dirname}/tmp`))
 
       const genCommand = `docker run \
         -e TMHOME=/tendermint \
-        --mount type=bind,src=$(pwd)/tmp,dst=/tendermint \
+        --mount type=bind,src=${__dirname}/tmp,dst=/tendermint \
         5786-8149-6768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
         gen_validator`
       let res = await exec(genCommand)
@@ -74,11 +72,11 @@ async function main() {
 
   // generate genesis.json (et al)
   try {
-    let mkdirRes = await exec('mkdir -p $(pwd)/tmp')
+    let mkdirRes = await exec(`mkdir -p ${__dirname}/tmp`)
     console.log(mkdirRes)
     const initCommand = `docker run \
       -e TMHOME=/tendermint \
-      --mount type=bind,src=$(pwd)/tmp,dst=/tendermint \
+      --mount type=bind,src=${__dirname}/tmp,dst=/tendermint \
       5786-8149-6768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
       init`
     await exec(initCommand, { env: { PATH: process.env.PATH } })
