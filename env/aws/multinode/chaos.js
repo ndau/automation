@@ -9,7 +9,7 @@ const readFile = util.promisify(fs.readFile)
 const path = require('path');
 
 
-const asyncForEach = async function(a, cb) {
+const asyncForEach = async function (a, cb) {
   for (let i = 0; i < a.length; i++) {
     await cb(a[i], i, a)
   }
@@ -54,8 +54,13 @@ async function main() {
 
   // generate two validators
   try {
-    await asyncForEach(nodes, async (node, i ) => {
-      let res = await exec("tendermint gen_validator")
+    await asyncForEach(nodes, async (node, i) => {
+      const genCommand = `docker run \
+        -e TMHOME=/tendermint \
+        --mount type=bind,src=$(pwd)/tmp,dst=/tendermint \
+        5786-8149-6768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
+        gen_validator`
+      let res = await exec(genCommand)
       nodes[i].priv = JSON.parse(res.stdout)
     })
   } catch (e) {
@@ -65,7 +70,12 @@ async function main() {
 
   // generate genesis.json (et al)
   try {
-    await exec("tendermint init", {env:{TMHOME:"./tmp", PATH:process.env.PATH}})
+    const initCommand = `docker run \
+      -e TMHOME=/tendermint \
+      --mount type=bind,src=$(pwd)/tmp,dst=/tendermint \
+      5786-8149-6768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
+      init`
+    await exec(initCommand, { env: { PATH: process.env.PATH } })
   } catch (e) {
     console.log(`Could not init tendermint: ${e}`)
     process.exit(1)
@@ -74,17 +84,17 @@ async function main() {
   // Get the newly created genesis
   const genesis = {}
   try {
-    Object.assign(genesis, JSON.parse(await readFile("./tmp/config/genesis.json",{encoding: 'utf8'})))
-  } catch(e) {
+    Object.assign(genesis, JSON.parse(await readFile("./tmp/config/genesis.json", { encoding: 'utf8' })))
+  } catch (e) {
     console.log(`Could not init tendermint: ${e}`)
     process.exit(1)
   }
 
   // add our new nodes
-  genesis.validators = nodes.map( (node) => {
+  genesis.validators = nodes.map((node) => {
     return {
       name: node.name,
-      'pub_key' : node.priv.pub_key,
+      'pub_key': node.priv.pub_key,
       power: 10
     }
   })
@@ -145,7 +155,7 @@ async function main() {
   console.log(`Your nodes are configured as follows:\n${JSON.stringify(finalConfig, null, 2)}`)
   console.log(`on ${masterIP}`)
   console.log(`config log saved to: ${logConfigFile}`)
-  fs.writeFile(path.join(__dirname, logConfigFile), JSON.stringify(finalConfig, null, 2), ()=>{})
+  fs.writeFile(path.join(__dirname, logConfigFile), JSON.stringify(finalConfig, null, 2), () => { })
 
 }
 
