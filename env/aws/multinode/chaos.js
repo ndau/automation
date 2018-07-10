@@ -55,10 +55,10 @@ async function main() {
   // generate two validators
   try {
     await asyncForEach(nodes, async (node, i) => {
-      let mkdirRes = await exec('mkdir -p $(pwd)/tmp')
-      console.log(mkdirRes)
-      let lsRes = await exec('ls -apl')
-      console.log(lsRes)
+      console.log(await exec('mkdir -p $(pwd)/tmp'))
+      console.log(await exec('ls -apl'))
+      console.log(await exec('pwd'))
+
       const genCommand = `docker run \
         -e TMHOME=/tendermint \
         --mount type=bind,src=$(pwd)/tmp,dst=/tendermint \
