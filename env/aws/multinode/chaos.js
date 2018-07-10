@@ -68,12 +68,13 @@ async function main() {
   }
 
   // generate genesis.json (et al)
+  let root = process.env.CIRCLECI == "true" ? "/app" : __dirname
   try {
-    let mkdirRes = await exec(`mkdir -p ${__dirname}/tmp`)
+    let mkdirRes = await exec(`mkdir -p ${root}/tmp`)
     console.log(mkdirRes)
     const initCommand = `docker run \
       -e TMHOME=/tendermint \
-      --mount type=bind,src=${__dirname}/tmp,dst=/tendermint \
+      --mount type=bind,src=${root}/tmp,dst=/tendermint \
       5786-8149-6768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
       init`
     await exec(initCommand, { env: { PATH: process.env.PATH } })
@@ -85,7 +86,7 @@ async function main() {
   // Get the newly created genesis
   const genesis = {}
   try {
-    Object.assign(genesis, JSON.parse(await readFile("./tmp/config/genesis.json", { encoding: 'utf8' })))
+    Object.assign(genesis, JSON.parse(await readFile(`${root}/tmp/config/genesis.json`, { encoding: 'utf8' })))
   } catch (e) {
     console.log(`Could not init tendermint: ${e}`)
     process.exit(1)
