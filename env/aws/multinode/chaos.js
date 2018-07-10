@@ -57,7 +57,7 @@ async function main() {
     await asyncForEach(nodes, async (node, i) => {
       console.log(await exec('mkdir -p $(pwd)/tmp'))
       console.log(await exec('ls -apl'))
-      console.log(await exec('pwd'))
+      console.log(await exec('echo $(pwd)'))
 
       const genCommand = `docker run \
         -e TMHOME=/tendermint \
