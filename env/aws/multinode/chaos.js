@@ -56,6 +56,7 @@ async function main() {
   try {
     await asyncForEach(nodes, async (node, i) => {
       const genCommand = `docker run \
+        --rm \
         -e TMHOME=/tendermint \
         5786-8149-6768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
         gen_validator`
@@ -70,11 +71,13 @@ async function main() {
   // generate genesis.json (et al)
   let root = process.env.CIRCLECI == "true" ? "/app" : __dirname
   try {
-    let mkdirRes = await exec(`mkdir -p ${root}/tmp`)
-    console.log(mkdirRes)
+    // create a volume to save genesis.json
+    await exec(`docker volume create genesis`, { env: { PATH: process.env.PATH } })
+    // run init on our tendermint container
     const initCommand = `docker run \
+      --rm \
       -e TMHOME=/tendermint \
-      --mount type=bind,src=${root}/tmp,dst=/tendermint \
+      --mount src=genesis,dst=/tendermint \
       5786-8149-6768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
       init`
     await exec(initCommand, { env: { PATH: process.env.PATH } })
@@ -86,11 +89,27 @@ async function main() {
   // Get the newly created genesis
   const genesis = {}
   try {
-    Object.assign(genesis, JSON.parse(await readFile(`${root}/tmp/config/genesis.json`, { encoding: 'utf8' })))
+    // output the genesis.json file
+    const catGenesisCommand = `docker run \
+      --rm \
+      --mount src=genesis,dst=/tendermint \
+      busybox \
+      cat /tendermint/config/genesis.json`
+    let newGen = JSON.parse(
+      (await exec(catGenesisCommand, { env: { PATH: process.env.PATH } }))
+        .stdout
+    )
+
+    Object.assign(genesis, newGen)
+
   } catch (e) {
     console.log(`Could not init tendermint: ${e}`)
     process.exit(1)
+  } finally {
+    // clean up our docker volume
+    await exec('docker volume rm genesis', { env: { PATH: process.env.PATH } })
   }
+
 
   // add our new nodes
   genesis.validators = nodes.map((node) => {
@@ -135,7 +154,7 @@ async function main() {
         --set tendermint.moniker=${node.name} \
         --tls
       `
-      console.log(cmd)
+      console.log(`Installing ${node.name}`)
       await exec(cmd)
     })
 
@@ -144,10 +163,12 @@ async function main() {
     process.exit(1)
   }
 
-  let logConfigFile = `chaos-config-${new Date().toISOString().
+  let timestamp = new Date().toISOString().
     replace(/T/g, '_').
     replace(/\:/g, '-').
-    replace(/\..+/, '')}.json`
+    replace(/\..+/, '');
+
+  let logConfigFile = `chaos-config-${timestamp}.json`
 
   let finalConfig = {
     nodes: nodes,
