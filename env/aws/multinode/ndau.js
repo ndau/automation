@@ -173,7 +173,7 @@ function saveLogs(finalConfig) {
     replace(/\:/g, '-').
     replace(/\..+/, '');
 
-  let logConfigFile = `chaos-config-${timestamp}.json`
+  let logConfigFile = `ndau-config-${timestamp}.json`
 
   console.log(`Your nodes are configured as follows:\n${JSON.stringify(finalConfig, null, 2)}`)
   console.log(`config log saved to: ${logConfigFile}`)
