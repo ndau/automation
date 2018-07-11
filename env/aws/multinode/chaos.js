@@ -8,18 +8,22 @@ const exec = util.promisify(require('child_process').exec)
 const readFile = util.promisify(fs.readFile)
 const path = require('path');
 
-
+// async executes an asyncronous function on every element of an array
 const asyncForEach = async function (a, cb) {
   for (let i = 0; i < a.length; i++) {
     await cb(a[i], i, a)
   }
 }
 
+// str2b64 converts a string into base64
 const str2b64 = (s) => Buffer.from(s).toString('base64')
 
-let portCount = 30000
+let portCount = 30000 // default starting port
+
+// newPort returns a new port in a series starting on port
 const newPort = () => portCount++
 
+// newNode adds a node configuration object to the `nodes` array
 const nodes = []
 const newNode = (name) => {
   nodes.push({
@@ -31,12 +35,15 @@ const newNode = (name) => {
   })
 }
 
+// main will exectute first
 async function main() {
-  if (process.argv.length < 4) {
+
+  // Usage and argument count validation
+  if (process.argv.length < 4 || !process.env.VERSION_TAG) {
     console.log(`
-    Please supply a port to start and some node names.
+    Please supply a version tag, a port to start and some node names.
     Usage
-    ./chaos.js 30000 phobos deimos
+    VERSION_TAG=0.0.1 ./chaos.js 30000 phobos deimos
     `)
     process.exit(1)
   }
@@ -83,6 +90,8 @@ async function main() {
     await exec(initCommand, { env: process.env })
   } catch (e) {
     console.log(`Could not init tendermint: ${e}`)
+    // clean up our docker volume
+    await exec('docker volume rm genesis', { env: process.env })
     process.exit(1)
   }
 
@@ -99,9 +108,7 @@ async function main() {
       (await exec(catGenesisCommand, { env: process.env }))
         .stdout
     )
-
     Object.assign(genesis, newGen)
-
   } catch (e) {
     console.log(`Could not init tendermint: ${e}`)
     process.exit(1)
@@ -109,7 +116,6 @@ async function main() {
     // clean up our docker volume
     await exec('docker volume rm genesis', { env: process.env })
   }
-
 
   // add our new nodes
   genesis.validators = nodes.map((node) => {
@@ -152,6 +158,7 @@ async function main() {
         --set p2pNodePort=${node.port.p2p} \
         --set rpcNodePort=${node.port.rpc} \
         --set tendermint.moniker=${node.name} \
+        --set chaosnode.image.tag=${process.env.VERSION_TAG} \
         --tls
       `
       console.log(`Installing ${node.name}`)
