@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// This script deploys new chaos nodes in a two node network.
+// This script deploys new ndau nodes in a two node network.
 
 const fs = require('fs')
 const util = require('util')
@@ -9,7 +9,7 @@ const readFile = util.promisify(fs.readFile)
 const path = require('path');
 
 
-const asyncForEach = async function(a, cb) {
+const asyncForEach = async function (a, cb) {
   for (let i = 0; i < a.length; i++) {
     await cb(a[i], i, a)
   }
@@ -52,10 +52,15 @@ async function main() {
     }
   })
 
-  // generate two validators
+  // generate validators
   try {
-    await asyncForEach(nodes, async (node, i ) => {
-      let res = await exec("tendermint gen_validator")
+    await asyncForEach(nodes, async (node, i) => {
+      const genValidatorCmd = `docker run \
+        --rm \
+        -e TMHOME=/tendermint \
+        578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
+        gen_validator`
+      let res = await exec(genValidatorCmd, { env: process.env })
       nodes[i].priv = JSON.parse(res.stdout)
     })
   } catch (e) {
@@ -65,7 +70,16 @@ async function main() {
 
   // generate genesis.json (et al)
   try {
-    await exec("tendermint init", {env:{TMHOME:"./tmp", PATH:process.env.PATH}})
+    // create a volume to save genesis.json
+    await exec(`docker volume create genesis`, { env: process.env })
+    // run init on our tendermint container
+    const initCommand = `docker run \
+      --rm \
+      -e TMHOME=/tendermint \
+      --mount src=genesis,dst=/tendermint \
+      578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
+      init`
+    await exec(initCommand, { env: process.env })
   } catch (e) {
     console.log(`Could not init tendermint: ${e}`)
     process.exit(1)
@@ -74,17 +88,32 @@ async function main() {
   // Get the newly created genesis
   const genesis = {}
   try {
-    Object.assign(genesis, JSON.parse(await readFile("./tmp/config/genesis.json",{encoding: 'utf8'})))
-  } catch(e) {
+    // output the genesis.json file
+    const catGenesisCommand = `docker run \
+      --rm \
+      --mount src=genesis,dst=/tendermint \
+      busybox \
+      cat /tendermint/config/genesis.json`
+    let newGen = JSON.parse(
+      (await exec(catGenesisCommand, { env: process.env }))
+        .stdout
+    )
+
+    Object.assign(genesis, newGen)
+
+  } catch (e) {
     console.log(`Could not init tendermint: ${e}`)
     process.exit(1)
+  } finally {
+    // clean up our docker volume
+    await exec('docker volume rm genesis', { env: process.env })
   }
 
   // add our new nodes
-  genesis.validators = nodes.map( (node) => {
+  genesis.validators = nodes.map((node) => {
     return {
       name: node.name,
-      'pub_key' : node.priv.pub_key,
+      'pub_key': node.priv.pub_key,
       power: 10
     }
   })
@@ -123,28 +152,31 @@ async function main() {
         --set tendermint.moniker=${node.name} \
         --tls
       `
-      console.log(cmd)
-      await exec(cmd)
+      console.log(`Installing ${node.name}`)
+      await exec(cmd, { env: process.env })
     })
   } catch (e) {
     console.log(`Could not install with helm: ${e}`)
     process.exit(1)
   }
 
-  let logConfigFile = `ndau-config-${new Date().toISOString().
-    replace(/T/g, '_').
-    replace(/\:/g, '-').
-    replace(/\..+/, '')}.json`
+  saveLogs({ nodes, peers, genesis, masterIP })
 
-  let finalConfig = {
-    nodes: nodes,
-    peers: peers
-  }
-
-  console.log(`Your nodes are configured as follows:\n${JSON.stringify(finalConfig, null, 2)}`)
-  console.log(`on ${masterIP}`)
-  console.log(`config log saved to: ${logConfigFile}`)
-  fs.writeFile(path.join(__dirname, logConfigFile), JSON.stringify(finalConfig, null, 2), ()=>{})
 }
 
 main()
+
+// saveLogs writes a log to a directory
+function saveLogs(finalConfig) {
+  let timestamp = new Date().toISOString().
+    replace(/T/g, '_').
+    replace(/\:/g, '-').
+    replace(/\..+/, '');
+
+  let logConfigFile = `ndau-config-${timestamp}.json`
+
+  console.log(`Your nodes are configured as follows:\n${JSON.stringify(finalConfig, null, 2)}`)
+  console.log(`config log saved to: ${logConfigFile}`)
+  fs.writeFile(path.join(__dirname, logConfigFile), JSON.stringify(finalConfig, null, 2), () => { })
+
+}

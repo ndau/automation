@@ -4,7 +4,7 @@ This document contains information regarding the design and operation of the mul
 
 ## Design
 
-chaos/ndau nodes can be deployed with helm, using the helm charts provided in this repo. For the case of multiple nodes, scripts are used that generate the initial configuration. The initial configuration is passed to the helm chart of each node, overriding the default values. Once the chaos/ndau node is running, the specific tendermint configuration enables their communication and coordination as validator nodes.
+chaos/ndau nodes can be deployed with helm, using the helm charts provided in this repo. For the case of multiple nodes, scripts are used that generate the initial configuration. The actual generation is done by Tendermint, which is accessed via docker. The dockerized version is removes the local dependency for the correct version of Tendermint by using the same thing the testnet will use. The initial configuration is passed to the helm chart of each node, overriding the default values. Once the chaos/ndau node is running, their Tendermint configurations enable communication as validator nodes.
 
 ## Installation
 
