@@ -60,7 +60,7 @@ async function main() {
         -e TMHOME=/tendermint \
         578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
         gen_validator`
-      let res = await exec(genCommand)
+      let res = await exec(genCommand, { env: process.env })
       nodes[i].priv = JSON.parse(res.stdout)
     })
   } catch (e) {
@@ -72,7 +72,7 @@ async function main() {
   let root = process.env.CIRCLECI == "true" ? "/app" : __dirname
   try {
     // create a volume to save genesis.json
-    await exec(`docker volume create genesis`, { env: { PATH: process.env.PATH } })
+    await exec(`docker volume create genesis`, { env: process.env })
     // run init on our tendermint container
     const initCommand = `docker run \
       --rm \
@@ -80,7 +80,7 @@ async function main() {
       --mount src=genesis,dst=/tendermint \
       578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
       init`
-    await exec(initCommand, { env: { PATH: process.env.PATH } })
+    await exec(initCommand, { env: process.env })
   } catch (e) {
     console.log(`Could not init tendermint: ${e}`)
     process.exit(1)
@@ -96,7 +96,7 @@ async function main() {
       busybox \
       cat /tendermint/config/genesis.json`
     let newGen = JSON.parse(
-      (await exec(catGenesisCommand, { env: { PATH: process.env.PATH } }))
+      (await exec(catGenesisCommand, { env: process.env }))
         .stdout
     )
 
@@ -107,7 +107,7 @@ async function main() {
     process.exit(1)
   } finally {
     // clean up our docker volume
-    await exec('docker volume rm genesis', { env: { PATH: process.env.PATH } })
+    await exec('docker volume rm genesis', { env: process.env })
   }
 
 
@@ -155,7 +155,7 @@ async function main() {
         --tls
       `
       console.log(`Installing ${node.name}`)
-      await exec(cmd)
+      await exec(cmd, { env: process.env })
     })
 
   } catch (e) {
