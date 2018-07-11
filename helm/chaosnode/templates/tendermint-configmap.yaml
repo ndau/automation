@@ -203,7 +203,7 @@ data:
 
     # update genesis.json with chaosnode's empty hash
     empty_hash=$(cat /tendermint/empty_hash)
-    jq ".app_hash=\"f5d9bc5c359ff6a9e20b929f27e6753c488c1860\" /tendermint/config-ro/genesis.json > /tendermint/config/genesis.json
+    jq ".app_hash=\"$empty_hash\"" /tendermint/config-ro/genesis.json > /tendermint/config/genesis.json
 
     # mark this
     touch /tendermint/config/init-done
