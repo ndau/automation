@@ -20,18 +20,6 @@ spec:
         release: {{ .Release.Name }}
     spec:
       initContainers:
-      # Uses chaosnode image to get empty hash and saves it
-      - name: hash
-        image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.tendermint.image.tag }}"
-        imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
-        command: ["/bin/sh"]
-        args: [
-          "-c",
-          "/bin/chaosnode -echo-empty-hash &> /tendermint/empty_hash",
-        ]
-        volumeMounts:
-        - name: tendermint-home-volume
-          mountPath: /tendermint
       # copy/ammend read only config files to real config folder
       - name: config
         image: {{ .Values.alpineJQ.image.repository }}:{{ .Values.alpineJQ.image.tag }}
