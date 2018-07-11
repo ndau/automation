@@ -55,12 +55,12 @@ async function main() {
   // generate validators
   try {
     await asyncForEach(nodes, async (node, i) => {
-      const genCommand = `docker run \
+      const genValidatorCmd = `docker run \
         --rm \
         -e TMHOME=/tendermint \
         578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
         gen_validator`
-      let res = await exec(genCommand, { env: process.env })
+      let res = await exec(genValidatorCmd, { env: process.env })
       nodes[i].priv = JSON.parse(res.stdout)
     })
   } catch (e) {
@@ -163,6 +163,14 @@ async function main() {
     process.exit(1)
   }
 
+  saveLogs({ nodes, peers, genesis, masterIP })
+
+}
+
+main()
+
+// saveLogs writes a log to a directory
+function saveLogs(finalConfig) {
   let timestamp = new Date().toISOString().
     replace(/T/g, '_').
     replace(/\:/g, '-').
@@ -170,16 +178,8 @@ async function main() {
 
   let logConfigFile = `chaos-config-${timestamp}.json`
 
-  let finalConfig = {
-    nodes: nodes,
-    peers: peers
-  }
-
   console.log(`Your nodes are configured as follows:\n${JSON.stringify(finalConfig, null, 2)}`)
-  console.log(`on ${masterIP}`)
   console.log(`config log saved to: ${logConfigFile}`)
   fs.writeFile(path.join(__dirname, logConfigFile), JSON.stringify(finalConfig, null, 2), () => { })
 
 }
-
-main()
