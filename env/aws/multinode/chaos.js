@@ -39,14 +39,16 @@ const newNode = (name) => {
 async function main() {
 
   // Usage and argument count validation
-  if (process.argv.length < 4 || !process.env.VERSION_TAG) {
+  if (process.argv.length < 4 || process.env.VERSION_TAG === undefined) {
     console.log(`
     Please supply a version tag, a port to start and some node names.
     Usage
-    VERSION_TAG=0.0.1 ./chaos.js 30000 phobos deimos
+    VERSION_TAG=0.0.1 ./chaos.js 30000 castor pollux
     `)
     process.exit(1)
   }
+
+  const VERSION_TAG = process.env.VERSION_TAG
 
   // get the starting port from the arguments
   portCount = parseInt(process.argv[2])
@@ -158,7 +160,7 @@ async function main() {
         --set p2pNodePort=${node.port.p2p} \
         --set rpcNodePort=${node.port.rpc} \
         --set tendermint.moniker=${node.name} \
-        --set chaosnode.image.tag=${process.env.VERSION_TAG} \
+        --set chaosnode.image.tag=${VERSION_TAG} \
         --tls
       `
       console.log(`Installing ${node.name}`)
