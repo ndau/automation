@@ -25,10 +25,10 @@ rpcNodePort: 30001
 # amount of time in seconds tendermint should create empty blocks
 createEmptyBlocksInterval: 10
 
-# persistent peers separated by a comma.
+# Tendermint's persistent peers separated by a comma.
 persistentPeers: ""
 
-# trigger an update for the tendermint peer addresses.
+# Trigger an update for the tendermint peer addresses.
 updatePeerAddresses: false
 
 ndaunode:

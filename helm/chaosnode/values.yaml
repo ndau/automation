@@ -23,10 +23,10 @@ tendermint:
 p2pNodePort: 30000
 rpcNodePort: 30001
 
-# persistent peers separated by a comma.
+# Tendermint's persistent peers separated by a comma.
 persistentPeers: ""
 
-# trigger an update for the tendermint peer addresses.
+# Trigger an update for the tendermint peer addresses.
 updatePeerAddresses: false
 
 chaosnode:
