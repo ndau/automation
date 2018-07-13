@@ -22,7 +22,7 @@ spec:
       initContainers:
       # Uses chaosnode image to get empty hash and saves it
       - name: hash
-        image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.tendermint.image.tag }}"
+        image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
         imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
         command: ["/bin/sh"]
         args: [
