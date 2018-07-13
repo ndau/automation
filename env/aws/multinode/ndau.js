@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// This script deploys new ndau nodes in a two node network.
+// This script deploys new ndau nodes in a multiple node network.
 
 const fs = require('fs')
 const util = require('util')
@@ -35,13 +35,17 @@ async function main() {
   if (process.argv.length < 4 || process.env.VERSION_TAG === undefined) {
     console.log(`
     Please supply a version tag, a port to start and some node names.
+    noms and tendermint versions reflect our container versions, not the applications themselves. They are optional and default to "latest".
+
     Usage
-    VERSION_TAG=0.0.1 ./ndau.js 30000 mario luigi
+    [NOMS_VERSION=0.0.1] [TM_VERSION=0.0.1] VERSION_TAG=0.0.1 ./ndau.js 30000 mario luigi
     `)
     process.exit(1)
   }
 
   const VERSION_TAG = process.env.VERSION_TAG
+  const NOMS_VERSION = process.env.NOMS_VERSION || "latest"
+  const TM_VERSION = process.env.TM_VERSION || "latest"
 
   // get the starting port from the arguments
   portCount = parseInt(process.argv[2])
@@ -152,8 +156,9 @@ async function main() {
         --set p2pNodePort=${node.port.p2p} \
         --set rpcNodePort=${node.port.rpc} \
         --set tendermint.moniker=${node.name} \
-        --set ndaunode.image.tag=${VERSION_TAG} \
-        --tls
+        --set chaosnode.image.tag=${VERSION_TAG} \
+        --set tendermint.image.tag=${TM_VERSION} \
+        --set noms.image.tag=${NOMS_VERSION} \        --tls
       `
       console.log(`Installing ${node.name}`)
       await exec(cmd, { env: process.env })
