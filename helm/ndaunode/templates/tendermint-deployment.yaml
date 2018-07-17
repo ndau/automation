@@ -22,7 +22,7 @@ spec:
       initContainers:
       # Uses ndaunode image to get empty hash and saves it
       - name: hash
-        image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.tendermint.image.tag }}"
+        image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
         command: ["/bin/sh"]
         args: [
