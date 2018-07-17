@@ -20,40 +20,7 @@ export REGION=us-east-1
 export AZ=us-east-1b
 ./bootstrap-cluster.sh
 
-# Install a chaosnode
-helm install --name chaos-one ../../helm/chaos \
-    --set p2pPort=30500 \
-    --set rpcPort=30501 \
-    --set tendermint.moniker=chaos-one \
-    --tls
 
-# Install an ndaunode
-helm install --name ndau-one ../../helm/ndau \
-    --set p2pPort=30600 \
-    --set rpcPort=30601 \
-    --set tendermint.moniker=ndau-one \
-    --tls
-
-```
-
-## One Password
-
-One password has a command-line tool, `op`, for interacting with the secure things stored in your 1password vaults. It is used in the aws scripts to retrieve AWS credentials from a secure document.
-
-### Install one password
-
-Install and verify `op` from https://support.1password.com/command-line-getting-started/
-
-Get your signin information from your 1password emergency kit and use `op` to sign in.
-
-```
-op signin https://oneiro.1password.com your.name@oneiro.io <secret-key>
-```
-
-Then you'll be able to sign in with this command
-
-```
-eval $(op signin oneiro)
 ```
 
 ## KOPS
