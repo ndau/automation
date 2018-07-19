@@ -20,15 +20,6 @@ else
     echo "helm already present"
 fi
 
-# Ask the user to install op from 1password
-if [ -z "$(which op)" ]; then
-	echo "op not detected"
-	echo "Please install op from 1password https://support.1password.com/command-line-getting-started/"
-	echo "Unzip the binary and copy it to /usr/local/bin"
-else
-	echo "op already present"
-fi
-
 # get the right sed
 sed="sed"
 sed --version > /dev/null 2>&1
@@ -42,34 +33,6 @@ if [ $? != 0 ]; then
     fi
 else
     echo "sed is ok"
-fi
-
-# Check gomu
-if [ ! -f $DIR/../../gomu ]; then
-    echo "Keyfile gomu not in project root directory."
-    exit 1
-fi
-
-# check tendermint
-REQUIRE_TENDERMINT_VERSION="0.18.0"
-
-# install tendermint if not already there
-if [ -z "$(which tendermint)" ]; then
-    echo_green "Installing tendermint"
-    go get -u github.com/golang/dep/... && \
-    mkdir -p $GOPATH/src/github.com/tendermint && \
-    git clone https://github.com/tendermint/tendermint.git \
-    $GOPATH/src/github.com/tendermint/tendermint && \
-    cd $GOPATH/src/github.com/tendermint/tendermint && \
-    git checkout "v${REQUIRE_TENDERMINT_VERSION}" && \
-    dep ensure && \
-    go install -v -a -ldflags '-extldflags "-static"' ./cmd/tendermint
-else
-    echo "Tendermint already installed"
-    if [ "$(tendermint version)" == "$REQUIRED_TENDERMINT_VERSION" ]; then
-        echo "Wanted Tendermint version ${REQUIRED_TENDERMINT_VERSION}, got $(tendermint version)."
-        exit 1
-    fi
 fi
 
 # install kubectl if not already there
