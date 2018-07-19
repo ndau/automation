@@ -4,16 +4,28 @@ This repo is for material related to kubernetes deployments.
 
 ## Environments
 
-In order to deploy the nodes, you first need to have a running kubernetes cluster.
+In order to deploy the chaos or ndau nodes, you first need to have a running kubernetes cluster.
 
-* [AWS](./env/aws/readme.md).
-* [Local (minikube)](./env/local/readme.md).
+* [AWS](./env/aws/readme.md)
+* [Local (minikube)](./env/local/readme.md)
 
-## Requirements
+## Installation
 
-You can follow the steps bellow or run `./dev.sh` to check for and/or install dependencies.
+Once `helm` and `kubectl` are configured, it's really quite easy. (see below for instructions)
 
-### kubectl
+```
+helm install helm/chaosnode --name my-chaos-node --tls
+```
+
+```
+helm install helm/ndaunode --name my-ndau-node --tls
+```
+
+The output of those commands will provide details about how to connect to those nodes.
+
+### Requirements
+
+#### kubectl
 
 `brew install kubectl`
 
@@ -21,19 +33,15 @@ kubectl is a command line tool that is the main way to interact with k8s. It mak
 
 It's a good idea to add kubectl to your aliases. `alias k=kubectl`
 
-#### Configuration
+##### Configuration
 
 The configuration for kubectl is in located in `~/.kube/config`. The two most important peices of information are the `user` and the `cluster`. A `context` is a combination of a `user` and `cluster`. When minikube is installed it will automatically configure kubectl to connect to it.
 
 The configuration and instructions for any clusters that already exist can be found on 1password.
 
-## Installation
+#### helm
 
-Using helm is the easiest way to install the chaosnode. Once `kubectl` is installed and configured, helm will use it to install to the current cluster.
-
-```
-helm install helm/chaosnode --name my-chaos-node --tls
-```
+`helm` will allow you to install `charts` instead of kubernetes manifest files. helm is configured to access your kubernetes cluster securely through certificates. The certificates themselves and more information are stored in 1password. `helm` uses some of the configuration of `kubectl` and so that needs to be set up first.
 
 # Glossary
 

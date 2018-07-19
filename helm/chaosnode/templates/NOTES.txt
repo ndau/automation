@@ -8,3 +8,9 @@ kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP
 To get the specific ports assigned on each node.
 echo "P2P port: $(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"p2p\")].nodePort}" {{ template "chaos.fullname" . }}-tendermint-service)"
 echo "RPC port: $(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"rpc\")].nodePort}" {{ template "chaos.fullname" . }}-tendermint-service)"
+
+On minikube:
+
+```
+minikube service  --namespace {{ .Release.Namespace }} {{ template "chaos.fullname" . }}-tendermint-service --url
+```

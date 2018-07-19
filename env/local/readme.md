@@ -35,7 +35,7 @@ kubectl expose deployment hello-minikube --type=NodePort
 curl $(minikube service hello-minikube --url)
 ```
 
-The minikube cluster runs its own docker server. You can configure your docker client to connect to minikube with `eval $(minikube docker-env)` and build images available to the docker, which we'll be doing later.
+The minikube cluster runs its own docker server. You can configure your docker client to connect to minikube with `eval $(minikube docker-env)` and build images available to minikube's docker.
 
 If you're interested, you can ssh into the machine and inspect it further with `minikube ssh`.
 
