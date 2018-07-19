@@ -1,56 +1,15 @@
-# k-os
+# Kubernetes
 
-## Chaos node on Kubernetes
+This repo is for material related to kubernetes deployments.
 
-This repo is for all things related to getting a Chaos node up and running.
+## Environments
 
-## tldr;
+In order to deploy the nodes, you first need to have a running kubernetes cluster.
 
-1. Copy `gomu` to this project's root.
-2. Pick your target environment by setting an environment variable.
+* [AWS](./env/aws/readme.md).
+* [Local (minikube)](./env/local/readme.md).
 
-```shell
-k8s_target=aws
-# or
-k8s_target=local
-```
-
-If you're going with `aws`, please see the following document to set the appropriate environment variables: [AWS specific readme](./env/aws/readme.md).
-
-And then
-
-```shell
-./env/$k8s_target/quickstart.sh
-```
-
-## Minikube port forwarding
-
-```shell
-pod_name=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].metadata.name")
-kubectl port-forward $pod_name 46657:46657
-```
-
-Use `ctrl+c` to stop port forwarding.
-
-## Logs
-
-To see the logs of one pod
-
-```shell
-pod_name=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].metadata.name")
-kubectl logs $pod_name -f # -f for follow
-```
-
-or you can use kubetail to see both with different colors
-
-```shell
-brew tap johanhaleby/kubetail && brew install kubetail
-t_pod=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].metadata.name")
-c_pod=$(kubectl get pods --selector=app=chaosnode -o json | jq -r ".items[0].metadata.name")
-kubetail $c_pod,$t_pod
-```
-
-## Machine requirements
+## Requirements
 
 You can follow the steps bellow or run `./dev.sh` to check for and/or install dependencies.
 
@@ -58,7 +17,7 @@ You can follow the steps bellow or run `./dev.sh` to check for and/or install de
 
 `brew install kubectl`
 
-kubectl is a commandline tool that is the main way to interact with k8s. It makes http calls to a k8s cluster. It can be used to `apply` manifest files to a kubernetes cluster, which commands kubernetes to bring up containers and associated resources.
+kubectl is a command line tool that is the main way to interact with k8s. It makes http calls to a k8s cluster. It can be used to `apply` manifest files to a kubernetes cluster, which commands kubernetes to bring up containers and associated resources.
 
 It's a good idea to add kubectl to your aliases. `alias k=kubectl`
 
@@ -66,51 +25,15 @@ It's a good idea to add kubectl to your aliases. `alias k=kubectl`
 
 The configuration for kubectl is in located in `~/.kube/config`. The two most important peices of information are the `user` and the `cluster`. A `context` is a combination of a `user` and `cluster`. When minikube is installed it will automatically configure kubectl to connect to it.
 
+The configuration and instructions for any clusters that already exist can be found on 1password.
 
-### minikube (for local testing)
+## Installation
 
-`brew install minikube`
-
-minikube lets you run a kubernetes cluster on your machine as a single master node. It does so by running a kubernetes server in a linux VM and automatically configuring kubectl to connect to it. For more info, see https://github.com/kubernetes/minikube.
-
-In order for minikube to spin up a new VM, it needs a hypervisor, [many are supported](https://github.com/kubernetes/minikube). Assuming you've installed docker for mac and want to use Docker's hypervisor `hyperkit`, you need to install a driver from the minikube repository as per the [instructions here](https://github.com/kubernetes/minikube/blob/master/docs/drivers.md#hyperkit-driver).
+Using helm is the easiest way to install the chaosnode. Once `kubectl` is installed and configured, helm will use it to install to the current cluster.
 
 ```
-curl -LO https://storage.googleapis.com/minikube/releases/latest/docker-machine-driver-hyperkit \
-&& chmod +x docker-machine-driver-hyperkit \
-&& sudo mv docker-machine-driver-hyperkit /usr/local/bin/ \
-&& sudo chown root:wheel /usr/local/bin/docker-machine-driver-hyperkit \
-&& sudo chmod u+s /usr/local/bin/docker-machine-driver-hyperkit
+helm install helm/chaosnode --name my-chaos-node --tls
 ```
-
-Once minikube and hyperkit are installed, you can start your local cluster with the following command
-
-```
-minikube start --vm-driver=hyperkit
-```
-
-If that all worked, you'll have a single node cluster running on your machine. You can test it with a simple echo service.
-
-```
-# download an image from google and run it as a deployment
-kubectl run hello-minikube --image=k8s.gcr.io/echoserver:1.4 --port=8080
-
-# create a service for that deployment
-kubectl expose deployment hello-minikube --type=NodePort
-
-# curl the address minikube gives you for that service
-curl $(minikube service hello-minikube --url)
-```
-
-The minikube cluster runs its own docker server. You can configure your docker client to connect to minikube with `eval $(minikube docker-env)` and build images available to the docker, which we'll be doing later.
-
-If you're interested, you can ssh into the machine and inspect it further with `minikube ssh`.
-
-There is a web ui for a kubernetes cluster that great for seeing things at a glance, but isn't generally good for making changes to your cluster. To run it and connect: `minikube dashboard`.
-
-# Philosophy
-
-This set of scripts tries to follow a 12 factor approach as much as possible for a set of scripts.
 
 # Glossary
 
