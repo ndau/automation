@@ -11,17 +11,22 @@ tendermint:
     tag: latest
     pullPolicy: IfNotPresent
   ports:
+    # These ports are only used internally within the pod and between services.
     p2p: 46656
     rpc: 46657
+  nodePorts:
+    # Node ports from which the tendermint service will be accessible externally at the kubernetes node's IP address.
+    # If they are not provided here or set with the commmand line, a random port will be assigned between 30000-32767 by default.
+    # p2p: 30000
+    # rpc: 30001
   persistence:
     size: 1Gi
   service:
     type: ClusterIP
   moniker: anonymous
 
-# Node ports from which the tendermint service will be accessible externally at the kubernetes node's IP address.
-p2pNodePort: 30000
-rpcNodePort: 30001
+# amount of time in seconds tendermint should create empty blocks
+createEmptyBlocksInterval: 10
 
 # Tendermint's persistent peers separated by a comma.
 persistentPeers: ""
@@ -51,15 +56,12 @@ noms:
   service:
     type: ClusterIP
 
-alpineJQ:
+# deployUtils is an small image with tools used for small tasks.
+deployUtils:
   image:
-    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/alpine-jq
-    tag: latest
-
-ingress:
-  enabled: false
-  path: /
-  host: dev-chaos.ndau.tech
+    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/deploy-utils
+    tag: 0.0.1
+    pullPolicy: IfNotPresent
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
@@ -81,6 +83,7 @@ affinity: {}
 
 # default configuration for tendermint's priv_validator.json file in base64
 # This should be supplied in the commandline.
+# What ever value is supplied for app_hash here or the commandline gets overriden by the tendermint deployment init containers.
 privValidator: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQTU2RSIsInB1Yl9rZXkiOiB7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwibGFzdF9oZWlnaHQiOjAsImxhc3Rfcm91bmQiOjAsImxhc3Rfc3RlcCI6MCwibGFzdF9zaWduYXR1cmUiOm51bGwsInByaXZfa2V5IjogeyJ0eXBlIjoiZWQyNTUxOSIsImRhdGEiOiI0MzkzMUQ1Q0FBNUQ3QkRBODY4RkI1QTc5RjkyQTQ1QzRERTRDODYwMkI0NUIwQjM4QkQ3RTRBQ0FDNzYyNDVDRjE0Q0UyNzNBRjBCNTg4MDJERURGNEFFRENFOEI2MUUwNjAwODgyMUFFOUFBRTVEQURFNjcxMzYwNDI2Q0U3MCJ9fQo=
 # The json below (minute whitespace) is base64 encoded above.
 #  {

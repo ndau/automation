@@ -1,6 +1,16 @@
-Your chaosnode is accessible at the following URLs.
+Your chaosnode is accessible at any of the IP addresses associated with your cluster.
 
-{{- if .Values.ingress.enabled }}
-http://p2p.{{ .Values.ingress.host }}
-http://rpc.{{ .Values.ingress.host }}
-{{ end }}
+To get the IP addresses of the nodes in your cluster:
+```
+kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}' | tr " " "\n"
+```
+
+To get the specific ports assigned on each node.
+echo "P2P port: $(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"p2p\")].nodePort}" {{ template "chaos.fullname" . }}-tendermint-service)"
+echo "RPC port: $(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"rpc\")].nodePort}" {{ template "chaos.fullname" . }}-tendermint-service)"
+
+On minikube:
+
+```
+minikube service  --namespace {{ .Release.Namespace }} {{ template "chaos.fullname" . }}-tendermint-service --url
+```

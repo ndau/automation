@@ -57,7 +57,18 @@ export NAME=${CLUSTER_NAME}.${CLUSTER_SUBDOMAIN}
 export KOPS_STATE_STORE=s3://$BUCKET
 
 # use kops to create the cluster in the availability zone specified.
-kops create cluster --zones $AZ $NAME
+kops create cluster \
+  -f ./kops-conf.yaml \
+  --zones $AZ \
+   $NAME
+
+# update instance group `nodes` with kope-ig-nodes.json
+kops get ig nodes --state s3://$BUCKET -o json > kops-current.json
+jq -s '.[0] * .[1]' current.json kops-ig-nodes.json > kops-merged.json
+kops replace -f kops-merged.json --state s3://$BUCKET
+rm kops-merged.json kops-current.json
+
+# bring up the cluster
 kops update cluster $NAME --yes
 
 # wait for the cluster to become available
@@ -75,13 +86,4 @@ if (! op list vaults); then
 		fi
 	fi
  fi
-
-# install traefik ingress controller
-# get the aws keys for the kubernetes-lets-encrypt user from 1password
-eval "$(op get document du6igtjmjncu5ba6taut76dite)"
-helm install stable/traefik --name tic --values $DIR/traefik-values.yaml --tls \
-	--set acme.dnsProvider.route53.AWS_ACCESS_KEY_ID=$KLE_KEY \
-	--set acme.dnsProvider.route53.AWS_SECRET_ACCESS_KEY=$KLE_SECRET
-KLE_KEY=
-KLE_SECRET=
 
