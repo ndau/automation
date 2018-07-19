@@ -66,7 +66,7 @@ spec:
       - name: tendermint
         image: "{{ .Values.tendermint.image.repository }}:{{ .Values.tendermint.image.tag }}"
         command: ["/bin/sh"]
-        args: ["-c", "tendermint node --moniker={{ .Values.tendermint.moniker }} --log_level debug --p2p.persistent_peers $(cat /tendermint/config/persistent-peers)"]
+        args: ["-c", "tendermint node --moniker={{ .Values.tendermint.moniker }} --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\""]
         imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
         ports:
           - containerPort: {{ .Values.tendermint.ports.p2p }}
