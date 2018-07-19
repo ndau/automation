@@ -1,0 +1,9 @@
+# This image provides an alpine base with tools that help with deployment or CI/CD.
+
+FROM alpine:3.7
+
+LABEL org.opencontainers.image.version 0.0.1
+
+RUN apk add --no-cache \
+    jq \
+    curl
