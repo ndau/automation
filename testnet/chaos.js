@@ -71,7 +71,7 @@ async function main() {
       const genValidatorCmd = `docker run \
         --rm \
         -e TMHOME=/tendermint \
-        578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
+        578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint:${TM_VERSION} \
         gen_validator`
       let res = await exec(genValidatorCmd, { env: process.env })
       nodes[i].priv = JSON.parse(res.stdout)
@@ -91,7 +91,7 @@ async function main() {
       --rm \
       -e TMHOME=/tendermint \
       --mount src=genesis,dst=/tendermint \
-      578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint \
+      578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint:${TM_VERSION} \
       init`
     await exec(initCommand, { env: process.env })
   } catch (e) {
