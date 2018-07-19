@@ -43,9 +43,9 @@ spec:
       - name: ndaunode
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
-        args: ["-spec", "http://{{ template "ndau.fullname" . }}-noms-service:{{ .Values.noms.port }}"]
+        args: ["-spec", "http://{{ template "ndau.fullname" . }}-noms-service:{{ .Values.noms.port }}", "-addr", "0.0.0.0:{{ required ".Values.ndaunode.port not set" .Values.ndaunode.port }}"]
         ports:
-        - containerPort: 46658
+        - containerPort: {{ .Values.ndaunode.port }}
         env:
         - name: NDAUHOME
           value: "/root/.ndau"

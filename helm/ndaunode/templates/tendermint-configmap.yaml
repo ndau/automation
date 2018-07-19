@@ -15,7 +15,7 @@ data:
 
     # TCP or UNIX socket address of the ABCI application,
     # or the name of an ABCI application compiled in with the Tendermint binary
-    proxy_app = "tcp://{{ include "ndau.fullname" . }}-ndaunode-service:46658"
+    proxy_app = "tcp://{{ include "ndau.fullname" . }}-ndaunode-service:{{ .Values.ndaunode.port }}"
 
     # A custom human readable name for this node
     moniker = "anonymous"
@@ -61,7 +61,7 @@ data:
     [rpc]
 
     # TCP or UNIX socket address for the RPC server to listen on
-    laddr = "tcp://0.0.0.0:{{ default 46657 .Values.tendermint.ports.rpc }}"
+    laddr = "tcp://0.0.0.0:{{ required ".Values.tendermint.ports.rpc required" .Values.tendermint.ports.rpc }}"
 
     # TCP or UNIX socket address for the gRPC server to listen on
     # NOTE: This server only supports /broadcast_tx_commit
