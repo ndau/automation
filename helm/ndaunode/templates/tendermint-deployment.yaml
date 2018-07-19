@@ -34,7 +34,7 @@ spec:
           mountPath: /tendermint
       # copy/ammend read only config files to real config folder
       - name: config
-        image: {{ .Values.alpineJQ.image.repository }}:{{ .Values.alpineJQ.image.tag }}
+        image: {{ .Values.deployUtils.image.repository }}:{{ .Values.deployUtils.image.tag }}
         command: ["/bin/sh", "/tendermint/init.sh"]
         env:
         - name: UPDATE_PERSISTENT_PEERS

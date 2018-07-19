@@ -21,8 +21,9 @@ spec:
     spec:
       initContainers:
       - name: noms-wait
-        image: busybox
-        command: ["sh", "-c", "until nslookup {{ template "chaos.fullname" . }}-noms-service; do echo waiting for {{ template "chaos.fullname" . }}-noms-service; sleep 2; done;"]
+        image: "{{ .Values.deployUtils.image.repository }}:{{ .Values.deployUtils.image.tag }}"
+        imagePullPolicy: {{ .Values.deployUtils.image.pullPolicy }}
+        command: ["sh", "-c", "echo Starting noms wait loop; until curl -v {{ template "chaos.fullname" . }}-noms-service:{{ .Values.noms.port }}; do echo waiting for {{ template "chaos.fullname" . }}-noms-service; sleep 2; done;"]
       containers:
       - name: chaosnode
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
