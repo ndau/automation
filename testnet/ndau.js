@@ -153,12 +153,13 @@ async function main() {
         --set genesis=${str2b64(JSON.stringify(genesis))}\
         --set privValidator=${str2b64(JSON.stringify(node.priv))}\
         --set persistentPeers="${str2b64(peers)}" \
-        --set p2pNodePort=${node.port.p2p} \
-        --set rpcNodePort=${node.port.rpc} \
+        --set tendermint.nodePorts.p2p=${node.port.p2p} \
+        --set tendermint.nodePorts.rpc=${node.port.rpc} \
         --set tendermint.moniker=${node.name} \
         --set chaosnode.image.tag=${VERSION_TAG} \
         --set tendermint.image.tag=${TM_VERSION} \
-        --set noms.image.tag=${NOMS_VERSION} \        --tls
+        --set noms.image.tag=${NOMS_VERSION} \
+        --tls
       `
       console.log(`Installing ${node.name}`)
       await exec(cmd, { env: process.env })

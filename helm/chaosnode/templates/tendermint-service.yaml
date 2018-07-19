@@ -13,11 +13,15 @@ spec:
     - name: p2p
       port: {{ .Values.tendermint.ports.p2p }}
       targetPort: {{ .Values.tendermint.ports.p2p }}
-      nodePort: {{ .Values.p2pNodePort }}
+      {{ if (.Values.nodePorts) and (.Values.nodeports.p2p) }}
+      nodePort: {{ .Values.nodePorts.p2p }}
+      {{ end }}
     - name: rpc
       port: {{ .Values.tendermint.ports.rpc }}
       targetPort: {{ .Values.tendermint.ports.rpc }}
-      nodePort: {{ .Values.rpcNodePort }}
+      {{ if (.Values.nodePorts) and (.Values.nodeports.rpc) }}
+      nodePort: {{ .Values.nodePorts.rpc }}
+      {{ end }}
   selector:
     app: {{ template "chaos.name" . }}-tendermint
     release: {{ .Release.Name }}
