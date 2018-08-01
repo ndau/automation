@@ -67,3 +67,45 @@ t_pod=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].me
 c_pod=$(kubectl get pods --selector=app=chaosnode -o json | jq -r ".items[0].metadata.name")
 kubetail $c_pod,$t_pod
 ```
+
+## Troubleshooting
+
+Sometimes the best thing to do is to blow away minikube and try again. `minikube delete`.
+
+## Integration testing
+
+To bring up a test net locally with minikube for integration testing. 
+
+### Requirements
+You can run `env/local/dev.sh` or you can install the following manually. *Note: `dev.sh` will not upgrade for you.*
+
+```
+brew cask install minikube
+brew install kubectl
+brew install kubernetes-helm
+# The following will install minikube's docker hypervisor
+curl -LO https://storage.googleapis.com/minikube/releases/latest/docker-machine-driver-hyperkit \
+&& chmod +x docker-machine-driver-hyperkit \
+&& sudo mv docker-machine-driver-hyperkit /usr/local/bin/ \
+&& sudo chown root:wheel /usr/local/bin/docker-machine-driver-hyperkit \
+&& sudo chmod u+s /usr/local/bin/docker-machine-driver-hyperkit
+```
+
+1. Start minikube
+```
+minikube start --vm-driver=hyperkit --disk-size=10g
+```
+2. Connect docker-cli to minikube
+```
+eval $(minikube docker-env)
+```
+3. Build the images to be tested
+```
+chaos_dir=$GOPATH/src/github.com/oneiro-ndev/chaos
+git_sha=$(cd $chaos_dir; git rev-parse --short HEAD)
+docker build -f "${chaos_dir}/Dockerfile" "$chaos_dir" -t chaos:${git_sha}
+```
+4. Install the helm tiller
+```
+helm init
+```

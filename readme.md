@@ -114,6 +114,22 @@ A sandboxed environment that runs an image, usually a lightweight process that a
 
 Helm is a kubernetes templateing engine that assists with deployment. YAML files for Kubernetes manifests are great, but if you need to share values or provide configuration, a set of static YAML files can be difficult to work with. Helm packages kubernetes manifests into a single tarball that can be applied to a cluster while overriding default values as necessary.
 
+#### Chart
+
+This is the basic unit that you work with in Helm. A helm chart, is a template with default values saved in `values.yaml`. They may be overriden at install time.
+
+#### Release
+
+A release is a specific install of a helm chart.
+
+#### Tiller
+
+Helm is a client/server pair of applications. To begin using helm, the tiller must be installed on the cluster with `helm init`. This uses the current `kubectl` context. The tiller is installed just like any other kubernetes application but it has the privileges to install and modify kubernetes resources.
+
+#### Security
+
+For a helm security overview. Look to 1password for `dev-chaos-helm-tiller-certs.zip` which contains documentation on authorization and usage of our dev cluster.
+
 # Resources
 
 Jumping into kubernetes is really confusing and bewildering and can make anyone question their choices in life. Generally you have a program that accepts input and gives useful output, where it gthen you add layers and layers of abstraction until you start questioning what a boolean value "really means". It can be helpful to only think of one layer at a time. And when in doubt, just ask. There are no stupid questions :)

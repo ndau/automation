@@ -1,8 +1,8 @@
 #!/bin/bash
 
-source ./helpers.sh
-
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+source "$DIR"/helpers.sh
 
 # install brew if it's not already installed
 if [ -z "$(which brew)" ]; then
@@ -18,21 +18,6 @@ if [ -z "$(which helm)" ]; then
     brew install kubernetes-helm
 else
     echo "helm already present"
-fi
-
-# get the right sed
-sed="sed"
-sed --version > /dev/null 2>&1
-if [ $? != 0 ]; then
-    which gsed >/dev/null
-    if [ $? != 0 ]; then
-        echo_green "Installing gnu-sed"
-        brew install gnu-sed
-    else
-        echo "sed is ok"
-    fi
-else
-    echo "sed is ok"
 fi
 
 # install kubectl if not already there
