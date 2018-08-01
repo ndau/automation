@@ -27,7 +27,7 @@ spec:
         command: ["/bin/sh"]
         args: [
           "-c",
-          "/bin/chaosnode -echo-empty-hash &> /tendermint/empty_hash",
+          "/bin/chaosnode -echo-empty-hash >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/empty_hash",
         ]
         volumeMounts:
         - name: tendermint-home-volume
@@ -35,6 +35,7 @@ spec:
       # copy/ammend read only config files to real config folder
       - name: config
         image: {{ .Values.deployUtils.image.repository }}:{{ .Values.deployUtils.image.tag }}
+        imagePullPolicy: {{ .Values.deployUtils.image.pullPolicy }}
         command: ["/bin/sh", "/tendermint/init.sh"]
         env:
         - name: UPDATE_PERSISTENT_PEERS
