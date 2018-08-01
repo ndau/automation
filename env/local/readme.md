@@ -103,9 +103,24 @@ eval $(minikube docker-env)
 ```
 chaos_dir=$GOPATH/src/github.com/oneiro-ndev/chaos
 git_sha=$(cd $chaos_dir; git rev-parse --short HEAD)
+# build chaosnode
 docker build -f "${chaos_dir}/Dockerfile" "$chaos_dir" -t chaos:${git_sha}
+# build tendermint
+docker build -f "${chaos_dir}/tm-docker/Dockerfile" "$chaos_dir/tm-docker" -t tendermint:latest
+# build noms
+docker build -f "${chaos_dir}/noms-docker/Dockerfile" "$chaos_dir/noms-docker" -t noms:latest
+# build helper image
+docker build -f "./docker-images/deploy-utils.docker" "./docker-images" -t deploy-utils:latest
 ```
 4. Install the helm tiller
 ```
 helm init
 ```
+5. install the testnet
+```
+VERSION_TAG=${git_sha} ./testnet/chaos.js 30000 castor pollux
+```
+
+At this point you'll have to wait a little while until everything is running. You can type `kubectl get pods` to see if everything has a `RUNNING` status.
+
+Since we used a script to install the nodes, we didn't see the output from the helm charts. You can still view them however and get a few little helpful commands by running the comand `helm status pollux` or `helm status castor`.
