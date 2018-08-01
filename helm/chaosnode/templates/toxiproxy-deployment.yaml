@@ -1,0 +1,54 @@
+{{- if .Values.toxiproxy.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "chaos.fullname" . }}-toxiproxy
+  labels:
+    app: {{ template "chaos.name" . }}
+    chart: {{ template "chaos.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "chaos.name" . }}-toxiproxy
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "chaos.name" . }}-toxiproxy
+        release: {{ .Release.Name }}
+    spec:
+      initContainers:
+      - name: init-config
+        image: {{ .Values.deployUtils.image.repository }}:{{ .Values.deployUtils.image.tag }}
+        command: ["/bin/sh", "/root/config-init.sh"]
+        volumeMounts:
+        - name: config-init.sh
+          mountPath: /root/config-init.sh
+          subPath: config-init.sh
+        - name: tp-config.template.json
+          mountPath: /root/tp-config.template.json
+          subPath: tp-config.template.json
+      containers:
+      - name: toxiproxy
+        image: "{{ .Values.toxiproxy.image.repository }}:{{ .Values.toxiproxy.image.tag }}"
+        imagePullPolicy: {{ .Values.toxiproxy.image.pullPolicy }}
+        ports:
+          - containerPort: {{ .Values.toxiproxy.ports.p2p }}
+          - containerPort: {{ .Values.toxiproxy.ports.rpc }}
+      volumes:
+      - name: init-config.sh
+        configMap:
+          name: {{ template "chaos.fullname" . }}-toxiproxy-config
+          items:
+          - key: init-config.sh
+            path: init-config.sh
+      - name: tp-config.template.json
+        configMap:
+          name: {{ template "chaos.fullname" . }}-toxiproxy-config
+          items:
+          - key: tp-config.template.json
+            path: tp-config.template.json
+{{- end }}

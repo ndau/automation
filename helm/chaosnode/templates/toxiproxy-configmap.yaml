@@ -1,0 +1,40 @@
+{{- if .Values.toxiproxy.enabled }}
+
+kind: ConfigMap
+metadata:
+  name: {{ template "chaos.fullname" . }}-toxiproxy-config
+apiVersion: v1
+data:
+  init-config.sh: |
+    #!/bin/sh
+
+    host_env_var={{ template "chaos.fullname" . }}-tendermint-service-service-host
+
+    rpc_port_env_var={{ template "chaos.fullname" . }}-tendermint-service-service-port-rpc
+    p2p_port_env_var={{ template "chaos.fullname" . }}-tendermint-service-service-port-p2p
+
+    rpc=$(echo $host_env_var:$rpc_port_env_var | awk '{print toupper($0)}' | sed "s/-/_/g")
+    p2p=$(echo $host_env_var:$p2p_port_env_var | awk '{print toupper($0)}' | sed "s/-/_/g")
+
+    sed /root/tp-config.template.json \
+      -e "s/RPC_UPSTREAM/$rpc" \
+      -e "s/P2P_UPSTREAM/$p2p" \
+      > /root/tp-config.json
+
+  tp-config.template.json: |
+  [
+    {
+      "enabled": true,
+      "name": "rpc",
+      "listen": "0.0.0.0:{{ .Values.toxiproxy.ports.rpc }}",
+      "upstream": "RPC_UPSTREAM"
+    },
+    {
+      "enabled": true,
+      "name": "p2p",
+      "listen": "0.0.0.0:{{ .Values.toxiproxy.ports.p2p }}",
+      "upstream": "P2P_UPSTREAM"
+    }
+  ]
+
+{{- end }}

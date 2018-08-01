@@ -45,11 +45,12 @@ async function main() {
     noms and tendermint versions reflect our container versions, not the applications themselves. They are optional and default to "latest".
 
     Usage
-    [NOMS_VERSION=0.0.1] [TM_VERSION=0.0.1] VERSION_TAG=0.0.1 ./chaos.js 30000 castor pollux
+    [NOMS_VERSION=0.0.1] [TM_VERSION=0.0.1] [TOXI=enabled] VERSION_TAG=0.0.1 ./chaos.js 30000 castor pollux
     `)
     process.exit(1)
   }
 
+  const TOXI_ENABLED = process.env.TOXI === "enabled" ? true : false
   const VERSION_TAG = process.env.VERSION_TAG
   const NOMS_VERSION = process.env.NOMS_VERSION || "latest"
   const TM_VERSION = process.env.TM_VERSION || "latest"
@@ -134,7 +135,7 @@ async function main() {
 
   // Install chaosnodes using helm
 
-  const helmDir = path.join(__dirname, '../../..', 'helm', 'chaosnode')
+  const helmDir = path.join(__dirname, '..', 'helm', 'chaosnode')
 
   // get IP address of the master node
   let masterIP = ""
@@ -155,8 +156,25 @@ async function main() {
 
   try {
 
+    let res = await exec(`kubectl config current-context`)
+    let isMinikube = res.stdout.replace(/\s*/g, '') === 'minikube' ? true : false
+
     // install a chaosnode
     await asyncForEach(nodes, async (node) => {
+      let toxiSettings = ''
+
+      if (TOXI_ENABLED) {
+        const rpc = newPort()
+        const p2p = newPort()
+        toxiSettings = `\
+          --set toxiproxy.enabled=true \
+          --set toxiproxy.ports.rpc=${rpc} \
+          --set toxiproxy.ports.p2p=${p2p} \
+        `
+        node.port.p2p = p2p
+        node.port.rpc = rpc
+      }
+
       let cmd = `helm install --name ${node.name} ${helmDir} \
         --set genesis=${str2b64(JSON.stringify(genesis))}\
         --set privValidator=${str2b64(JSON.stringify(node.priv))}\
@@ -167,7 +185,8 @@ async function main() {
         --set chaosnode.image.tag=${VERSION_TAG} \
         --set tendermint.image.tag=${TM_VERSION} \
         --set noms.image.tag=${NOMS_VERSION} \
-        --tls
+        ${toxiSettings} \
+        ${isMinikube ? '' : '--tls'}
       `
       console.log(`Installing ${node.name}`)
       await exec(cmd, { env: process.env })
