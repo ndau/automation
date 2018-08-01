@@ -65,16 +65,27 @@ async function main() {
     }
   })
 
+  // check for minikube
+  let isMinikube = false
+  try {
+    let res = await exec(`kubectl config current-context`)
+    isMinikube = res.stdout.replace(/\s*/g, '') === 'minikube' ? true : false
+  } catch (e) {
+    console.log(`Could not get current context: ${e}`)
+  }
+
+  const ecr = isMinikube ? '' : '578681496768.dkr.ecr.us-east-1.amazonaws.com/'
+
   // generate validators
   try {
     await asyncForEach(nodes, async (node, i) => {
       const genValidatorCmd = `docker run \
         --rm \
         -e TMHOME=/tendermint \
-        578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint:${TM_VERSION} \
+        ${ecr}tendermint:${TM_VERSION} \
         gen_validator`
       let res = await exec(genValidatorCmd, { env: process.env })
-      nodes[i].priv = JSON.parse(res.stdout)
+      nodes[i].priv = JSON.parse(res.stdout.replace(/^I.*\n/, ''))
     })
   } catch (e) {
     console.log(`Tendermint could not generate validators: ${e}`)
@@ -91,7 +102,7 @@ async function main() {
       --rm \
       -e TMHOME=/tendermint \
       --mount src=genesis,dst=/tendermint \
-      578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint:${TM_VERSION} \
+      ${ecr}tendermint:${TM_VERSION} \
       init`
     await exec(initCommand, { env: process.env })
   } catch (e) {
@@ -112,7 +123,7 @@ async function main() {
       cat /tendermint/config/genesis.json`
     let newGen = JSON.parse(
       (await exec(catGenesisCommand, { env: process.env }))
-        .stdout
+        .stdout.replace(/^I.*\n/, '')
     )
     Object.assign(genesis, newGen)
   } catch (e) {
@@ -128,13 +139,13 @@ async function main() {
     return {
       name: node.name,
       'pub_key': node.priv.pub_key,
-      power: 10
+      power: "10"
     }
   })
 
   // Install chaosnodes using helm
 
-  const helmDir = path.join(__dirname, '../../..', 'helm', 'chaosnode')
+  const helmDir = path.join(__dirname, '../', 'helm', 'chaosnode')
 
   // get IP address of the master node
   let masterIP = ""
@@ -155,20 +166,31 @@ async function main() {
 
   try {
 
+    let envExclusiveSettings = ''
+    if (isMinikube) {
+      envExclusiveSettings = `\
+        --set chaosnode.image.repository="chaos"\
+        --set tendermint.image.repository="tendermint"\
+        --set noms.image.repository="noms"\
+        --set deployUtils.image.repository="deploy-utils"\
+        --set deployUtils.image.tag="latest"`
+    } else {
+      envExclusiveSettings = `--tls`
+    }
     // install a chaosnode
     await asyncForEach(nodes, async (node) => {
       let cmd = `helm install --name ${node.name} ${helmDir} \
-        --set genesis=${str2b64(JSON.stringify(genesis))}\
-        --set privValidator=${str2b64(JSON.stringify(node.priv))}\
-        --set persistentPeers="${str2b64(peers)}" \
-        --set tendermint.nodePorts.p2p=${node.port.p2p} \
-        --set tendermint.nodePorts.rpc=${node.port.rpc} \
-        --set tendermint.moniker=${node.name} \
-        --set chaosnode.image.tag=${VERSION_TAG} \
-        --set tendermint.image.tag=${TM_VERSION} \
-        --set noms.image.tag=${NOMS_VERSION} \
-        --tls
-      `
+      --set genesis=${str2b64(JSON.stringify(genesis))}\
+      --set privValidator=${str2b64(JSON.stringify(node.priv))}\
+      --set persistentPeers="${str2b64(peers)}" \
+      --set tendermint.nodePorts.p2p=${node.port.p2p} \
+      --set tendermint.nodePorts.rpc=${node.port.rpc} \
+      --set tendermint.moniker=${node.name} \
+      --set chaosnode.image.tag=${VERSION_TAG} \
+      --set tendermint.image.tag=${TM_VERSION} \
+      --set noms.image.tag=${NOMS_VERSION} \
+      ${envExclusiveSettings}\
+    `
       console.log(`Installing ${node.name}`)
       await exec(cmd, { env: process.env })
     })
