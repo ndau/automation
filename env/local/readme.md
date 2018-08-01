@@ -74,7 +74,9 @@ Sometimes the best thing to do is to blow away minikube and try again. `minikube
 
 ## Integration testing
 
-To bring up a test net locally with minikube for integration testing. 
+To bring up a test net locally with minikube for integration testing.  
+
+*The following steps will not check out any new code. This will build whatever version you currently have in `$GOPATH/src/github.com/oneiro-ndev/chaos`.*
 
 ### Requirements
 You can run `env/local/dev.sh` or you can install the following manually. *Note: `dev.sh` will not upgrade for you.*
