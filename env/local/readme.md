@@ -123,6 +123,12 @@ helm init
 VERSION_TAG=${git_sha} ./testnet/chaos.js 30000 castor pollux
 ```
 
+
+Once you've done your tests, or want to test again, you can clean up the two releases with the following command.
+```
+helm del --purge castor pollux
+```
+
 At this point you'll have to wait a little while until everything is running. You can type `kubectl get pods` to see if everything has a `RUNNING` status.
 
 Since we used a script to install the nodes, we didn't see the output from the helm charts. You can still view them however and get a few little helpful commands by running the comand `helm status pollux` or `helm status castor`.
