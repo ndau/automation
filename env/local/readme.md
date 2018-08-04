@@ -74,7 +74,7 @@ Sometimes the best thing to do is to blow away minikube and try again. `minikube
 
 ## Integration testing
 
-To bring up a test net locally with minikube for integration testing.  
+To bring up a test net locally with minikube for integration testing.
 
 *The following steps will not check out any new code. This will build whatever version you currently have in `$GOPATH/src/github.com/oneiro-ndev/chaos`.*
 
@@ -95,7 +95,8 @@ curl -LO https://storage.googleapis.com/minikube/releases/latest/docker-machine-
 
 1. Start minikube
 ```
-minikube start --vm-driver=hyperkit --disk-size=10g
+minikube start --vm-driver=hyperkit --disk-size=20g
+# 20g because it's good to have lots of space for images. Otherwise kublet might garbage collect them.
 ```
 2. Connect docker-cli to minikube
 ```
