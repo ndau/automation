@@ -2,6 +2,7 @@
 
 // This script deploys new chaos nodes in a multiple node network.
 
+const os = require('os')
 const fs = require('fs')
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
@@ -200,6 +201,19 @@ async function main() {
     })
   } catch (e) {
     abortClean(`Tendermint could not init: ${e}`)
+  }
+
+  // Update priv key addresses with the real addresses
+  try {
+    const exbl = `addy-${os.platform()}-${os.arch().replace('x64', 'amd64')}`
+    const addyCmd = path.join(__dirname, '..', 'addy', 'dist', exbl)
+    await asyncForEach(nodes, async (node, i) => {
+      const privKey = node.nodeKey['priv_key'].value
+      const res = await exec(`echo "${privKey}" | ${addyCmd}`, { env: process.env })
+      nodes[i].priv.address = res.stdout
+    })
+  } catch (e) {
+    abortClean(`Couldn't get address from private key: ${e}`)
   }
 
   // finally, get one genesis.json
