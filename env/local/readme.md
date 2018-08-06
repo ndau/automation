@@ -118,7 +118,7 @@ docker build -f "./docker-images/deploy-utils.docker" "./docker-images" -t deplo
 ```
 helm init
 ```
-5. install the testnet
+5. install the testnet with "castor" and "pollux" nodes
 ```
 VERSION_TAG=${git_sha} ./testnet/chaos.js 30000 castor pollux
 ```
@@ -126,3 +126,20 @@ VERSION_TAG=${git_sha} ./testnet/chaos.js 30000 castor pollux
 At this point you'll have to wait a little while until everything is running. You can type `kubectl get pods` to see if everything has a `RUNNING` status.
 
 Since we used a script to install the nodes, we didn't see the output from the helm charts. You can still view them however and get a few little helpful commands by running the comand `helm status pollux` or `helm status castor`.
+
+To get a list of services associated with pods, run the command `kubectl get service`.
+
+To get the RPC port in the tendermint pod run the following command:
+
+```
+% kubectl get service --namespace default -o jsonpath="{.spec.ports[?(@.name==\"rpc\")ePort}" castor-chaosnode-tendermint-service
+```
+
+Where "castor" above is the name of the node.
+
+To kill the cluster and remove all Kub nodes:
+
+```
+% helm del --purge castor pollux
+```
+John  the circle ci stuff for chaos is at https://github.com/oneiro-ndev/chaos/tree/master/.circleci There’s a config.yml that circleci looks at first, and local.sh will kick it off for you and try to download the circle-ci-cli if you don’t already have it. The dockerfile there is also a good example of how you can build the environment in a container and then run commands on it 🙂
