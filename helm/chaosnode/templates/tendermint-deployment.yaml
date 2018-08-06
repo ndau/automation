@@ -48,6 +48,11 @@ spec:
             configMapKeyRef:
               name: {{ template "chaos.fullname" . }}-tendermint-peers
               key: addresses
+        - name: PRIVATE_PEER_IDS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "chaos.fullname" . }}-tendermint-peers
+              key: privatePeerIds
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
@@ -57,6 +62,9 @@ spec:
         - name: genesis-json
           mountPath: /tendermint/config-ro/genesis.json
           subPath: genesis.json
+        - name: node-key-json
+          mountPath: /tendermint/config-ro/node_key.json
+          subPath: node_key.json
         - name: priv-json
           mountPath: /tendermint/config-ro/priv_validator.json
           subPath: priv_validator.json
@@ -67,7 +75,7 @@ spec:
       - name: tendermint
         image: "{{ .Values.tendermint.image.repository }}:{{ .Values.tendermint.image.tag }}"
         command: ["/bin/sh"]
-        args: ["-c", "tendermint node --moniker={{ .Values.tendermint.moniker }} --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\""]
+        args: ["-c", "tendermint node --moniker={{ .Values.tendermint.moniker }} --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\""]
         imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
         ports:
           - containerPort: {{ .Values.tendermint.ports.p2p }}
@@ -106,5 +114,11 @@ spec:
             items:
             - key: priv_validator.json
               path: priv_validator.json
+        - name: node-key-json
+          configMap:
+            name: {{ template "chaos.fullname" . }}-tendermint-config
+            items:
+            - key: node_key.json
+              path: node_key.json
 
 
