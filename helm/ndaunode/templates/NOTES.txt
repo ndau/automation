@@ -1,15 +1,35 @@
-Your ndaunode is accessible at any of the IP addresses associated with your cluster.
+Minikube
+--------
 
-To get the IP addresses of the nodes in your cluster:
+To get the p2p and rpc endpoints just copy paste this into your terminal.
+
 ```
-kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}' | tr " " "\n"
+ip=$(minikube ip | tr -d '[:space:]')
+p2p=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"p2p\")].nodePort}" {{ template "ndau.fullname" . }}-tendermint-service)
+rpc=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"rpc\")].nodePort}" {{ template "ndau.fullname" . }}-tendermint-service)
+echo -e "\nP2P endpoint: ${ip}:${p2p}\nRPC endpoint: ${ip}:${rpc}"
 ```
 
-To get the specific ports assigned on each node.
-echo "P2P port: $(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"p2p\")].nodePort}" {{ template "ndau.fullname" . }}-tendermint-service)"
-echo "RPC port: $(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"rpc\")].nodePort}" {{ template "ndau.fullname" . }}-tendermint-service)"
+Minikube also provides a simpler way to get the ip and ports but doesn't specify which is which.
 
-On minikube:
 ```
 minikube service  --namespace {{ .Release.Namespace }} {{ template "ndau.fullname" . }}-tendermint-service --url
+```
+
+Kubernetes Cluster
+------------------
+
+To get the IP addresses of the nodes in your cluster:
+
+```
+ip=$(kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}' | tr " " "\n" | head -n 1 | tr -d "[:space:]")
+p2p=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"p2p\")].nodePort}" {{ template "ndau.fullname" . }}-tendermint-service)
+rpc=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"rpc\")].nodePort}" {{ template "ndau.fullname" . }}-tendermint-service)
+echo -e "\nP2P endpoint: ${ip}:${p2p}\nRPC endpoint: ${ip}:${rpc}"
+```
+
+Your node will be available on any of the nodes of your cluster. To get their IPs use the following command:
+
+```
+kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}' | tr " " "\n"
 ```

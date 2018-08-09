@@ -26,7 +26,7 @@ wait_for_minikube() {
 			break
 		else
 			echo "Minikube not ready. Retrying $i more times."
-			minikube start --vm-driver=hyperkit --disk-size 10g
+			minikube start --vm-driver=hyperkit --disk-size 20g
 			sleep $wait_seconds
 		fi
 	done
@@ -38,26 +38,35 @@ echo_green "Connecting docker minikube's docker"
 eval $(minikube docker-env)
 
 # build chaosnode
-if [ ! -f ../../gomu ]; then
-    echo "Keyfile gomu not in project root directory."
+if [ ! -f ../../github_chaos_deploy ]; then
+    echo "Key file github_chaos_deploy not in project root directory."
     exit 1
 fi
 
-existed_before=false; [ -d ./chaosnode ] && existed_before=true;
-echo_green "Cloning chaosnode"
-git clone git@github.com:oneiro-ndev/chaosnode.git
-cp ../../gomu chaosnode
+chaos_existed_before=false; [ -d ./chaos ] && chaos_existed_before=true;
+echo_green "Cloning chaos"
+git clone git@github.com:oneiro-ndev/chaos.git
+cp ../../github_chaos_deploy chaos
 
 echo_green "Building chaosnode"
-docker build -t chaosnode --build-arg SSH_KEY_FILE="gomu" ./chaosnode
+docker build -t chaosnode --build-arg ./chaos
+
+ndau_existed_before=false; [ -d ./ndau ] && ndau_existed_before=true;
+echo_green "Cloning ndau"
+git clone git@github.com:oneiro-ndev/ndau.git
+cp ../../github_chaos_deploy ndau
+
+echo_green "Building ndau"
+docker build -t ndaunode --build-arg ./ndau
 
 # build tendermint
 echo_green "Building tendermint"
-docker build -t tendermint ./chaosnode/tm-docker
+docker build -t tendermint ./chaos/tm-docker
 
 # build noms
 echo_green "Building noms image"
-docker build -t noms ./chaosnode/noms-docker
+docker build -t noms ./chaos/noms-docker
 
 # clean up
-if ! $existed_before; then rm -rf chaosnode; fi
+if ! $chaos_existed_before; then rm -rf chaos; fi
+if ! $ndau_existed_before; then rm -rf ndau; fi

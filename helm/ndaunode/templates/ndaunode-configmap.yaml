@@ -4,9 +4,16 @@ metadata:
 apiVersion: v1
 data:
   config.toml: |
+
+    {{ if .Values.ndaunode.chaosLink.enabled }}
+    ChaosAddress = {{ .Values.ndaunode.chaosLink.address | quote }}
+    UseMock = "" # This needs to be empty if I use the chaos address
+    {{ else }}
     ChaosAddress = ""
-    UseMock = "/root/.ndau/ndau/mock-chaos.msgp"
-    ChaosTimeout = 500
+    UseMock = "/root/.ndau/ndau/mock-chaos.msgp" # This needs to be empty if I use the chaos address
+    {{ end }}
+
+    ChaosTimeout = 500 # seconds
 
     [SystemVariableIndirect]
     Namespace = "m+f2euwJnj00cy/A+vLkhvYm+Hs6k0z1VY/6qhC9DSI="
