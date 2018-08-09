@@ -119,7 +119,7 @@ genesis: eyJnZW5lc2lzX3RpbWUiOiIwMDAxLTAxLTAxVDAwOjAwOjAwWiIsImNoYWluX2lkIjoidGV
 
 # default configuration for tendermint'e node_key.json file in base64
 # Don't use this. This should be supplied in the commandline.
-node-key-json: eyJwcml2X2tleSI6eyJ0eXBlIjoidGVuZGVybWludC9Qcml2S2V5RWQyNTUxOSIsInZhbHVlIjoiMjNNZFNycEVSeHo5Z0lTK1JFSmpHbThhTjdzYktLT1p5YWRYSmt4REtHWW9JckpwUkJnOVYvUzRFditCSHNNS29aaTFNSGE0aVdJcUtjWmFwS2ZiN3c9PSJ9fQ==
+nodeKey: eyJwcml2X2tleSI6eyJ0eXBlIjoidGVuZGVybWludC9Qcml2S2V5RWQyNTUxOSIsInZhbHVlIjoiMjNNZFNycEVSeHo5Z0lTK1JFSmpHbThhTjdzYktLT1p5YWRYSmt4REtHWW9JckpwUkJnOVYvUzRFditCSHNNS29aaTFNSGE0aVdJcUtjWmFwS2ZiN3c9PSJ9fQ==
 #{
 #  "priv_key": {
 #    "type": "tendermint/PrivKeyEd25519",
