@@ -12,7 +12,7 @@ GREEN='\033[0;32m'
 NC='\033[0m' # no color
 
 echo_green() {
-    echo -e "${GREEN}$@${NC}"
+    echo -e "$GREEN" "$@" "$NC"
 }
 
 # this needs to start minikube to build to minikube's docker server
@@ -35,7 +35,7 @@ wait_for_minikube() {
 wait_for_minikube
 
 echo_green "Connecting docker minikube's docker"
-eval $(minikube docker-env)
+eval "$(minikube docker-env)"
 
 # build chaosnode
 if [ ! -f ../../github_chaos_deploy ]; then

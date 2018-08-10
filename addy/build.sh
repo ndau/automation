@@ -1,13 +1,11 @@
 #!/bin/bash
 # This script will build the app for multiple environments.
 # https://golang.org/doc/install/source#environment
-platforms=("linux/amd64" "darwin/amd64" "windows/amd64")
-for platform in "${platforms[@]}"
+targets=("linux/amd64" "darwin/amd64" "windows/amd64")
+for target in "${targets[@]}"
 do
-	printf >&2 "Building $platform..."
-    split=(${platform//\// })
-    GOOS=${split[0]}
-    GOARCH=${split[1]}
+	printf >&2 "Building %s..." "$target"
+    IFS="/" read -r GOOS GOARCH <<< "$target"
     file="addy-${GOOS}-${GOARCH}"
 
     if [ "$GOOS" = "windows" ]; then
