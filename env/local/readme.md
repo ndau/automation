@@ -104,14 +104,22 @@ eval $(minikube docker-env)
 ```
 3. Build the images to be tested
 ```
-chaos_dir=$GOPATH/src/github.com/oneiro-ndev/chaos
-git_sha=$(cd $chaos_dir; git rev-parse --short HEAD)
+# build ndaunode
+ndau_dir=$GOPATH/src/github.com/oneiro-ndev/ndau
+ndau_sha=$(cd $ndau_dir; git rev-parse --short HEAD)
+docker build -f "${ndau_dir}/Dockerfile" "$ndau_dir" -t ndau:${ndau_sha}
+
 # build chaosnode
-docker build -f "${chaos_dir}/Dockerfile" "$chaos_dir" -t chaos:${git_sha}
+chaos_dir=$GOPATH/src/github.com/oneiro-ndev/chaos
+chaos_sha=$(cd $chaos_dir; git rev-parse --short HEAD)
+docker build -f "${chaos_dir}/Dockerfile" "$chaos_dir" -t chaos:${chaos_sha}
+
 # build tendermint
 docker build -f "${chaos_dir}/tm-docker/Dockerfile" "$chaos_dir/tm-docker" -t tendermint:latest
+
 # build noms
 docker build -f "${chaos_dir}/noms-docker/Dockerfile" "$chaos_dir/noms-docker" -t noms:latest
+
 # build helper image
 docker build -f "./docker-images/deploy-utils.docker" "./docker-images" -t deploy-utils:latest
 ```
@@ -119,15 +127,19 @@ docker build -f "./docker-images/deploy-utils.docker" "./docker-images" -t deplo
 ```
 helm init
 ```
-5. install the testnet
+5. Install the testnet
 ```
-VERSION_TAG=${git_sha} ./testnet/chaos.js 30000 castor pollux
+VERSION_TAG=${chaos_sha} ./testnet/chaos.js 30000 castor pollux
 ```
-
+6. Bonus (install ndaunode and connect it to the chaos nodes)
+```
+ip=$(minikube ip)
+VERSION_TAG=${ndau_sha} CHAOS_LINK=http://$ip:30001 ./testnet/ndau.js 30010 mario luigi
+```
 
 Once you've done your tests, or want to test again, you can clean up the two releases with the following command.
 ```
-helm del --purge castor pollux
+helm del --purge castor pollux mario luigi
 ```
 
 At this point you'll have to wait a little while until everything is running. You can type `kubectl get pods` to see if everything has a `RUNNING` status.
