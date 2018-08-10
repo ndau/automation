@@ -1,6 +1,11 @@
 
 version: 2
 jobs:
+  build:
+    docker:
+      - image: circleci/node:10-stretch
+    steps:
+      - checkout
   lint-js:
     docker:
       # node 10.x.x on debian stretch
