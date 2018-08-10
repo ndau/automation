@@ -6,7 +6,7 @@ jobs:
       - image: circleci/node:10-stretch
     steps:
       - checkout
-  lint-js:
+  lintJs:
     docker:
       # node 10.x.x on debian stretch
       - image: circleci/node:10-stretch
@@ -18,7 +18,7 @@ jobs:
       - run: sudo npm i -g standard
       - run: standard testnet/*.js
 
-  lint-bash:
+  lintBash:
     docker:
       - image: koalaman/shellcheck
     working_directory: ~/repo
@@ -27,7 +27,7 @@ jobs:
       - checkout
       - run: shellcheck **/*.sh
 
-  lint-helm:
+  lintHelm:
     docker:
       - image: ubuntu
     working_directory: ~/repo
@@ -43,7 +43,7 @@ jobs:
       - run: helm lint helm/chaosnode
       - run: helm lint helm/ndaunode
 
-  test-go:
+  testGo:
     docker:
       - image: circleci/golang:1.10
 
