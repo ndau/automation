@@ -7,7 +7,7 @@ const fs = require('fs')
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
 const writeFile = util.promisify(fs.writeFile)
-const path = require('path');
+const path = require('path')
 
 // async executes an asyncronous function on every element of an array
 const asyncForEach = async function (a, cb) {
@@ -37,7 +37,7 @@ const newNode = (name) => {
 }
 
 const dockerTmpVol = `tmp-tm-init-${(new Date()).getTime()}` // new volume everytime
-let madeVolume = false // flag for if volume was created or not. Used for cleanup.
+global.madeVolume = false // flag for if volume was created or not. Used for cleanup.
 const makeTempVolume = async () => {
   try {
     // create a volume to save genesis.json
@@ -67,8 +67,7 @@ const abortClean = (msg) => {
 }
 
 // main will exectute first
-async function main() {
-
+async function main () {
   // Usage and argument count validation
   if (process.argv.length < 4 || process.env.VERSION_TAG === undefined) {
     console.error(`
@@ -82,14 +81,13 @@ async function main() {
   }
 
   const VERSION_TAG = process.env.VERSION_TAG
-  const NOMS_VERSION = process.env.NOMS_VERSION || "latest"
-  const TM_VERSION = process.env.TM_VERSION || "latest"
+  const NOMS_VERSION = process.env.NOMS_VERSION || 'latest'
+  const TM_VERSION = process.env.TM_VERSION || 'latest'
 
   // get the starting port from the arguments
   portCount = parseInt(process.argv[2])
 
   // get node names from arguments
-  const nodeNames = []
   process.argv.forEach((val, i) => {
     if (i > 2) {
       newNode(val)
@@ -100,14 +98,11 @@ async function main() {
    * Environment related
    */
 
-  // figure out where the project root is
-  let root = process.env.CIRCLECI == "true" ? "/app" : __dirname
-
   // check for minikube
   let isMinikube = false
   try {
     let res = await exec(`kubectl config current-context`)
-    isMinikube = res.stdout.replace(/\s*/g, '') === 'minikube' ? true : false
+    isMinikube = res.stdout.replace(/\s*/g, '') === 'minikube'
   } catch (e) {
     abortClean(`Could not get current context: ${e}`)
   }
@@ -116,7 +111,7 @@ async function main() {
   const ecr = isMinikube ? '' : '578681496768.dkr.ecr.us-east-1.amazonaws.com/'
 
   // get IP address of the master node
-  let masterIP = ""
+  let masterIP = ''
   if (isMinikube) {
     try {
       masterIP = (await exec(`minikube ip`)).stdout.replace(/\s+/, '')
@@ -237,7 +232,7 @@ async function main() {
     return {
       name: node.name,
       'pub_key': node.priv.pub_key,
-      power: "10"
+      power: '10'
     }
   })
 
@@ -274,7 +269,6 @@ async function main() {
         ${envSpecificHelmOpts} \
       `, { env: process.env })
     })
-
   } catch (e) {
     abortClean(`Could not install with helm: ${e}`)
   }
@@ -283,22 +277,21 @@ async function main() {
     clean(),
     saveLogs({ nodes, genesis, masterIP })
   ])
-    .then(() => console.error("All done"))
+    .then(() => console.error('All done'))
     .catch((e) => console.error(`Couldn't finish: ${e}`))
 }
 
 main()
 
 // saveLogs writes a log to a directory
-function saveLogs(finalConfig) {
-  let timestamp = new Date().toISOString().
-    replace(/T/g, '_').
-    replace(/\:/g, '-').
-    replace(/\..+/, '');
+function saveLogs (finalConfig) {
+  let timestamp = new Date().toISOString()
+    .replace(/T/g, '_')
+    .replace(/:/g, '-')
+    .replace(/\..+/, '')
 
   let logConfigFile = `chaos-config-${timestamp}.json`
 
   console.error(`Config log saved to: ${logConfigFile}`)
   return writeFile(path.join(__dirname, logConfigFile), JSON.stringify(finalConfig, null, 2))
-
 }
