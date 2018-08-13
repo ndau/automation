@@ -1,0 +1,12 @@
+hash: d446b5f85caff56acec3edbe55a7c3177ca183353086693dc7116ad88559b835
+updated: 2018-08-04T12:37:06.538947-04:00
+imports:
+- name: github.com/tendermint/ed25519
+  version: d8387025d2b9d158cf4efb07e7ebf814bcce2057
+  subpackages:
+  - edwards25519
+- name: github.com/tendermint/tendermint
+  version: d542d2c3945116697f60451e6a407082c41c3cc9
+  subpackages:
+  - crypto/tmhash
+testImports: []

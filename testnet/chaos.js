@@ -2,11 +2,12 @@
 
 // This script deploys new chaos nodes in a multiple node network.
 
+const os = require('os')
 const fs = require('fs')
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
-const readFile = util.promisify(fs.readFile)
-const path = require('path');
+const writeFile = util.promisify(fs.writeFile)
+const path = require('path')
 
 // async executes an asyncronous function on every element of an array
 const asyncForEach = async function (a, cb) {
@@ -35,12 +36,41 @@ const newNode = (name) => {
   })
 }
 
-// main will exectute first
-async function main() {
+const dockerTmpVol = `tmp-tm-init-${(new Date()).getTime()}` // new volume everytime
+global.madeVolume = false // flag for if volume was created or not. Used for cleanup.
+const makeTempVolume = async () => {
+  try {
+    // create a volume to save genesis.json
+    await exec(`docker volume create ${dockerTmpVol}`, { env: process.env })
+    console.error(`Created volume: ${dockerTmpVol}`)
+    global.madeVolume = true
+  } catch (e) {
+    throw e
+  }
+}
 
+const clean = async () => {
+  if (global.madeVolume) {
+    try {
+      await exec(`docker volume rm ${dockerTmpVol}`, { env: process.env })
+      console.error(`Removed volume: ${dockerTmpVol}`)
+    } catch (e) {
+      console.error('\x1b[31m%s\x1b[0m', `Could not delete temporary docker volume:\x1b[0m ${e}\n\nYou try: docker volume rm ${dockerTmpVol}`)
+    }
+  }
+}
+
+const abortClean = (msg) => {
+  console.error('\x1b[31m%s\x1b[0m', msg, '\x1b[0m')
+  clean()
+  process.exit(1)
+}
+
+// main will exectute first
+async function main () {
   // Usage and argument count validation
   if (process.argv.length < 4 || process.env.VERSION_TAG === undefined) {
-    console.log(`
+    console.error(`
     Please supply a version tag, a port to start and some node names.
     noms and tendermint versions reflect our container versions, not the applications themselves. They are optional and default to "latest".
 
@@ -51,76 +81,150 @@ async function main() {
   }
 
   const VERSION_TAG = process.env.VERSION_TAG
-  const NOMS_VERSION = process.env.NOMS_VERSION || "latest"
-  const TM_VERSION = process.env.TM_VERSION || "latest"
+  const NOMS_VERSION = process.env.NOMS_VERSION || 'latest'
+  const TM_VERSION = process.env.TM_VERSION || 'latest'
 
   // get the starting port from the arguments
   portCount = parseInt(process.argv[2])
 
   // get node names from arguments
-  const nodeNames = []
   process.argv.forEach((val, i) => {
     if (i > 2) {
       newNode(val)
     }
   })
 
-  // generate validators
+  /*
+   * Environment related
+   */
+
+  // check for minikube
+  let isMinikube = false
+  try {
+    let res = await exec(`kubectl config current-context`)
+    isMinikube = res.stdout.replace(/\s*/g, '') === 'minikube'
+  } catch (e) {
+    abortClean(`Could not get current context: ${e}`)
+  }
+  console.error(`Detected minikube: ${isMinikube}`)
+
+  const ecr = isMinikube ? '' : '578681496768.dkr.ecr.us-east-1.amazonaws.com/'
+
+  // get IP address of the master node
+  let masterIP = ''
+  if (isMinikube) {
+    try {
+      masterIP = (await exec(`minikube ip`)).stdout.replace(/\s+/, '')
+    } catch (e) {
+      abortClean(`Could not get minikube's IP address: ${e}`)
+    }
+  } else {
+    try {
+      masterIP = (await exec(`\
+        kubectl get nodes -o json | \
+        jq -rj '.items[] | select(.metadata.labels["kubernetes.io/role"]=="master") | .status.addresses[] | select(.type=="ExternalIP") .address'`)
+      ).stdout
+    } catch (e) {
+      abortClean(`Could not get master node's IP address: ${e}`)
+    }
+  }
+
+  let envSpecificHelmOpts = ''
+  if (isMinikube) {
+    envSpecificHelmOpts = `\
+      --set chaosnode.image.repository="chaos"\
+      --set tendermint.image.repository="tendermint"\
+      --set noms.image.repository="noms"\
+      --set deployUtils.image.repository="deploy-utils"\
+      --set deployUtils.image.tag="latest"`
+  } else {
+    envSpecificHelmOpts = `--tls`
+  }
+
+  /*
+   * start making config
+   */
+
+  try {
+    await makeTempVolume()
+  } catch (e) {
+    abortClean(`Couldn't create temporary docker volume. ${e}`)
+  }
+
+  // command to run an unspecified docker container with a shared volume
+  const dockerRun = `docker run --rm --mount src=${dockerTmpVol},dst=/tendermint `
+
+  // generate validators and node keys
   try {
     await asyncForEach(nodes, async (node, i) => {
-      const genValidatorCmd = `docker run \
-        --rm \
-        -e TMHOME=/tendermint \
-        578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint:${TM_VERSION} \
-        gen_validator`
-      let res = await exec(genValidatorCmd, { env: process.env })
-      nodes[i].priv = JSON.parse(res.stdout)
+      // initialize tendermint first
+      console.error(`Initializing ${node.name}'s tendermint configs`)
+      return exec(`${dockerRun} \
+          -e TMHOME=/tendermint \
+          ${ecr}tendermint:${TM_VERSION} \
+          init`, { env: process.env })
+        .then((res) => {
+          // cat priv_validator
+          console.error(`Getting ${node.name}'s priv validator`)
+          return exec(`${dockerRun} \
+            busybox \
+            cat /tendermint/config/priv_validator.json`, { env: process.env })
+        })
+        .then((res) => {
+          // remember priv validator
+          nodes[i].priv = JSON.parse(res.stdout)
+        })
+        .then((res) => {
+          // cat node_key
+          console.error(`Getting ${node.name}'s node key`)
+          return exec(`${dockerRun} \
+            busybox \
+            cat /tendermint/config/node_key.json`, { env: process.env })
+        })
+        .then((res) => {
+          // remember node key
+          nodes[i].nodeKey = JSON.parse(res.stdout)
+        })
+        .then((res) => {
+          // reset tendermint config
+          console.error(`Clearing tendermint config`)
+          return exec(`${dockerRun} \
+            busybox \
+            rm -rf /tendermint/config`, { env: process.env })
+        })
+        .catch((e) => { abortClean(`Failed to get config files: ${e}`) })
     })
   } catch (e) {
-    console.log(`Tendermint could not generate validators: ${e}`)
-    process.exit(1)
+    abortClean(`Tendermint could not init: ${e}`)
   }
 
-  // generate genesis.json (et al)
-  let root = process.env.CIRCLECI == "true" ? "/app" : __dirname
+  // Update priv key addresses with the real addresses
   try {
-    // create a volume to save genesis.json
-    await exec(`docker volume create genesis`, { env: process.env })
-    // run init on our tendermint container
-    const initCommand = `docker run \
-      --rm \
-      -e TMHOME=/tendermint \
-      --mount src=genesis,dst=/tendermint \
-      578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint:${TM_VERSION} \
-      init`
-    await exec(initCommand, { env: process.env })
+    const exbl = `addy-${os.platform()}-${os.arch().replace('x64', 'amd64')}`
+    const addyCmd = path.join(__dirname, '..', 'addy', 'dist', exbl)
+    await asyncForEach(nodes, async (node, i) => {
+      const privKey = node.nodeKey['priv_key'].value
+      const res = await exec(`echo "${privKey}" | ${addyCmd}`, { env: process.env })
+      nodes[i].priv.address = res.stdout
+    })
   } catch (e) {
-    console.log(`Could not init tendermint: ${e}`)
-    // clean up our docker volume
-    await exec('docker volume rm genesis', { env: process.env })
-    process.exit(1)
+    abortClean(`Couldn't get address from private key: ${e}`)
   }
 
-  // Get the newly created genesis
+  // finally, get one genesis.json
   const genesis = {}
   try {
-    // output the genesis.json file
-    const catGenesisCommand = `docker run \
-      --rm \
-      --mount src=genesis,dst=/tendermint \
+    console.error('Getting genesis.json')
+    await exec(`${dockerRun} \
+      -e TMHOME=/tendermint \
+      ${ecr}tendermint:${TM_VERSION} \
+      init`, { env: process.env })
+    const gen = (await exec(`${dockerRun} \
       busybox \
-      cat /tendermint/config/genesis.json`
-    let newGen = JSON.parse(
-      (await exec(catGenesisCommand, { env: process.env }))
-        .stdout
-    )
-    Object.assign(genesis, newGen)
+      cat /tendermint/config/genesis.json`, { env: process.env }))
+    Object.assign(genesis, JSON.parse(gen.stdout))
   } catch (e) {
-    console.log(`Could not init tendermint: ${e}`)
-    process.exit(1)
-  } finally {
-    // clean up our docker volume
-    await exec('docker volume rm genesis', { env: process.env })
+    abortClean(`Could not get genesis.json: ${e}`)
   }
 
   // add our new nodes
@@ -128,73 +232,66 @@ async function main() {
     return {
       name: node.name,
       'pub_key': node.priv.pub_key,
-      power: 10
+      power: '10'
     }
   })
 
-  // Install chaosnodes using helm
+  /*
+   * Install chaosnodes using helm
+   */
 
-  const helmDir = path.join(__dirname, '../../..', 'helm', 'chaosnode')
-
-  // get IP address of the master node
-  let masterIP = ""
-  try {
-    let res = await exec(`\
-      kubectl get nodes -o json | \
-      jq -rj '.items[] | select(.metadata.labels["kubernetes.io/role"]=="master") | .status.addresses[] | select(.type=="ExternalIP") .address'`)
-    masterIP = res.stdout
-  } catch (e) {
-    console.log(`Could not get master node's IP address: ${e}`)
-    process.exit(1)
-  }
-
-  // create a string of peers
-  const peers = nodes.map((node) => {
-    return `${node.priv.address}@${masterIP}:${node.port.p2p}`
-  }).join(',')
+  const helmDir = path.join(__dirname, '../', 'helm', 'chaosnode')
 
   try {
-
     // install a chaosnode
-    await asyncForEach(nodes, async (node) => {
-      let cmd = `helm install --name ${node.name} ${helmDir} \
+    await asyncForEach(nodes, async (node, i) => {
+      console.error(`Installing ${node.name}`)
+      // create a string of peers
+      const peerIds = []
+      const peers = nodes.map((peer) => {
+        if (peer.name === node.name) { return null }
+        peerIds.push(peer.priv.address)
+        return `${peer.priv.address}@${masterIP}:${peer.port.p2p}`
+      }).filter((el) => el !== null).join(',')
+      await exec(`helm install --name ${node.name} ${helmDir} \
         --set genesis=${str2b64(JSON.stringify(genesis))}\
         --set privValidator=${str2b64(JSON.stringify(node.priv))}\
-        --set persistentPeers="${str2b64(peers)}" \
+        --set nodeKey=${str2b64(JSON.stringify(node.nodeKey))}\
+        --set tendermint.persistentPeers="${str2b64(peers)}" \
+        --set tendermint.privatePeerIds="${str2b64(peerIds.join(','))}" \
+        --set tendermint.nodePorts.enabled=true \
         --set tendermint.nodePorts.p2p=${node.port.p2p} \
         --set tendermint.nodePorts.rpc=${node.port.rpc} \
         --set tendermint.moniker=${node.name} \
         --set chaosnode.image.tag=${VERSION_TAG} \
         --set tendermint.image.tag=${TM_VERSION} \
         --set noms.image.tag=${NOMS_VERSION} \
-        --tls
-      `
-      console.log(`Installing ${node.name}`)
-      await exec(cmd, { env: process.env })
+        ${envSpecificHelmOpts} \
+      `, { env: process.env })
     })
-
   } catch (e) {
-    console.log(`Could not install with helm: ${e}`)
-    process.exit(1)
+    abortClean(`Could not install with helm: ${e}`)
   }
 
-  saveLogs({ nodes, peers, genesis, masterIP })
-
+  Promise.all([
+    clean(),
+    saveLogs({ nodes, genesis, masterIP })
+  ])
+    .then(() => console.error('All done'))
+    .catch((e) => console.error(`Couldn't finish: ${e}`))
 }
 
 main()
 
 // saveLogs writes a log to a directory
-function saveLogs(finalConfig) {
-  let timestamp = new Date().toISOString().
-    replace(/T/g, '_').
-    replace(/\:/g, '-').
-    replace(/\..+/, '');
+function saveLogs (finalConfig) {
+  let timestamp = new Date().toISOString()
+    .replace(/T/g, '_')
+    .replace(/:/g, '-')
+    .replace(/\..+/, '')
 
   let logConfigFile = `chaos-config-${timestamp}.json`
 
-  console.log(`Your nodes are configured as follows:\n${JSON.stringify(finalConfig, null, 2)}`)
-  console.log(`config log saved to: ${logConfigFile}`)
-  fs.writeFile(path.join(__dirname, logConfigFile), JSON.stringify(finalConfig, null, 2), () => { })
-
+  console.error(`Config log saved to: ${logConfigFile}`)
+  return writeFile(path.join(__dirname, logConfigFile), JSON.stringify(finalConfig, null, 2))
 }

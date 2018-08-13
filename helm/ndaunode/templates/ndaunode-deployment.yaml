@@ -24,6 +24,12 @@ spec:
         image: "{{ .Values.deployUtils.image.repository }}:{{ .Values.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.deployUtils.image.pullPolicy }}
         command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ template "ndau.fullname" . }}-noms-service:{{ .Values.noms.port }}; do echo waiting for {{ template "ndau.fullname" . }}-noms-service; sleep 2; done;"]
+      {{ if .Values.ndaunode.chaosLink.enabled }}
+      - name: chaos-wait
+        image: "{{ .Values.deployUtils.image.repository }}:{{ .Values.deployUtils.image.tag }}"
+        imagePullPolicy: {{ .Values.deployUtils.image.pullPolicy }}
+        command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ .Values.ndaunode.chaosLink.address }}; do echo {{ .Values.ndaunode.chaosLink.address }}; sleep 2; done;"]
+      {{ end }}
       - name: config
         image: busybox
         command: ["/bin/sh", "/root/init.sh"]
@@ -39,6 +45,15 @@ spec:
           subPath: mock-chaos.msgp
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
+      {{ if .Values.ndaunode.chaosLink.enabled }}
+      - name: make-chaos-mocks
+        image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
+        imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
+        args: ["-make-chaos-mocks"]
+        volumeMounts:
+        - mountPath: "/root/.ndau"
+          name: ndau-home-volume
+      {{ end }}
       containers:
       - name: ndaunode
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"

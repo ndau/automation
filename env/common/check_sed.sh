@@ -6,7 +6,7 @@ if ! (sed --version > /dev/null 2>&1); then
     if ! (which gsed >/dev/null); then
         (
             >&2 echo "You have a broken version of sed, and gsed is not installed"
-            >&2 echo "This is common on OSX. Try `brew install gnu-sed`"
+            >&2 echo "This is common on OSX. Try: brew install gnu-sed"
             exit 1
         )
     fi

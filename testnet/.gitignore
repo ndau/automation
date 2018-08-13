@@ -1,3 +1,6 @@
 # logs
 chaos-config*
 ndau-config*
+
+# dev deps
+node_modules

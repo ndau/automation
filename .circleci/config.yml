@@ -1,0 +1,84 @@
+
+lint_js: &lint_js
+  docker:
+    # node 10.x.x on debian stretch
+    - image: circleci/node:10-stretch
+
+  working_directory: ~/repo
+
+  steps:
+    - checkout
+    - run: sudo npm i -g standard
+    - run: standard testnet/*.js
+
+lint_bash: &lint_bash
+    docker:
+      - image: nlknguyen/alpine-shellcheck:v0.4.6
+    steps:
+      - checkout
+      - run:
+          name: Check Scripts
+          command: |
+            find . -type f -name '*.sh' | grep -v vendor | while read file; do
+              cd $(dirname $file);
+              shellcheck $(basename $file) --external-sources;
+              cd -;
+            done
+
+lint_helm: &lint_helm
+  docker:
+    - image: ubuntu
+  working_directory: ~/repo
+
+  steps:
+    - checkout
+    - run:
+        name: install helm
+        command: |
+          apt update && apt install curl -y
+          which curl
+          curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > get_helm.sh
+          chmod 700 get_helm.sh
+          ./get_helm.sh
+    - run: helm lint helm/chaosnode
+    - run: helm lint helm/ndaunode
+
+test_go: &test_go
+  docker:
+    - image: circleci/golang:1.10
+
+  working_directory: ~/repo
+
+  steps:
+    - checkout
+    - run:
+        name: install deps
+        command: |
+          go get github.com/Masterminds/glide
+          go_repo_path="$GOPATH"/src/github.com/oneiro-ndev
+          mkdir -p "$go_repo_path"
+          cp -r addy "$go_repo_path"
+          cd "$go_repo_path"/addy
+          glide install
+          go test
+
+# ========= jobs & workflows ============
+version: 2
+jobs:
+  lint_js:
+    <<: *lint_js
+  lint_bash:
+    <<: *lint_bash
+  lint_helm:
+    <<: *lint_helm
+  test_go:
+    <<: *test_go
+
+workflows:
+  version: 2
+  test_all:
+    jobs:
+      - lint_js
+      - lint_bash
+      - lint_helm
+      - test_go

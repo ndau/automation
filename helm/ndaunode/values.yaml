@@ -4,6 +4,7 @@
 # supplying properties of objects. Your supplied overrides are
 # not merged, they are overrides. For this reason the `--set`
 # flag provides the dot notation for changing a single property.
+
 tendermint:
   image:
     repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint
@@ -11,9 +12,10 @@ tendermint:
     pullPolicy: IfNotPresent
   ports:
     # These ports are only used internally within the pod and between services.
-    p2p: 46656
-    rpc: 46657
+    p2p: 26656
+    rpc: 26657
   nodePorts:
+    enabled: false
     # Node ports from which the tendermint service will be accessible externally at the kubernetes node's IP address.
     # If they are not provided here or set with the commmand line, a random port will be assigned between 30000-32767 by default.
     # p2p: 30000
@@ -23,15 +25,9 @@ tendermint:
   service:
     type: ClusterIP
   moniker: anonymous
-
-# amount of time in seconds tendermint should create empty blocks
-createEmptyBlocksInterval: 10
-
-# Tendermint's persistent peers separated by a comma.
-persistentPeers: ""
-
-# Trigger an update for the tendermint peer addresses.
-updatePeerAddresses: false
+  createEmptyBlocksInterval: 10
+  persistentPeers: "" # Tendermint's persistent peers separated by a comma.
+  updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
 
 ndaunode:
   image:
@@ -40,9 +36,12 @@ ndaunode:
     pullPolicy: IfNotPresent
   persistence:
     size: 100Mi
-  port: 46658
+  port: 26658
   service:
     type: ClusterIP
+  chaosLink:
+    enabled: false
+    #address: "" # http://host:port
 
 noms:
   image:
@@ -63,6 +62,16 @@ deployUtils:
     pullPolicy: IfNotPresent
 
 resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #  cpu: 100m
+  #  memory: 128Mi
+  # requests:
+  #  cpu: 100m
+  #  memory: 128Mi
 
 nodeSelector: {}
 
@@ -72,6 +81,7 @@ affinity: {}
 
 # default configuration for tendermint's priv_validator.json file in base64
 # This should be supplied in the commandline.
+# What ever value is supplied for app_hash here or the commandline gets overriden by the tendermint deployment init containers.
 privValidator: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQTU2RSIsInB1Yl9rZXkiOiB7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwibGFzdF9oZWlnaHQiOjAsImxhc3Rfcm91bmQiOjAsImxhc3Rfc3RlcCI6MCwibGFzdF9zaWduYXR1cmUiOm51bGwsInByaXZfa2V5IjogeyJ0eXBlIjoiZWQyNTUxOSIsImRhdGEiOiI0MzkzMUQ1Q0FBNUQ3QkRBODY4RkI1QTc5RjkyQTQ1QzRERTRDODYwMkI0NUIwQjM4QkQ3RTRBQ0FDNzYyNDVDRjE0Q0UyNzNBRjBCNTg4MDJERURGNEFFRENFOEI2MUUwNjAwODgyMUFFOUFBRTVEQURFNjcxMzYwNDI2Q0U3MCJ9fQo=
 # The json below (minute whitespace) is base64 encoded above.
 #  {
@@ -92,7 +102,6 @@ privValidator: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQ
 
 # default configuration for tendermint'e genesis.json file in base64
 # This should be supplied in the commandline.
-# What ever value is supplied for app_hash here or the commandline gets overriden by the tendermint deployment init containers.
 genesis: eyJnZW5lc2lzX3RpbWUiOiIwMDAxLTAxLTAxVDAwOjAwOjAwWiIsImNoYWluX2lkIjoidGVzdC1jaGFpbi0zRUFMNzAiLCJ2YWxpZGF0b3JzIjpbeyJwdWJfa2V5Ijp7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwicG93ZXIiOjEwLCJuYW1lIjoiIn1dLCJhcHBfaGFzaCI6ICJmNWQ5YmM1YzM1OWZmNmE5ZTIwYjkyOWYyN2U2NzUzYzQ4OGMxODYwIn0K
 # The json below (minute whitespace) is base64 encoded above.
 # {
@@ -110,3 +119,13 @@ genesis: eyJnZW5lc2lzX3RpbWUiOiIwMDAxLTAxLTAxVDAwOjAwOjAwWiIsImNoYWluX2lkIjoidGV
 #   ],
 #   "app_hash": "f5d9bc5c359ff6a9e20b929f27e6753c488c1860"
 # }
+
+# default configuration for tendermint'e node_key.json file in base64
+# Don't use this. This should be supplied in the commandline.
+nodeKey: eyJwcml2X2tleSI6eyJ0eXBlIjoidGVuZGVybWludC9Qcml2S2V5RWQyNTUxOSIsInZhbHVlIjoiMjNNZFNycEVSeHo5Z0lTK1JFSmpHbThhTjdzYktLT1p5YWRYSmt4REtHWW9JckpwUkJnOVYvUzRFditCSHNNS29aaTFNSGE0aVdJcUtjWmFwS2ZiN3c9PSJ9fQ==
+#{
+#  "priv_key": {
+#    "type": "tendermint/PrivKeyEd25519",
+#    "value": "23MdSrpERxz9gIS+REJjGm8aN7sbKKOZyadXJkxDKGYoIrJpRBg9V/S4Ev+BHsMKoZi1MHa4iWIqKcZapKfb7w=="
+#  }
+#}

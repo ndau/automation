@@ -1,3 +1,5 @@
+[![js-standard-style](https://cdn.rawgit.com/standard/standard/master/badge.svg)](http://standardjs.com)
+
 # Multinode test nets
 
 This document contains information regarding the design and operation of the multinode test nets on kubernetes.
