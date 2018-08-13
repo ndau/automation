@@ -51,7 +51,10 @@ test_go: &test_go
         name: install deps
         command: |
           go get github.com/Masterminds/glide
-          cd addy
+          go_repo_path="$GOPATH"/src/github.com/oneiro-ndev/addy
+          mkdir -p "$go_repo_path"
+          cp -r addy "$go_repo_path"
+          cd "$go_repo_path"
           glide install
           go test
 
