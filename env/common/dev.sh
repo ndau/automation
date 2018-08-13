@@ -2,6 +2,7 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# shellcheck source=helpers.sh
 source "$DIR"/helpers.sh
 
 # install brew if it's not already installed

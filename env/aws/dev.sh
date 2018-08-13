@@ -3,8 +3,10 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Run the parent dev script
-source $DIR/../common/dev.sh
-source $DIR/../common/helpers.sh
+# shellcheck source=../common/dev.sh
+source "$DIR"/../common/dev.sh
+# shellcheck source=../common/helpers.sh
+source "$DIR"/../common/helpers.sh
 
 # require awscli
 if [ -z "$(which aws)" ]; then
@@ -16,7 +18,7 @@ else
 fi
 
 # Ensure awscli is configured
-if [ ! -f $HOME/.aws/credentials ]; then
+if [ ! -f "$HOME"/.aws/credentials ]; then
     echo_green "Please configure awscli."
     echo_green "See https://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html to create a key."
     aws configure
@@ -25,8 +27,8 @@ else
 fi
 
 # test aws
-aws iam list-users > /dev/null 2>&1
-if [ $? -ne 0 ]; then
+
+if aws iam list-users > /dev/null 2>&1 ; then
     echo_red "awscli not configured properly or permissions incorrect"
     echo_red "awscli response: $(aws iam list-users)"
     exit 1

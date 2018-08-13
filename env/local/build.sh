@@ -8,12 +8,10 @@
 # the virtual machine. Normally a build process would push to a container repository
 # and not a single virtual machine.
 
-GREEN='\033[0;32m'
-NC='\033[0m' # no color
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo_green() {
-    echo -e "$GREEN" "$@" "$NC"
-}
+# shellcheck source=../common/helpers.sh
+source "$DIR"/../common/helpers.sh
 
 # this needs to start minikube to build to minikube's docker server
 wait_for_minikube() {

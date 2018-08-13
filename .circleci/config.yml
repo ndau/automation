@@ -19,8 +19,11 @@ lint_bash: &lint_bash
       - run:
           name: Check Scripts
           command: |
-            find . -type f -name '*.sh' | wc -l
-            find . -type f -name '*.sh' | xargs shellcheck --external-sources
+            find . -type f -name '*.sh' | grep -v vendor | while read file; do
+              cd $(dirname $file);
+              shellcheck $(basename $file) --external-sources;
+              cd -;
+            done
 
 lint_helm: &lint_helm
   docker:

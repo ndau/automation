@@ -17,7 +17,7 @@ err() {
 
 # echo_green prints a message in green
 echo_green() {
-    errcho "${GREEN}$@${NC}"
+    errcho "$GREEN" "$@" "$NC"
 }
 
 # confirm takes a character as input and "returns" bash's built-in true/false
@@ -37,5 +37,5 @@ confirm() {
 
 # echos a joins arrays by a ", " delimiter
 join() {
-    shift; printf "$1"; shift; printf "%s" "${@/#/, }";
+    shift; printf "%s" "$1"; shift; printf "%s" "${@/#/, }";
 }

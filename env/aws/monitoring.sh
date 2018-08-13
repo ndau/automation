@@ -43,17 +43,19 @@ EOF
 wait_for_grafana() {
     local retries=5
 	local wait_seconds=5
-	local pod_name=$(kubectl get pods -l app=grafana,release=graf -o jsonpath='{.items[0].metadata.name}')
+	local pod_name
+	pod_name=$(kubectl get pods -l app=grafana,release=graf -o jsonpath='{.items[0].metadata.name}')
     for i in $(seq $retries 0); do
-        local pending_test=$(kubectl get pod ${pod_namae} | grep Running)
+        local pending_test
+		pending_test=$(kubectl get pod "$pod_name" | grep Running)
         if [ -z "$pending_test" ]; then
 
 			# This will install the kubernetes app
 			errcho "Installing the kubernetes app in grafana"
-			kubectl exec ${pod_namae} grafana-cli plugins install grafana-kubernetes-app
+			kubectl exec "$pod_name" grafana-cli plugins install grafana-kubernetes-app
 
 			errcho "Restarting the pod"
-			kubectl delete pod ${pod_namae}
+			kubectl delete pod "$pod_name"
 
 			errcho "Reprinting connection instructions"
 			helm status graf --tls
