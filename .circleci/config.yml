@@ -1,60 +1,74 @@
 
+lint_js: &lint_js
+  docker:
+    # node 10.x.x on debian stretch
+    - image: circleci/node:10-stretch
+
+  working_directory: ~/repo
+
+  steps:
+    - checkout
+    - run: sudo npm i -g standard
+    - run: standard testnet/*.js
+
+lint_bash: &lint_bash
+  docker:
+    - image: koalaman/shellcheck
+  working_directory: ~/repo
+
+  steps:
+    - checkout
+    - run: shellcheck **/*.sh
+
+lint_helm: &lint_helm
+  docker:
+    - image: ubuntu
+  working_directory: ~/repo
+
+  steps:
+    - checkout
+    - run:
+        name: install helm
+        command: |
+          curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > get_helm.sh
+          chmod 700 get_helm.sh
+          ./get_helm.sh
+    - run: helm lint helm/chaosnode
+    - run: helm lint helm/ndaunode
+
+test_go: &test_go
+  docker:
+    - image: circleci/golang:1.10
+
+  working_directory: ~/repo
+
+  steps:
+    - checkout
+    - run:
+        name: install deps
+        command: |
+          go get glide
+          cd addy
+          glide install
+          go test
+
+# ========= jobs & workflows ============
 version: 2
 jobs:
-  build:
-    docker:
-      - image: circleci/node:10-stretch
-    steps:
-      - checkout
-  lintJs:
-    docker:
-      # node 10.x.x on debian stretch
-      - image: circleci/node:10-stretch
+  lint_js:
+    <<: *lint_js
+  lint_bash:
+    <<: *lint_js
+  lint_helm:
+    <<: *lint_js
+  test_go:
+    <<: *lint_js
 
-    working_directory: ~/repo
-
-    steps:
-      - checkout
-      - run: sudo npm i -g standard
-      - run: standard testnet/*.js
-
-  lintBash:
-    docker:
-      - image: koalaman/shellcheck
-    working_directory: ~/repo
-
-    steps:
-      - checkout
-      - run: shellcheck **/*.sh
-
-  lintHelm:
-    docker:
-      - image: ubuntu
-    working_directory: ~/repo
-
-    steps:
-      - checkout
-      - run:
-          name: install helm
-          command: |
-            curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > get_helm.sh
-            chmod 700 get_helm.sh
-            ./get_helm.sh
-      - run: helm lint helm/chaosnode
-      - run: helm lint helm/ndaunode
-
-  testGo:
-    docker:
-      - image: circleci/golang:1.10
-
-    working_directory: ~/repo
-
-    steps:
-      - checkout
-      - run:
-          name: install deps
-          command: |
-            go get glide
-            cd addy
-            glide install
-            go test
+workflows:
+  version: 2
+  test_all:
+    jobs:
+      - lint_js
+      - lint_bash
+      - lint_helm
+      - test_go
