@@ -58,11 +58,11 @@ jobs:
   lint_js:
     <<: *lint_js
   lint_bash:
-    <<: *lint_js
+    <<: *lint_bash
   lint_helm:
-    <<: *lint_js
+    <<: *lint_helm
   test_go:
-    <<: *lint_js
+    <<: *test_go
 
 workflows:
   version: 2
