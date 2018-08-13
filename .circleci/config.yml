@@ -35,7 +35,7 @@ lint_helm: &lint_helm
     - run:
         name: install helm
         command: |
-          apt install curl -y
+          apt update && apt install curl -y
           which curl
           curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > get_helm.sh
           chmod 700 get_helm.sh
