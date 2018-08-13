@@ -24,11 +24,6 @@ func readStdin() ([]byte, error) {
 		return nil, errors.New("Usage: echo \"base64-Ed25519-priv-key\" | ./address")
 	}
 
-	// no input
-	if stat.Size() <= 0 {
-		return nil, errors.New("Input empty")
-	}
-
 	jsonB64, err := ioutil.ReadAll(os.Stdin) // not expecting big inputs
 	if err != nil {
 		return nil, fmt.Errorf("Error reading from stdin: %v", err)
