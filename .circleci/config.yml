@@ -12,13 +12,15 @@ lint_js: &lint_js
     - run: standard testnet/*.js
 
 lint_bash: &lint_bash
-  docker:
-    - image: koalaman/shellcheck
-  working_directory: ~/repo
-
-  steps:
-    - checkout
-    - run: shellcheck **/*.sh
+    docker:
+      - image: nlknguyen/alpine-shellcheck:v0.4.6
+    steps:
+      - checkout
+      - run:
+          name: Check Scripts
+          command: |
+            find . -type f -name '*.sh' | wc -l
+            find . -type f -name '*.sh' | xargs shellcheck --external-sources
 
 lint_helm: &lint_helm
   docker:
@@ -30,6 +32,7 @@ lint_helm: &lint_helm
     - run:
         name: install helm
         command: |
+          apt install curl -y
           curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > get_helm.sh
           chmod 700 get_helm.sh
           ./get_helm.sh
@@ -47,7 +50,7 @@ test_go: &test_go
     - run:
         name: install deps
         command: |
-          go get glide
+          go get github.com/Masterminds/glide
           cd addy
           glide install
           go test
