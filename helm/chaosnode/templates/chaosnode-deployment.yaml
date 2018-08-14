@@ -32,6 +32,10 @@ spec:
         ports:
         - containerPort: {{ .Values.chaosnode.port }}
         env:
+        - name: HONEYCOMB_KEY
+          value: {{ .Values.honeycomb.key }}
+        - name: HONEYCOMB_DATASET
+          value: {{ .Values.honeycomb.dataset }}
         - name: NDAUHOME
           value: "/root/.ndau"
         volumeMounts:

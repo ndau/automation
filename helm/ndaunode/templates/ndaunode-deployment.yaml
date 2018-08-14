@@ -50,6 +50,11 @@ spec:
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
         args: ["-make-chaos-mocks"]
+        env:
+        - name: HONEYCOMB_KEY
+          value: {{ .Values.honeycomb.key }}
+        - name: HONEYCOMB_DATASET
+          value: {{ .Values.honeycomb.dataset }}
         volumeMounts:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
@@ -62,6 +67,10 @@ spec:
         ports:
         - containerPort: {{ .Values.ndaunode.port }}
         env:
+        - name: HONEYCOMB_KEY
+          value: {{ .Values.honeycomb.key }}
+        - name: HONEYCOMB_DATASET
+          value: {{ .Values.honeycomb.dataset }}
         - name: NDAUHOME
           value: "/root/.ndau"
         volumeMounts:
