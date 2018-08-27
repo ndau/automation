@@ -80,7 +80,7 @@ async function main () {
     process.exit(1)
   }
 
-  const TOXI_ENABLED = process.env.TOXI === "enabled" ? true : false
+  const TOXI_ENABLED = process.env.TOXI === 'enabled'
   const VERSION_TAG = process.env.VERSION_TAG
   const NOMS_VERSION = process.env.NOMS_VERSION || 'latest'
   const TM_VERSION = process.env.TM_VERSION || 'latest'
@@ -246,8 +246,6 @@ async function main () {
   try {
     // install a chaosnode
     await asyncForEach(nodes, async (node, i) => {
-
-
       let toxiSettings = ''
 
       if (TOXI_ENABLED) {
