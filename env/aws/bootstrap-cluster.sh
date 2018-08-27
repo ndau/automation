@@ -6,9 +6,11 @@ set -e
 
 # includes
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source $DIR/../common/wait_for_cluster.sh
-source $DIR/../common/helpers.sh
-me=`basename "$0"`
+# shellcheck source=../common/dev.sh
+source "$DIR"/../common/dev.sh
+# shellcheck source=../common/helpers.sh
+source "$DIR"/../common/helpers.sh
+me=$(basename "$0")
 
 usage() {
     errcho "Usage"
@@ -34,55 +36,56 @@ if [ -z "$AZ" ]; then
 fi
 
 if [ ${#missing_env_vars[@]} != 0 ]; then
-    echo "Missing the following env vars: $(join ${missing_env_vars[@]})"
+    echo "Missing the following env vars: $(join "${missing_env_vars[@]}")"
     usage
     exit 1
 fi
 
-export BUCKET=ndau-${CLUSTER_NAME}-cluster-state-store
+export BUCKET=ndau-"$CLUSTER_NAME"-cluster-state-store
 
 # create a bucket
 aws s3api create-bucket \
-    --bucket $BUCKET \
-    --region $REGION
+    --bucket "$BUCKET" \
+    --region "$REGION"
 
 # turn on versioning for bucket to rollback
 aws s3api put-bucket-versioning \
-    --bucket $BUCKET \
+    --bucket "$BUCKET" \
     --versioning-configuration \
     Status=Enabled
 
 # format the name for the cluster
 export NAME=${CLUSTER_NAME}.${CLUSTER_SUBDOMAIN}
-export KOPS_STATE_STORE=s3://$BUCKET
+export KOPS_STATE_STORE=s3://"$BUCKET"
 
 # use kops to create the cluster in the availability zone specified.
 kops create cluster \
   -f ./kops-conf.yaml \
-  --zones $AZ \
-   $NAME
+  --zones "$AZ" \
+   "$NAME"
 
 # update instance group `nodes` with kope-ig-nodes.json
-kops get ig nodes --state s3://$BUCKET -o json > kops-current.json
+kops get ig nodes --state s3://"$BUCKET" -o json > kops-current.json
 jq -s '.[0] * .[1]' current.json kops-ig-nodes.json > kops-merged.json
-kops replace -f kops-merged.json --state s3://$BUCKET
+kops replace -f kops-merged.json --state s3://"$BUCKET"
 rm kops-merged.json kops-current.json
 
 # bring up the cluster
-kops update cluster $NAME --yes
+kops update cluster "$NAME" --yes
 
 # wait for the cluster to become available
-wait_for_cluster $BUCKET
+wait_for_cluster "$BUCKET"
 
 # See if 1password is set up, try to sign in
 if (! op list vaults); then
 	errcho "Not signed in to 1passsword. Please sign in."
 	op_result=$(op sign oneiro)
-	if [ -z "$(echo "$op_result" | grep -i OP_SESSION)"]; then
-		err $me "You have no signed in to oneiro using op before. Please run `op signin --help`."
+	if ! echo "$op_result" | grep -i OP_SESSION | grep -q ; then
+		# shellcheck disable=SC2006
+		err "$me" "You have no signed in to oneiro using op before. Please run: op signin --help"
 	else
 		if (! op list vaults); then
-		    err $me "Could not sign in to 1password."
+		    err "$me" "Could not sign in to 1password."
 		fi
 	fi
  fi

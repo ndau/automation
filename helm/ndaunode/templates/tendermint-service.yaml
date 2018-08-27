@@ -13,14 +13,14 @@ spec:
     - name: p2p
       port: {{ .Values.tendermint.ports.p2p }}
       targetPort: {{ .Values.tendermint.ports.p2p }}
-      {{ if (.Values.nodePorts) and (.Values.nodeports.p2p) }}
-      nodePort: {{ .Values.nodePorts.p2p }}
+      {{ if .Values.tendermint.nodePorts.enabled }}
+      nodePort: {{ .Values.tendermint.nodePorts.p2p }}
       {{ end }}
     - name: rpc
       port: {{ .Values.tendermint.ports.rpc }}
       targetPort: {{ .Values.tendermint.ports.rpc }}
-      {{ if (.Values.nodePorts) and (.Values.nodeports.rpc) }}
-      nodePort: {{ .Values.nodePorts.rpc }}
+      {{ if .Values.tendermint.nodePorts.enabled }}
+      nodePort: {{ .Values.tendermint.nodePorts.rpc }}
       {{ end }}
   selector:
     app: {{ template "ndau.name" . }}-tendermint

@@ -5,6 +5,8 @@ apiVersion: v1
 data:
   genesis.json: {{ b64dec .Values.genesis | quote }}
 
+  node_key.json: {{ b64dec .Values.nodeKey | quote }}
+
   priv_validator.json: {{ b64dec .Values.privValidator | quote }}
 
   config.toml: |
@@ -18,7 +20,7 @@ data:
     proxy_app = "tcp://{{ include "chaos.fullname" . }}-chaosnode-service:{{ .Values.chaosnode.port }}"
 
     # A custom human readable name for this node
-    moniker = "anonymous"
+    moniker = {{ .Values.tendermint.moniker | quote }}
 
     # If this node is many blocks behind the tip of the chain, FastSync
     # allows them to catchup quickly by downloading blocks in parallel
@@ -67,14 +69,27 @@ data:
     # NOTE: This server only supports /broadcast_tx_commit
     grpc_laddr = ""
 
+    # Maximum number of simultaneous connections.
+    # Does not include RPC (HTTP&WebSocket) connections. See max_open_connections
+    # If you want to accept more significant number than the default, make sure
+    # you increase your OS limits.
+    # 0 - unlimited.
+    grpc_max_open_connections = 900
+
     # Activate unsafe RPC commands like /dial_seeds and /unsafe_flush_mempool
-    unsafe = false
+    unsafe = true # fet is trying this setting out. Used to be false.
 
     ##### peer to peer configuration options #####
     [p2p]
 
     # Address to listen for incoming connections
-    laddr = "tcp://0.0.0.0:{{ default 46656 .Values.tendermint.ports.p2p }}"
+    laddr = "tcp://0.0.0.0:{{ required ".Values.tendermint.ports.p2p required" .Values.tendermint.ports.p2p }}"
+
+    # Address to advertise to peers for them to dial
+    # If empty, will use the same port as the laddr,
+    # and will introspect on the listener or use UPnP
+    # to figure out the address.
+    external_address = ""
 
     # Comma separated list of seed nodes to connect to
     seeds = ""
@@ -82,6 +97,9 @@ data:
     # Comma separated list of nodes to keep persistent connections to
     # Do not add private peers to this list if you don't want them advertised
     persistent_peers = ""
+
+    # UPNP port forwarding
+    upnp = false
 
     # Path to address book
     addr_book_file = "config/addrbook.json"
@@ -113,9 +131,6 @@ data:
     # Does not work if the peer-exchange reactor is disabled.
     seed_mode = false
 
-    # Authenticated encryption
-    auth_enc = false # fet: this has to be set until we upgrade tendermint to a version that has the gen_node command.
-
     # Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
     private_peer_ids = ""
 
@@ -127,11 +142,16 @@ data:
     broadcast = true
     wal_dir = "data/mempool.wal"
 
+    # size of the mempool
+    size = 100000
+
+    # size of the cache (used to filter transactions we saw earlier)
+    cache_size = 100000
+
     ##### consensus configuration options #####
     [consensus]
 
     wal_file = "data/cs.wal/wal"
-    wal_light = false
 
     # All timeouts are in milliseconds
     timeout_propose = 3000
@@ -145,14 +165,9 @@ data:
     # Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
     skip_timeout_commit = false
 
-    # BlockSize
-    max_block_size_txs = 10000
-    max_block_size_bytes = 1
-
     # EmptyBlocks mode and possible interval between empty blocks in seconds
-    # tendermint respects create_empty_blocks *OR* create_empty_blocks_interval
-    # create_empty_blocks = false
-    create_empty_blocks_interval = {{ default 10 .Values.createEmptyBlocksInterval }}
+    create_empty_blocks = true
+    create_empty_blocks_interval = {{ .Values.tendermint.createEmptyBlocksInterval }}
 
     # Reactor sleep duration parameters are in milliseconds
     peer_gossip_sleep_duration = 100
@@ -210,6 +225,7 @@ data:
     if [ ! -f "/tendermint/config/persistent-peers" ] || [ "$UPDATE_PERSISTENT_PEERS" == "true" ]; then
       init_log "Updating persistent peers."
       echo "$PERSISTENT_PEERS" > /tendermint/config/persistent-peers
+      echo "$PRIVATE_PEER_IDS" > /tendermint/config/private-peer-ids
     else
       init_log "Not updating persistent peers."
     fi

@@ -67,3 +67,98 @@ t_pod=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].me
 c_pod=$(kubectl get pods --selector=app=chaosnode -o json | jq -r ".items[0].metadata.name")
 kubetail $c_pod,$t_pod
 ```
+
+## Troubleshooting
+
+Sometimes the best thing to do is to blow away minikube and try again. `minikube delete`.
+
+## Integration testing
+
+To bring up a test net locally with minikube for integration testing.
+
+*The following steps will not check out any new code. This will build whatever version you currently have in `$GOPATH/src/github.com/oneiro-ndev/chaos`.*
+
+### Requirements
+You can run `env/local/dev.sh` or you can install the following manually. *Note: `dev.sh` will not upgrade for you.*
+
+```
+brew cask install minikube
+brew install kubectl
+brew install kubernetes-helm
+# The following will install minikube's docker hypervisor
+curl -LO https://storage.googleapis.com/minikube/releases/latest/docker-machine-driver-hyperkit \
+&& chmod +x docker-machine-driver-hyperkit \
+&& sudo mv docker-machine-driver-hyperkit /usr/local/bin/ \
+&& sudo chown root:wheel /usr/local/bin/docker-machine-driver-hyperkit \
+&& sudo chmod u+s /usr/local/bin/docker-machine-driver-hyperkit
+```
+
+1. Start minikube
+```
+minikube start --vm-driver=hyperkit --disk-size=20g
+# 20g because it's good to have lots of space for images. Otherwise kublet might garbage collect them.
+```
+2. Connect docker-cli to minikube
+```
+eval $(minikube docker-env)
+```
+3. Build the images to be tested
+```
+# build ndaunode
+ndau_dir=$GOPATH/src/github.com/oneiro-ndev/ndau
+ndau_sha=$(cd $ndau_dir; git rev-parse --short HEAD)
+docker build -f "${ndau_dir}/Dockerfile" "$ndau_dir" -t ndau:${ndau_sha}
+
+# build chaosnode
+chaos_dir=$GOPATH/src/github.com/oneiro-ndev/chaos
+chaos_sha=$(cd $chaos_dir; git rev-parse --short HEAD)
+docker build -f "${chaos_dir}/Dockerfile" "$chaos_dir" -t chaos:${chaos_sha}
+
+# build tendermint
+docker build -f "${chaos_dir}/tm-docker/Dockerfile" "$chaos_dir/tm-docker" -t tendermint:latest
+
+# build noms
+docker build -f "${chaos_dir}/noms-docker/Dockerfile" "$chaos_dir/noms-docker" -t noms:latest
+
+# build helper image
+docker build -f "./docker-images/deploy-utils.docker" "./docker-images" -t deploy-utils:latest
+```
+4. Install the helm tiller
+```
+helm init
+```
+5. install the testnet with "castor" and "pollux" nodes
+```
+VERSION_TAG=${chaos_sha} ./testnet/chaos.js 30000 castor pollux
+```
+6. Bonus (install ndaunode and connect it to the chaos nodes)
+```
+ip=$(minikube ip)
+VERSION_TAG=${ndau_sha} CHAOS_LINK=http://$ip:30001 ./testnet/ndau.js 30010 mario luigi
+```
+
+Once you've done your tests, or want to test again, you can clean up the two releases with the following command.
+```
+helm del --purge castor pollux mario luigi
+```
+
+At this point you'll have to wait a little while until everything is running. You can type `kubectl get pods` to see if everything has a `RUNNING` status.
+
+Since we used a script to install the nodes, we didn't see the output from the helm charts. You can still view them however and get a few little helpful commands by running the comand `helm status pollux` or `helm status castor`.
+
+To get a list of services associated with pods, run the command `kubectl get service`.
+
+To get the RPC port in the tendermint pod run the following command:
+
+```
+% kubectl get service --namespace default -o jsonpath="{.spec.ports[?(@.name==\"rpc\")ePort}" castor-chaosnode-tendermint-service
+```
+
+Where "castor" above is the name of the node.
+
+To kill the cluster and remove all Kub nodes:
+
+```
+% helm del --purge castor pollux
+```
+John  the circle ci stuff for chaos is at https://github.com/oneiro-ndev/chaos/tree/master/.circleci There’s a config.yml that circleci looks at first, and local.sh will kick it off for you and try to download the circle-ci-cli if you don’t already have it. The dockerfile there is also a good example of how you can build the environment in a container and then run commands on it 🙂

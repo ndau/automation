@@ -28,7 +28,7 @@ spec:
       - name: chaosnode
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
         imagePullPolicy: {{ .Values.chaosnode.image.pullPolicy }}
-        args: ["-spec", "http://{{ template "chaos.fullname" . }}-noms-service:{{ .Values.noms.port }}", "-addr", "0.0.0.0:{{ required ".Values.chaosnode.port not set" .Values.chaosnode.port }}"]
+        args: ["-spec", "http://{{ template "chaos.fullname" . }}-noms-service:{{ .Values.noms.port }}", "-addr", "0.0.0.0:{{ required ".Values.chaosnode.port required" .Values.chaosnode.port }}"]
         ports:
         - containerPort: {{ .Values.chaosnode.port }}
         env:

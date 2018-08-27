@@ -12,9 +12,10 @@ tendermint:
     pullPolicy: IfNotPresent
   ports:
     # These ports are only used internally within the pod and between services.
-    p2p: 46656
-    rpc: 46657
+    p2p: 26656
+    rpc: 26657
   nodePorts:
+    enabled: false
     # Node ports from which the tendermint service will be accessible externally at the kubernetes node's IP address.
     # If they are not provided here or set with the commmand line, a random port will be assigned between 30000-32767 by default.
     # p2p: 30000
@@ -24,15 +25,9 @@ tendermint:
   service:
     type: ClusterIP
   moniker: anonymous
-
-# amount of time in seconds tendermint should create empty blocks
-createEmptyBlocksInterval: 10
-
-# Tendermint's persistent peers separated by a comma.
-persistentPeers: ""
-
-# Trigger an update for the tendermint peer addresses.
-updatePeerAddresses: false
+  createEmptyBlocksInterval: 10
+  persistentPeers: "" # Tendermint's persistent peers separated by a comma.
+  updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
 
 chaosnode:
   image:
@@ -41,7 +36,7 @@ chaosnode:
     pullPolicy: IfNotPresent
   persistence:
     size: 100Mi
-  port: 46658
+  port: 26658
   service:
     type: ClusterIP
 
@@ -131,3 +126,13 @@ genesis: eyJnZW5lc2lzX3RpbWUiOiIwMDAxLTAxLTAxVDAwOjAwOjAwWiIsImNoYWluX2lkIjoidGV
 #   ],
 #   "app_hash": "f5d9bc5c359ff6a9e20b929f27e6753c488c1860"
 # }
+
+# default configuration for tendermint'e node_key.json file in base64
+# Don't use this. This should be supplied in the commandline.
+nodeKey: eyJwcml2X2tleSI6eyJ0eXBlIjoidGVuZGVybWludC9Qcml2S2V5RWQyNTUxOSIsInZhbHVlIjoiMjNNZFNycEVSeHo5Z0lTK1JFSmpHbThhTjdzYktLT1p5YWRYSmt4REtHWW9JckpwUkJnOVYvUzRFditCSHNNS29aaTFNSGE0aVdJcUtjWmFwS2ZiN3c9PSJ9fQ==
+#{
+#  "priv_key": {
+#    "type": "tendermint/PrivKeyEd25519",
+#    "value": "23MdSrpERxz9gIS+REJjGm8aN7sbKKOZyadXJkxDKGYoIrJpRBg9V/S4Ev+BHsMKoZi1MHa4iWIqKcZapKfb7w=="
+#  }
+#}
