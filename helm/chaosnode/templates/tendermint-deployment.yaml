@@ -29,6 +29,11 @@ spec:
           "-c",
           "/bin/chaosnode -echo-empty-hash >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/empty_hash",
         ]
+        env:
+        - name: HONEYCOMB_KEY
+          value: {{ .Values.honeycomb.key }}
+        - name: HONEYCOMB_DATASET
+          value: {{ .Values.honeycomb.dataset }}
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
@@ -86,6 +91,10 @@ spec:
         env:
         - name: TMHOME
           value: "/tendermint"
+        - name: HONEYCOMB_KEY
+          value: {{ .Values.honeycomb.key }}
+        - name: HONEYCOMB_DATASET
+          value: {{ .Values.honeycomb.dataset }}
       volumes:
         - name: tendermint-home-volume
           persistentVolumeClaim:

@@ -5,6 +5,10 @@
 # not merged, they are overrides. For this reason the `--set`
 # flag provides the dot notation for changing a single property.
 
+honeycomb:
+  key: ''
+  dataset: ''
+
 tendermint:
   image:
     repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint
