@@ -11,6 +11,12 @@ subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid:always,issuer:always
 ```
 
+Create a key for a certificate authority:
+```
+openssl genrsa -out ./ca.key.pem 4096
+```
+
+Now create the cert authority itself:
 ```
 $ openssl req -key ca.key.pem -new -x509 -days 7300 -sha256 -out ca.cert.pem -extensions v3_ca -config /usr/local/etc/openssl/openssl.cnf
 ```
