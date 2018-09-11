@@ -17,13 +17,24 @@ Both scripts use kubectl and helm. kubectl must be configured to authenticate an
 Once that's taken care of, the default settings will adequatly set up a new test net.
 
 ```
-./chaos.js 30000 castor pollux
+VERSION_TAG=fedcba0 ./chaos.js 30000 castor pollux
 ./ndau.js 31000 ren stimpy
 ```
 
 The first line installs chaos nodes named castor and pollux. It uses port `30000` as a base port and increments from there. That is, it will use `30000` for castor's `p2p` port, then `30001` for castor's `rpc` port. Pollux will get `30002` and `30003` respectively.
 
 The same process is true for the ndau node. It simply starts at `31000` and calls them ren and stimpy.
+
+You may optionally specify container versions for Noms and Tendermint. The ndau and chaos nodes require a `VERSION_TAG` variable to be set.
+
+```
+NOMS_VERSION=fedcba0
+TM_VERSION=fedcba0
+CHAOS_LINK=http://127.0.0.0:26657
+VERSION_TAG=fedcba0
+```
+
+In order to link the ndau nodes to a chaos node, you must supply the `CHAOS_LINK` variable with the url where the chaos node will be available (e.g. `http://127.0.0.0:26657`).
 
 ## Changing the install
 
@@ -35,7 +46,7 @@ For example, to change an installed image:
 
 ```
 helm upgrade ganymede ../../../helm/chaosnode \
-  --set tendermint.image.tag=0.21 \
+  --set tendermint.image.tag=abcdef1 \
   --reuse-values \
   --tls
 ```

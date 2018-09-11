@@ -1,4 +1,8 @@
-# helm
+# Instalation
+
+For instructions on installing helm securely to your cluster use the following guide [helm-installation.md](./helm-installation.md).
+
+# helm charts
 
 These helm charts are largely similar, but different enough to make it worth while to keep the separate. Updating them is a pain, yes. Usuaully I make a change in one and use a diff tool. But installing is complicated enough without having to specify whether it's a chaos node or ndau node, and then giving each chart the ability to know how to do each. Scripts are good for that level of abstraction. Hence the testnet scripts.
 

@@ -10,6 +10,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$DIR"/../common/dev.sh
 # shellcheck source=../common/helpers.sh
 source "$DIR"/../common/helpers.sh
+# shellcheck source=../common/wait_for_cluster.sh
+source "$DIR"/../common/wait_for_cluster.sh
 me=$(basename "$0")
 
 usage() {
@@ -36,7 +38,7 @@ if [ -z "$AZ" ]; then
 fi
 
 if [ ${#missing_env_vars[@]} != 0 ]; then
-    echo "Missing the following env vars: $(join "${missing_env_vars[@]}")"
+    errcho "$me" "Missing the following env vars: $(join "${missing_env_vars[@]}")"
     usage
     exit 1
 fi
@@ -60,9 +62,8 @@ export KOPS_STATE_STORE=s3://"$BUCKET"
 
 # use kops to create the cluster in the availability zone specified.
 kops create cluster \
-  -f ./kops-conf.yaml \
   --zones "$AZ" \
-   "$NAME"
+  --name "$NAME"
 
 # update instance group `nodes` with kope-ig-nodes.json
 kops get ig nodes --state s3://"$BUCKET" -o json > kops-current.json
@@ -71,22 +72,7 @@ kops replace -f kops-merged.json --state s3://"$BUCKET"
 rm kops-merged.json kops-current.json
 
 # bring up the cluster
-kops update cluster "$NAME" --yes
+kops update cluster --name "$NAME" --yes
 
 # wait for the cluster to become available
 wait_for_cluster "$BUCKET"
-
-# See if 1password is set up, try to sign in
-if (! op list vaults); then
-	errcho "Not signed in to 1passsword. Please sign in."
-	op_result=$(op sign oneiro)
-	if ! echo "$op_result" | grep -i OP_SESSION | grep -q ; then
-		# shellcheck disable=SC2006
-		err "$me" "You have no signed in to oneiro using op before. Please run: op signin --help"
-	else
-		if (! op list vaults); then
-		    err "$me" "Could not sign in to 1password."
-		fi
-	fi
- fi
-

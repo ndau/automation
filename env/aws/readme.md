@@ -19,9 +19,9 @@ export CLUSTER_NAME=dev-chaos
 export REGION=us-east-1
 export AZ=us-east-1b
 ./bootstrap-cluster.sh
-
-
 ```
+
+This will create a new set of files in `~/.kube/config` which will contain certificates allowing you to connect to your cluster.
 
 ## KOPS
 
