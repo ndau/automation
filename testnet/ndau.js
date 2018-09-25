@@ -66,16 +66,22 @@ const abortClean = (msg) => {
   process.exit(1)
 }
 
-// main will exectute first
+// main will execute first
 async function main () {
   // Usage and argument count validation
   if (process.argv.length < 4 || process.env.VERSION_TAG === undefined) {
-    console.log(`
+    console.error(`
     Please supply a version tag, a port to start and some node names.
     noms and tendermint versions reflect our container versions, not the applications themselves. They are optional and default to "latest".
 
     Usage
-    [NOMS_VERSION=0.0.1] [TM_VERSION=0.0.1] [CHAOS_LINK=http://127.0.0.0:26657] VERSION_TAG=0.0.1 ./ndau.js 30000 mario luigi
+
+    [NOMS_VERSION=0.0.1] \
+    [TM_VERSION=0.0.1] \
+    [CHAOS_LINK=http://127.0.0.0:26657] \
+    VERSION_TAG=0.0.1 \
+    ELB_SUBDOMAIN=api.ndau.tech \
+    ./ndau.js 30000 mario luigi
     `)
     process.exit(1)
   }
@@ -84,6 +90,7 @@ async function main () {
   const NOMS_VERSION = process.env.NOMS_VERSION || 'latest'
   const TM_VERSION = process.env.TM_VERSION || 'latest'
   const CHAOS_LINK = process.env.CHAOS_LINK
+  const ELB_SUBDOMAIN = process.env.ELB_SUBDOMAIN
 
   // get the starting port from the arguments
   portCount = parseInt(process.argv[2])
@@ -274,6 +281,7 @@ async function main () {
         --set ndaunode.image.tag=${VERSION_TAG} \
         --set tendermint.image.tag=${TM_VERSION} \
         --set noms.image.tag=${NOMS_VERSION} \
+        --set ndauapi.ingress.host="${node.name}.${ELB_SUBDOMAIN}"
         ${envSpecificHelmOpts} \
         ${chaosLinkOpts} \
       `, { env: process.env })
