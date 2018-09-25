@@ -83,6 +83,15 @@ async function main () {
   const VERSION_TAG = process.env.VERSION_TAG
   const NOMS_VERSION = process.env.NOMS_VERSION || 'latest'
   const TM_VERSION = process.env.TM_VERSION || 'latest'
+  // JSG check to see that HONEYCOMB env vars are set
+  if (process.env.HONEYCOMB_KEY === undefined || process.env.HONEYCOMB_DATASET === undefined) {
+    console.error(`
+    Either HONEYCOMB_KEY or HONEYCOMB_DATASET env vars are undefined.
+    Logging output will default to stdout/stderr without these vars defined.
+    `)
+  }
+  const HONEYCOMB_KEY = process.env.HONEYCOMB_KEY
+  const HONEYCOMB_DATASET = process.env.HONEYCOMB_DATASET
 
   // get the starting port from the arguments
   portCount = parseInt(process.argv[2])
@@ -266,6 +275,8 @@ async function main () {
         --set chaosnode.image.tag=${VERSION_TAG} \
         --set tendermint.image.tag=${TM_VERSION} \
         --set noms.image.tag=${NOMS_VERSION} \
+        --set honeycomb.key=${HONEYCOMB_KEY} \
+        --set honeycomb.dataset=${HONEYCOMB_DATASET} \
         ${envSpecificHelmOpts} \
       `, { env: process.env })
     })
