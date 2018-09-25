@@ -33,3 +33,12 @@ Your node will be available on any of the nodes of your cluster. To get their IP
 ```
 kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}' | tr " " "\n"
 ```
+
+ndauapi
+-------
+
+To get the address of the ndauapi use the following command.
+
+```
+kubectl get ingress {{ template "ndau.fullname" . }}-ndauapi-ingress -o jsonpath="{.spec.rules[0].host}" --namespace {{ .Release.Namespace }}
+```

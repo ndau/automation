@@ -1,0 +1,25 @@
+{{- if .Values.ndauapi.ingress.enabled -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ template "ndau.fullname" . }}-ndauapi-ingress
+  labels:
+    app: {{ template "ndau.name" . }}
+    chart: {{ template "ndau.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+
+  annotations:
+    kubernetes.io/ingress.class: traefik
+{{- with .Values.ndauapi.ingress.annotations }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  rules:
+    - host: {{ .Values.ndauapi.ingress.host }}
+      http:
+        paths:
+          - backend:
+            serviceName: {{ template "ndau.fullname" . }}-ndauapi-service
+            servicePort: 80
+{{- end }}

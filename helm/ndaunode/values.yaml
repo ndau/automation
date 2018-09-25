@@ -47,6 +47,21 @@ ndaunode:
     enabled: false
     #address: "" # http://host:port
 
+ndauapi:
+  image:
+    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/ndauapi
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 3030
+  logLevel: "info"
+  replicas: 1
+  ingress:
+    enabled: true
+    host: ndau.api.ndau.tech
+    annotations: {}
+  service:
+    type: ClusterIP
+
 noms:
   image:
     repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/noms
