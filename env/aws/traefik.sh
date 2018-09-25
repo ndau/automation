@@ -11,9 +11,6 @@ usage() {
 	errcho "Usage: EMAIL=email@example.com RELEASE_NAME=ndau-traefik ./traefik.sh"
 }
 
-# This is used as a prefix for subdomain star addresses.
-star_dot='\\052.' # "*."
-
 # Config
 CHART=stable/traefik
 
@@ -48,7 +45,7 @@ if [ ! -f "$DIR"/traefik-keys.sh ]; then
 	err "$me" "Please copy traefik-keys.sample.sh to traefik-keys.sh and change the values to match your authorized user."
 fi
 # Gets AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
-# shellcheck source=./traefik-keys.sh
+# shellcheck source=./traefik-keys.sample.sh
 source "$DIR"/traefik-keys.sh
 
 # get parent domain from the ELB_DOMAIN
