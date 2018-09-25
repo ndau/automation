@@ -69,9 +69,9 @@ const abortClean = (msg) => {
 // main will execute first
 async function main () {
   // Usage and argument count validation
-  if (process.argv.length < 4 || process.env.VERSION_TAG === undefined) {
+  if (process.argv.length < 4 || process.env.VERSION_TAG === undefined || process.env.ELB_SUBDOMAIN === undefined) {
     console.error(`
-    Please supply a version tag, a port to start and some node names.
+    Please supply a version tag, a subdomain, a port to start and some node names.
     noms and tendermint versions reflect our container versions, not the applications themselves. They are optional and default to "latest".
 
     Usage
@@ -91,16 +91,16 @@ async function main () {
   const TM_VERSION = process.env.TM_VERSION || 'latest'
   const CHAOS_LINK = process.env.CHAOS_LINK
   const ELB_SUBDOMAIN = process.env.ELB_SUBDOMAIN
+  const HONEYCOMB_KEY = process.env.HONEYCOMB_KEY
+  const HONEYCOMB_DATASET = process.env.HONEYCOMB_DATASET
 
   // JSG check to see that HONEYCOMB env vars are set
-  if (process.env.HONEYCOMB_KEY === undefined || process.env.HONEYCOMB_DATASET === undefined) {
+  if (HONEYCOMB_KEY === undefined || HONEYCOMB_DATASET === undefined) {
     console.error(`
     Either HONEYCOMB_KEY or HONEYCOMB_DATASET env vars are undefined.
     Logging output will default to stdout/stderr without these vars defined.
     `)
   }
-  const HONEYCOMB_KEY = process.env.HONEYCOMB_KEY
-  const HONEYCOMB_DATASET = process.env.HONEYCOMB_DATASET
 
   // get the starting port from the arguments
   portCount = parseInt(process.argv[2])
