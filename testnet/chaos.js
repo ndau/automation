@@ -89,7 +89,7 @@ async function main () {
     Either HONEYCOMB_KEY or HONEYCOMB_DATASET env vars are undefined.
     Logging output will default to stdout/stderr without these vars defined.
     `)
-  }  
+  }
   const HONEYCOMB_KEY = process.env.HONEYCOMB_KEY
   const HONEYCOMB_DATASET = process.env.HONEYCOMB_DATASET
 
