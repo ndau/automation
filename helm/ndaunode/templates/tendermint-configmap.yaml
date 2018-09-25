@@ -230,6 +230,19 @@ data:
       init_log "Not updating persistent peers."
     fi
 
+    # update genesis.json with chaosnode's empty hash
+    empty_hash=$(cat /tendermint/empty_hash)
+
+    # check to see if genesis.json already exists, if so update the empty hash
+    if [ -f "/tendermint/config/genesis.json" ]; then
+      cp /tendermint/config/genesis.json /tendermint/config/genesis-old.json
+      if jq ".app_hash=\"$empty_hash\"" /tendermint/config/genesis-old.json > /tendermint/config/genesis.json; then
+        init_log "Updated old genesis with empty hash $empty_hash"
+      else
+        init_err "Could not update genesis with empty hash."
+      fi
+    fi
+
     # early exit. do not initialize if config already exists
     if [ -f "/tendermint/config/init-done" ]; then
       init_log "Volume already has configuration. Initialization stopping."
@@ -243,18 +256,28 @@ data:
       init_err "Could not copy read-only files to tendermint config"
     fi
 
-    # update genesis.json with ndaunode's empty hash
-    empty_hash=$(cat /tendermint/empty_hash)
+    # copy genesis and insert empty hash
+    if [ -f "/tendermint/config/genesis.json" ]; then
+      cp /tendermint/config/genesis.json /tendermint/config/genesis-old.json
+      if jq ".app_hash=\"$empty_hash\"" /tendermint/config/genesis-old.json > /tendermint/config/genesis.json; then
+        init_log "Updated old genesis with empty hash $empty_hash"
+      else
+        init_err "Could not update genesis with empty hash."
+      fi
+    else
+      if jq ".app_hash=\"$empty_hash\"" /tendermint/config-ro/genesis.json > /tendermint/config/genesis.json; then
+        init_log "config-ro genesis.json"
+        init_log $(cat /tendermint/config-ro/genesis.json)
+        init_log "config genesis.json"
+        init_log $(cat /tendermint/config/genesis.json)
+        init_log "Created new genesis with empty hash $empty_hash"
+      else
+        init_err "Could not update genesis with empty hash."
+      fi
+    fi
 
     # output empty hash
     init_log "Empty hash: $empty_hash"
-
-    # copy genesis and insert empty hash
-    if jq ".app_hash=\"$empty_hash\"" /tendermint/config-ro/genesis.json > /tendermint/config/genesis.json; then
-      init_log "Updated genesis with empty hash $empty_hash"
-    else
-      init_err "Could not update genesis with empty hash."
-    fi
 
     # output for the logs
     init_log "Final config files"
