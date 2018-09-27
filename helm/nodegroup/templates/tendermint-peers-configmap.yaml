@@ -1,0 +1,10 @@
+# This is blank, it gets filled in with the argument tendermint is expecting.
+# A list of address@ip:port, separated by commas.
+kind: ConfigMap
+metadata:
+  name: {{ template "chaos.fullname" . }}-tendermint-peers
+apiVersion: v1
+data:
+  addresses: {{ default "" ( b64dec .Values.tendermint.persistentPeers ) | quote }}
+  updatePeerAddresses: {{ default "false" .Values.tendermint.updatePeerAddresses | quote }}
+  privatePeerIds: {{ default "" .Values.tendermint.privatePeerIds | quote }}

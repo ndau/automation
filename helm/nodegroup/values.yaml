@@ -1,0 +1,152 @@
+# This values file is applied to the helm chart templates.
+# You can supply overrides via the commandline or provide them
+# in another yaml file with the -f option. Please take care in
+# supplying properties of objects. Your supplied overrides are
+# not merged, they are overrides. For this reason the `--set`
+# flag provides the dot notation for changing a single property.
+
+honeycomb:
+  key: ''
+  dataset: ''
+
+tendermint:
+  image:
+    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint
+    tag: latest
+    pullPolicy: IfNotPresent
+  ports:
+    # These ports are only used internally within the pod and between services.
+    chaos-p2p: 26656
+    chaos-rpc: 26657
+    ndau-p2p: 26658
+    ndau-rpc: 26659
+  nodePorts:
+    enabled: false
+    # Node ports from which the tendermint service will be accessible externally at the kubernetes node's IP address.
+    # If they are not provided here or set with the commmand line, a random port will be assigned between 30000-32767 by default.
+    # p2p: 30000
+    # rpc: 30001
+  persistence:
+    size: 1Gi
+  service:
+    type: ClusterIP
+  moniker: anonymous
+  createEmptyBlocksInterval: 10
+  persistentPeers: "" # Tendermint's persistent peers separated by a comma.
+  updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
+
+chaosnode:
+  image:
+    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/chaosnode
+    tag: latest
+    pullPolicy: IfNotPresent
+  persistence:
+    size: 100Mi
+  port: 26660
+  service:
+    type: ClusterIP
+
+ndaunode:
+  image:
+    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/ndaunode
+    tag: latest
+    pullPolicy: IfNotPresent
+  persistence:
+    size: 100Mi
+  port: 26661
+  service:
+    type: ClusterIP
+  chaosLink:
+    enabled: false
+    #address: "" # http://host:port
+
+noms:
+  image:
+    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/noms
+    tag: latest
+    pullPolicy: IfNotPresent
+  persistence:
+    size: 4Gi
+  chaosPort: 8000
+  ndauPort: 8001
+  service:
+    type: ClusterIP
+
+# deployUtils is an small image with tools used for small tasks.
+deployUtils:
+  image:
+    repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/deploy-utils
+    tag: 0.0.1
+    pullPolicy: IfNotPresent
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #  cpu: 100m
+  #  memory: 128Mi
+  # requests:
+  #  cpu: 100m
+  #  memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# default configuration for tendermint's priv_validator.json file in base64
+# This should be supplied in the commandline.
+# What ever value is supplied for app_hash here or the commandline gets overriden by the tendermint deployment init containers.
+chaosPrivValidator: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQTU2RSIsInB1Yl9rZXkiOiB7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwibGFzdF9oZWlnaHQiOjAsImxhc3Rfcm91bmQiOjAsImxhc3Rfc3RlcCI6MCwibGFzdF9zaWduYXR1cmUiOm51bGwsInByaXZfa2V5IjogeyJ0eXBlIjoiZWQyNTUxOSIsImRhdGEiOiI0MzkzMUQ1Q0FBNUQ3QkRBODY4RkI1QTc5RjkyQTQ1QzRERTRDODYwMkI0NUIwQjM4QkQ3RTRBQ0FDNzYyNDVDRjE0Q0UyNzNBRjBCNTg4MDJERURGNEFFRENFOEI2MUUwNjAwODgyMUFFOUFBRTVEQURFNjcxMzYwNDI2Q0U3MCJ9fQo=
+ndauPrivValidator: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQTU2RSIsInB1Yl9rZXkiOiB7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwibGFzdF9oZWlnaHQiOjAsImxhc3Rfcm91bmQiOjAsImxhc3Rfc3RlcCI6MCwibGFzdF9zaWduYXR1cmUiOm51bGwsInByaXZfa2V5IjogeyJ0eXBlIjoiZWQyNTUxOSIsImRhdGEiOiI0MzkzMUQ1Q0FBNUQ3QkRBODY4RkI1QTc5RjkyQTQ1QzRERTRDODYwMkI0NUIwQjM4QkQ3RTRBQ0FDNzYyNDVDRjE0Q0UyNzNBRjBCNTg4MDJERURGNEFFRENFOEI2MUUwNjAwODgyMUFFOUFBRTVEQURFNjcxMzYwNDI2Q0U3MCJ9fQo=
+# The json below (minute whitespace) is base64 encoded above.
+#  {
+#    "address":"D0EA8F8997AFFC3393A015959B0CED47AFCCA56E",
+#    "pub_key": {
+#      "type":"ed25519",
+#      "data":"F14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
+#    },
+#    "last_height":0,
+#    "last_round":0,
+#    "last_step":0,
+#    "last_signature":null,
+#    "priv_key": {
+#      "type":"ed25519",
+#      "data":"43931D5CAA5D7BDA868FB5A79F92A45C4DE4C8602B45B0B38BD7E4ACAC76245CF14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
+#    }
+#  }
+
+# default configuration for tendermint'e genesis.json file in base64
+# This should be supplied in the commandline.
+chaosGenesis: eyJnZW5lc2lzX3RpbWUiOiIwMDAxLTAxLTAxVDAwOjAwOjAwWiIsImNoYWluX2lkIjoidGVzdC1jaGFpbi0zRUFMNzAiLCJ2YWxpZGF0b3JzIjpbeyJwdWJfa2V5Ijp7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwicG93ZXIiOjEwLCJuYW1lIjoiIn1dLCJhcHBfaGFzaCI6ICJmNWQ5YmM1YzM1OWZmNmE5ZTIwYjkyOWYyN2U2NzUzYzQ4OGMxODYwIn0K
+ndauGenesis: eyJnZW5lc2lzX3RpbWUiOiIwMDAxLTAxLTAxVDAwOjAwOjAwWiIsImNoYWluX2lkIjoidGVzdC1jaGFpbi0zRUFMNzAiLCJ2YWxpZGF0b3JzIjpbeyJwdWJfa2V5Ijp7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwicG93ZXIiOjEwLCJuYW1lIjoiIn1dLCJhcHBfaGFzaCI6ICJmNWQ5YmM1YzM1OWZmNmE5ZTIwYjkyOWYyN2U2NzUzYzQ4OGMxODYwIn0K
+# The json below (minute whitespace) is base64 encoded above.
+# {
+#   "genesis_time": "0001-01-01T00:00:00Z",
+#   "chain_id": "test-chain-3EAL70",
+#   "validators": [
+#     {
+#       "pub_key": {
+#         "type": "ed25519",
+#         "data": "F14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
+#       },
+#       "power": 10,
+#       "name": ""
+#     }
+#   ],
+#   "app_hash": "f5d9bc5c359ff6a9e20b929f27e6753c488c1860"
+# }
+
+# default configuration for tendermint'e node_key.json file in base64
+# Don't use this. This should be supplied in the commandline.
+chaosNodeKey: eyJwcml2X2tleSI6eyJ0eXBlIjoidGVuZGVybWludC9Qcml2S2V5RWQyNTUxOSIsInZhbHVlIjoiMjNNZFNycEVSeHo5Z0lTK1JFSmpHbThhTjdzYktLT1p5YWRYSmt4REtHWW9JckpwUkJnOVYvUzRFditCSHNNS29aaTFNSGE0aVdJcUtjWmFwS2ZiN3c9PSJ9fQ==
+ndauNodeKey: eyJwcml2X2tleSI6eyJ0eXBlIjoidGVuZGVybWludC9Qcml2S2V5RWQyNTUxOSIsInZhbHVlIjoiMjNNZFNycEVSeHo5Z0lTK1JFSmpHbThhTjdzYktLT1p5YWRYSmt4REtHWW9JckpwUkJnOVYvUzRFditCSHNNS29aaTFNSGE0aVdJcUtjWmFwS2ZiN3c9PSJ9fQ==
+#{
+#  "priv_key": {
+#    "type": "tendermint/PrivKeyEd25519",
+#    "value": "23MdSrpERxz9gIS+REJjGm8aN7sbKKOZyadXJkxDKGYoIrJpRBg9V/S4Ev+BHsMKoZi1MHa4iWIqKcZapKfb7w=="
+#  }
+#}
