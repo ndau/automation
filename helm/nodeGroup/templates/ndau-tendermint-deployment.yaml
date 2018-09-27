@@ -1,29 +1,31 @@
+{{ if .Values.ndau.enabled }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "ndau.fullname" . }}-tendermint
+  name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint
   labels:
-    app: {{ template "ndau.name" . }}
-    chart: {{ template "ndau.chart" . }}
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ template "ndau.name" . }}-tendermint
+      app: {{ template "nodeGroup.name" . }}-ndau-tendermint
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "ndau.name" . }}-tendermint
+        app: {{ template "nodeGroup.name" . }}-ndau-tendermint
         release: {{ .Release.Name }}
     spec:
       initContainers:
       # Uses ndaunode image to get empty hash and saves it
       - name: hash
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
-        imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.ndau.tendermint.image.pullPolicy }}
         command: ["/bin/sh"]
         args: [
           "-c",
@@ -31,36 +33,36 @@ spec:
         ]
         env:
         - name: HONEYCOMB_KEY
-          value: {{ .Values.honeycomb.key }}
+          value: {{ .Values.ndau.honeycomb.key }}
         - name: HONEYCOMB_DATASET
-          value: {{ .Values.honeycomb.dataset }}
+          value: {{ .Values.ndau.honeycomb.dataset }}
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
       # copy/ammend read only config files to real config folder
       - name: config
-        image: {{ .Values.deployUtils.image.repository }}:{{ .Values.deployUtils.image.tag }}
-        imagePullPolicy: {{ .Values.deployUtils.image.pullPolicy }}
+        image: {{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}
+        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
         command: ["/bin/sh", "/tendermint/init.sh"]
         env:
         - name: HONEYCOMB_KEY
-          value: {{ .Values.honeycomb.key }}
+          value: {{ .Values.ndau.honeycomb.key }}
         - name: HONEYCOMB_DATASET
-          value: {{ .Values.honeycomb.dataset }}
+          value: {{ .Values.ndau.honeycomb.dataset }}
         - name: UPDATE_PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "ndau.fullname" . }}-tendermint-peers
+              name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-peers
               key: updatePeerAddresses
         - name: PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "ndau.fullname" . }}-tendermint-peers
+              name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-peers
               key: addresses
         - name: PRIVATE_PEER_IDS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "ndau.fullname" . }}-tendermint-peers
+              name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-peers
               key: privatePeerIds
         volumeMounts:
         - name: tendermint-home-volume
@@ -82,13 +84,13 @@ spec:
           subPath: config.toml
       containers:
       - name: tendermint
-        image: "{{ .Values.tendermint.image.repository }}:{{ .Values.tendermint.image.tag }}"
+        image: "{{ .Values.ndau.tendermint.image.repository }}:{{ .Values.ndau.tendermint.image.tag }}"
         command: ["/bin/sh"]
-        args: ["-c", "tendermint node --moniker={{ .Values.tendermint.moniker }} --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\""]
-        imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
+        args: ["-c", "tendermint node --moniker={{ .Values.ndau.tendermint.moniker }} --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\""]
+        imagePullPolicy: {{ .Values.ndau.tendermint.image.pullPolicy }}
         ports:
-          - containerPort: {{ .Values.tendermint.ports.p2p }}
-          - containerPort: {{ .Values.tendermint.ports.rpc }}
+          - containerPort: {{ .Values.ndau.tendermint.ports.p2p }}
+          - containerPort: {{ .Values.ndau.tendermint.ports.rpc }}
         volumeMounts:
         - mountPath: /tendermint
           name: tendermint-home-volume
@@ -98,36 +100,38 @@ spec:
       volumes:
         - name: tendermint-home-volume
           persistentVolumeClaim:
-            claimName: {{ template "ndau.fullname" . }}-tendermint-claim
+            claimName: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-claim
         - name: tendermint-init
           configMap:
-            name: {{ template "ndau.fullname" . }}-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
             items:
             - key: init.sh
               path: init.sh
         - name: config-toml
           configMap:
-            name: {{ template "ndau.fullname" . }}-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
             items:
             - key: config.toml
               path: config.toml
         - name: genesis-json
           configMap:
-            name: {{ template "ndau.fullname" . }}-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
             items:
             - key: genesis.json
               path: genesis.json
         - name: priv-json
           configMap:
-            name: {{ template "ndau.fullname" . }}-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
             items:
             - key: priv_validator.json
               path: priv_validator.json
         - name: node-key-json
           configMap:
-            name: {{ template "ndau.fullname" . }}-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
             items:
             - key: node_key.json
               path: node_key.json
 
 
+
+{{ end }}

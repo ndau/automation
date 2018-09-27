@@ -1,29 +1,31 @@
+{{ if .Values.chaos.enabled }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "chaos.fullname" . }}-tendermint
+  name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint
   labels:
-    app: {{ template "chaos.name" . }}
-    chart: {{ template "chaos.chart" . }}
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ template "chaos.name" . }}-tendermint
+      app: {{ template "nodeGroup.name" . }}-chaos-tendermint
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "chaos.name" . }}-tendermint
+        app: {{ template "nodeGroup.name" . }}-chaos-tendermint
         release: {{ .Release.Name }}
     spec:
       initContainers:
       # Uses chaosnode image to get empty hash and saves it
       - name: hash
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
-        imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.chaos.tendermint.image.pullPolicy }}
         command: ["/bin/sh"]
         args: [
           "-c",
@@ -31,32 +33,32 @@ spec:
         ]
         env:
         - name: HONEYCOMB_KEY
-          value: {{ .Values.honeycomb.key }}
+          value: {{ .Values.chaos.honeycomb.key }}
         - name: HONEYCOMB_DATASET
-          value: {{ .Values.honeycomb.dataset }}
+          value: {{ .Values.chaos.honeycomb.dataset }}
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
       # copy/ammend read only config files to real config folder
       - name: config
-        image: {{ .Values.deployUtils.image.repository }}:{{ .Values.deployUtils.image.tag }}
-        imagePullPolicy: {{ .Values.deployUtils.image.pullPolicy }}
+        image: {{ .Values.chaos.deployUtils.image.repository }}:{{ .Values.chaos.deployUtils.image.tag }}
+        imagePullPolicy: {{ .Values.chaos.deployUtils.image.pullPolicy }}
         command: ["/bin/sh", "/tendermint/init.sh"]
         env:
         - name: UPDATE_PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "chaos.fullname" . }}-tendermint-peers
+              name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-peers
               key: updatePeerAddresses
         - name: PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "chaos.fullname" . }}-tendermint-peers
+              name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-peers
               key: addresses
         - name: PRIVATE_PEER_IDS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "chaos.fullname" . }}-tendermint-peers
+              name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-peers
               key: privatePeerIds
         volumeMounts:
         - name: tendermint-home-volume
@@ -78,13 +80,13 @@ spec:
           subPath: config.toml
       containers:
       - name: tendermint
-        image: "{{ .Values.tendermint.image.repository }}:{{ .Values.tendermint.image.tag }}"
+        image: "{{ .Values.chaos.tendermint.image.repository }}:{{ .Values.chaos.tendermint.image.tag }}"
         command: ["/bin/sh"]
-        args: ["-c", "tendermint node --moniker={{ .Values.tendermint.moniker }} --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\""]
-        imagePullPolicy: {{ .Values.tendermint.image.pullPolicy }}
+        args: ["-c", "tendermint node --moniker={{ .Values.chaos.tendermint.moniker }} --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\""]
+        imagePullPolicy: {{ .Values.chaos.tendermint.image.pullPolicy }}
         ports:
-          - containerPort: {{ .Values.tendermint.ports.p2p }}
-          - containerPort: {{ .Values.tendermint.ports.rpc }}
+          - containerPort: {{ .Values.chaos.tendermint.ports.p2p }}
+          - containerPort: {{ .Values.chaos.tendermint.ports.rpc }}
         volumeMounts:
         - mountPath: /tendermint
           name: tendermint-home-volume
@@ -92,42 +94,44 @@ spec:
         - name: TMHOME
           value: "/tendermint"
         - name: HONEYCOMB_KEY
-          value: {{ .Values.honeycomb.key }}
+          value: {{ .Values.chaos.honeycomb.key }}
         - name: HONEYCOMB_DATASET
-          value: {{ .Values.honeycomb.dataset }}
+          value: {{ .Values.chaos.honeycomb.dataset }}
       volumes:
         - name: tendermint-home-volume
           persistentVolumeClaim:
-            claimName: {{ template "chaos.fullname" . }}-tendermint-claim
+            claimName: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-claim
         - name: tendermint-init
           configMap:
-            name: {{ template "chaos.fullname" . }}-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-config
             items:
             - key: init.sh
               path: init.sh
         - name: config-toml
           configMap:
-            name: {{ template "chaos.fullname" . }}-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-config
             items:
             - key: config.toml
               path: config.toml
         - name: genesis-json
           configMap:
-            name: {{ template "chaos.fullname" . }}-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-config
             items:
             - key: genesis.json
               path: genesis.json
         - name: priv-json
           configMap:
-            name: {{ template "chaos.fullname" . }}-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-config
             items:
             - key: priv_validator.json
               path: priv_validator.json
         - name: node-key-json
           configMap:
-            name: {{ template "chaos.fullname" . }}-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-config
             items:
             - key: node_key.json
               path: node_key.json
 
 
+
+{{ end }}

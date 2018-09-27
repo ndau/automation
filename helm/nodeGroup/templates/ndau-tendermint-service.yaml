@@ -1,0 +1,31 @@
+{{ if .Values.ndau.enabled }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-service
+  labels:
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: NodePort
+  ports:
+    - name: p2p
+      port: {{ .Values.ndau.tendermint.ports.p2p }}
+      targetPort: {{ .Values.ndau.tendermint.ports.p2p }}
+      {{ if .Values.ndau.tendermint.nodePorts.enabled }}
+      nodePort: {{ .Values.ndau.tendermint.nodePorts.p2p }}
+      {{ end }}
+    - name: rpc
+      port: {{ .Values.ndau.tendermint.ports.rpc }}
+      targetPort: {{ .Values.ndau.tendermint.ports.rpc }}
+      {{ if .Values.ndau.tendermint.nodePorts.enabled }}
+      nodePort: {{ .Values.ndau.tendermint.nodePorts.rpc }}
+      {{ end }}
+  selector:
+    app: {{ template "nodeGroup.name" . }}-ndau-tendermint
+    release: {{ .Release.Name }}
+
+{{ end }}

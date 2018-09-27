@@ -1,0 +1,22 @@
+{{ if .Values.ndau.enabled }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "nodeGroup.fullname" . }}-ndau-noms-service
+  labels:
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.ndau.noms.service.type }}
+  ports:
+    - port: {{ .Values.ndau.noms.port }}
+      targetPort: {{ .Values.ndau.noms.port }}
+      protocol: TCP
+  selector:
+    app: {{ template "nodeGroup.name" . }}-ndau-noms
+    release: {{ .Release.Name }}
+
+{{ end }}

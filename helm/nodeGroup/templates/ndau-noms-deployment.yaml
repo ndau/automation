@@ -1,0 +1,36 @@
+{{ if .Values.ndau.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "nodeGroup.fullname" . }}-ndau-noms
+  labels:
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "nodeGroup.name" . }}-ndau-noms
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "nodeGroup.name" . }}-ndau-noms
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: noms
+        image: "{{ .Values.ndau.noms.image.repository }}:{{ .Values.ndau.noms.image.tag }}"
+        imagePullPolicy: {{ .Values.ndau.noms.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.ndau.noms.port }}
+        volumeMounts:
+        - mountPath: "/data"
+          name: noms-volume
+      volumes:
+      - name: noms-volume
+        persistentVolumeClaim:
+          claimName: {{ template "nodeGroup.fullname" . }}-ndau-noms-claim
+{{ end }}

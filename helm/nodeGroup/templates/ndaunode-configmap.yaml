@@ -1,6 +1,8 @@
+{{ if .Values.ndau.enabled }}
+
 kind: ConfigMap
 metadata:
-  name: {{ template "ndau.fullname" . }}-ndau-config
+  name: {{ template "nodeGroup.fullname" . }}-ndau-config
 apiVersion: v1
 data:
   config.toml: |
@@ -39,3 +41,5 @@ data:
     cat /root/.ndau/ndau/mock-chaos.msgp | base64
     find /root/.ndau
 
+
+{{ end }}
