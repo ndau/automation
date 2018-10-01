@@ -437,6 +437,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Coordinate multiple nodes")
     parser.add_argument('validators', type=int,
                         help='Qty of validators to include')
+    parser.add_argument('startPort', type=int, default=0,
+                        help='starting port to assign to rpc and p2p ports for the nodes')
     parser.add_argument('-V', '--verifiers', type=int, default=0,
                         help='Qty of verifiers to include')
     parser.add_argument('-H', '--home', default='~/.multinode/',
@@ -445,25 +447,24 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', default=output_default(),
                         help=('Directory in which to place generated scripts. '
                               f'Default: {output_default()}'))
-    parser.add_argument('--port', type=int, default=0,
-                        help=('RPC port address start number '))
 
     args = parser.parse_args()
     home = os.path.expandvars(os.path.expanduser(args.home))
     output = os.path.expandvars(os.path.expanduser(args.output))
+
+    if args.startPort != 0:
+        BASE_PORT = args.startPort
 
     # if args.rpc_address:
     #     emit_rpc_addresses(args.validators, args.verifiers)
     #     sys.exit(0)
 
 
-# JSG check to see that HONEYCOMB env vars are set
+    # JSG check to see that HONEYCOMB env vars are set
     if (HONEYCOMB_KEY == None or HONEYCOMB_DATASET == None):
         print('Either HONEYCOMB_KEY or HONEYCOMB_DATASET env vars are undefined.\n\
         Logging output will default to stdout/stderr without these vars defined.')
     
-    # get the starting port from the arguments
-    portCount = int(args.port)
 
     ret = subprocess.run("kubectl config current-context",
         stdout=subprocess.PIPE,
@@ -587,8 +588,8 @@ if __name__ == '__main__':
 
             ndauPeers = ','.join(list(filter(lambda x: x is not None, ndauPeers)))
             ndauPeerIds = ','.join(ndauPeerIds)
-            print(f'peers = {ndauPeers}')
-            print(f'peerIds = {ndauPeerIds}')
+            print(f'ndaupeers = {ndauPeers}')
+            print(f'ndaupeerIds = {ndauPeerIds}')
 
             helm_command = f'helm install --name {node.name} {nodeGroupDir} \
                 --set chaos.genesis={b64encode(json.dumps(chaos_genesis).encode()).decode()}\
