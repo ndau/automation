@@ -1,4 +1,3 @@
-[![js-standard-style](https://cdn.rawgit.com/standard/standard/master/badge.svg)](http://standardjs.com)
 
 # Multinode test nets
 
@@ -10,31 +9,28 @@ chaos/ndau nodes can be deployed with helm, using the helm charts provided in th
 
 ## Installation
 
-The two scripts `ndau.js` and `chaos.js` require node to execute. They both set up a multiple node test net in kubernetes
+The script `gen_node_groups.py` require python 3.x to execute. It sets up a multiple node test net in kubernetes.
 
-Both scripts use kubectl and helm. kubectl must be configured to authenticate and set to use a cluster of your chosing, as all commands executed by these scripts will go through helm and kubectl.
+The script use kubectl and helm. kubectl must be configured to authenticate and set to use a cluster of your chosing, as all commands executed by these scripts will go through helm and kubectl.
 
-Once that's taken care of, the default settings will adequatly set up a new test net.
+Once that's taken care of, the default settings will adequatly set up a new test net:
 
 ```
-VERSION_TAG=fedcba0 ./chaos.js 30000 castor pollux
-./ndau.js 31000 ren stimpy
+NOMS_VERSION=latest TM_VERSION=0.0.3 CHAOS_VERSION=8bb3c3a NDAU_VERSION=13906e7 ./gen_node_groups.py 2 30004
 ```
 
-The first line installs chaos nodes named castor and pollux. It uses port `30000` as a base port and increments from there. That is, it will use `30000` for castor's `p2p` port, then `30001` for castor's `rpc` port. Pollux will get `30002` and `30003` respectively.
+The above script installs the # of node groups given by the number arg (in this case 2), `nodegroup0` and `nodegroup1`. By default it uses port `30000` as a base port and increments from there, unless you give it a different port to start with as the 2nd arg. That is, it will use `30000` for nodegroup0's chaos `p2p` port, then `30001` for nodegroup0's chaos `rpc` port, `30002` for nodegroup0's ndau `p2p` port, then `30003` for nodegroup0's ndau `rpc` port. nodegroup1 will get `30004` through `30007` respectively.
 
-The same process is true for the ndau node. It simply starts at `31000` and calls them ren and stimpy.
 
-You may optionally specify container versions for Noms and Tendermint. The ndau and chaos nodes require a `VERSION_TAG` variable to be set.
+You must specify container versions for Noms, Tendermint, chaosnode, and ndaunode. The ndau and chaos node versions should be specified by their git SHA values, while NOMS and Tendermint should be specified by current release value.
 
 ```
 NOMS_VERSION=fedcba0
 TM_VERSION=fedcba0
-CHAOS_LINK=http://127.0.0.0:26657
-VERSION_TAG=fedcba0
+CHAOS_VERSION=8bb3c3a
+NDAU_VERSION=13906e7
 ```
 
-In order to link the ndau nodes to a chaos node, you must supply the `CHAOS_LINK` variable with the url where the chaos node will be available (e.g. `http://127.0.0.0:26657`).
 
 ## Changing the install
 
