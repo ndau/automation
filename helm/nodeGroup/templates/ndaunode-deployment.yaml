@@ -40,6 +40,8 @@ spec:
         - name: config-toml
           mountPath: /root/config-ro/config.toml
           subPath: config.toml
+        - mountPath: "/root/.ndau"
+          name: ndau-home-volume
       {{ if .Values.ndaunode.chaosLink.enabled }}
       - name: make-chaos-mocks
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
