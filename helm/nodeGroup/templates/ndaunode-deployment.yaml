@@ -51,7 +51,7 @@ spec:
       - name: make-chaos-mocks
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
-        args: ["-make-chaos-mocks"]
+        args: ["-make-chaos-mocks", "-spec", "http://{{ template "nodeGroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }}"]
         env:
         - name: HONEYCOMB_KEY
           value: {{ .Values.ndau.honeycomb.key }}

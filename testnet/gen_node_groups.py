@@ -5,7 +5,7 @@ gen_node_groups tool.
 generate node groups for 
 chaosnode/ndaunode/ordernode containers and nodes
 
-usage: gen_node_groups.py #ofnodes
+usage: gen_node_groups.py #ofnodes starting_port#
 """
 
 import contextlib
