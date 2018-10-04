@@ -108,6 +108,9 @@ spec:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
       volumes:
+      - name: tendermint-home-volume
+        persistentVolumeClaim:
+          claimName: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-claim
       - name: ndau-home-volume
         persistentVolumeClaim:
           claimName: {{ template "nodeGroup.fullname" . }}-ndaunode-claim
