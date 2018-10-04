@@ -26,7 +26,9 @@ spec:
         # Poll /tendermint/empty_hash_done for existence, then continue execution
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["sh", "-c", "echo starting empty hash wait loop; while true; do if [ -f /tendermint/empty_hash_done ]; then break; else echo Waiting for empty hash to be written; sleep 5; fi done"]
+        command: ["sh", "-c", "echo Opening port and waiting; nc -l 8080"]
+        ports:
+          - containerPort: 8080
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint

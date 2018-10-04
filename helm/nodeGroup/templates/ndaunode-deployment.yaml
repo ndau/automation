@@ -65,7 +65,7 @@ spec:
         command: ["/bin/sh"]
         args: [
           "-c",
-          "/bin/ndaunode -echo-empty-hash >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/empty_hash && touch /tendermint/empty_hash_done",
+          "/bin/ndaunode -echo-empty-hash >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/empty_hash && echo -e '\\004' | nc {{ template "nodeGroup.fullname" . }}-ndau-tendermint-service 8080",
         ]
         env:
         - name: HONEYCOMB_KEY
