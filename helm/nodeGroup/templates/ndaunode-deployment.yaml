@@ -58,6 +58,23 @@ spec:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
       {{ end }}
+      # Uses ndaunode image to get empty hash and saves it
+      - name: hash
+        image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
+        imagePullPolicy: {{ .Values.ndau.tendermint.image.pullPolicy }}
+        command: ["/bin/sh"]
+        args: [
+          "-c",
+          "/bin/ndaunode -echo-empty-hash >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/empty_hash && touch /tendermint/empty_hash_done",
+        ]
+        env:
+        - name: HONEYCOMB_KEY
+          value: {{ .Values.ndau.honeycomb.key }}
+        - name: HONEYCOMB_DATASET
+          value: {{ .Values.ndau.honeycomb.dataset }}
+        volumeMounts:
+        - name: tendermint-home-volume
+          mountPath: /tendermint
       - name: config
         image: busybox
         command: ["/bin/sh", "/root/init.sh"]

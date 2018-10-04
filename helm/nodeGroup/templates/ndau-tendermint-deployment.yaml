@@ -22,20 +22,11 @@ spec:
         release: {{ .Release.Name }}
     spec:
       initContainers:
-      # Uses ndaunode image to get empty hash and saves it
-      - name: hash
-        image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
-        imagePullPolicy: {{ .Values.ndau.tendermint.image.pullPolicy }}
-        command: ["/bin/sh"]
-        args: [
-          "-c",
-          "/bin/ndaunode -echo-empty-hash >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/empty_hash",
-        ]
-        env:
-        - name: HONEYCOMB_KEY
-          value: {{ .Values.ndau.honeycomb.key }}
-        - name: HONEYCOMB_DATASET
-          value: {{ .Values.ndau.honeycomb.dataset }}
+      - name: wait-for-empty-hash
+        # Poll /tendermint/empty_hash_done for existence, then continue execution
+        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
+        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
+        command: ["sh", "-c", "echo starting empty hash wait loop; while true; do if [ -f /tendermint/empty_hash_done ]; then break; else echo Waiting for empty hash to be written; sleep 5; fi done"]
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
