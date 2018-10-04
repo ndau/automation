@@ -50,6 +50,8 @@ spec:
           value: {{ .Values.ndau.honeycomb.key }}
         - name: HONEYCOMB_DATASET
           value: {{ .Values.ndau.honeycomb.dataset }}
+        - name: NDAUHOME
+          value: "/root/.ndau"
         volumeMounts:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
