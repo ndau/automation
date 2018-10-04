@@ -25,7 +25,7 @@ spec:
       - name: noms-wait
         image: "{{ .Values.chaos.deployUtils.image.repository }}:{{ .Values.chaos.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.deployUtils.image.pullPolicy }}
-        command: ["sh", "-c", "echo Starting noms wait loop; until curl -v {{ template "nodeGroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }}; do echo waiting for {{ template "nodeGroup.fullname" . }}-chaos-noms-service; sleep 2; done;"]
+        command: ["sh", "-c", "echo Starting noms wait loop; until curl -v {{ template "nodeGroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} --connect-timeout 5; do echo waiting for {{ template "nodeGroup.fullname" . }}-chaos-noms-service; done;"]
       containers:
       - name: chaosnode
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
