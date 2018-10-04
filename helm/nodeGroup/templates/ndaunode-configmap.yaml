@@ -31,14 +31,6 @@ data:
     # Copy readonly config files to real config files
     mkdir -p /root/.ndau/ndau || echo "failed to create /root/.ndau/ndau"
 
-    # write config if not there
-    if [ ! -f /root/.ndau/ndau/config.toml ]; then
-      echo "copying config.toml"
-      cp /root/config-ro/config.toml /root/.ndau/ndau/config.toml
-    else
-      echo "not copying config.toml"
-    fi
-
     # write messagepack if not there
     if [ ! -f /root/.ndau/ndau/mock-chaos.msgp ]; then
       echo "writing messagepack file"

@@ -32,6 +32,24 @@ spec:
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
         command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ .Values.ndaunode.chaosLink.address }}; do echo {{ .Values.ndaunode.chaosLink.address }}; sleep 2; done;"]
       {{ end }}
+      - name: copy-config
+        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
+        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
+        command: ["sh", "-c", "if [ ! -f /root/.ndau/ndau/config.toml ]; then echo copying config.toml; cp /root/config-ro/config.toml /root/.ndau/ndau/config.toml; else echo not copying config.toml; fi"]
+      {{ if .Values.ndaunode.chaosLink.enabled }}
+      - name: make-chaos-mocks
+        image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
+        imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
+        args: ["-make-chaos-mocks", "-spec", "http://{{ template "nodeGroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }}"]
+        env:
+        - name: HONEYCOMB_KEY
+          value: {{ .Values.ndau.honeycomb.key }}
+        - name: HONEYCOMB_DATASET
+          value: {{ .Values.ndau.honeycomb.dataset }}
+        volumeMounts:
+        - mountPath: "/root/.ndau"
+          name: ndau-home-volume
+      {{ end }}
       - name: config
         image: busybox
         command: ["/bin/sh", "/root/init.sh"]
@@ -47,20 +65,6 @@ spec:
           subPath: mock-chaos.msgp
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
-      {{ if .Values.ndaunode.chaosLink.enabled }}
-      - name: make-chaos-mocks
-        image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
-        imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
-        args: ["-make-chaos-mocks", "-spec", "http://{{ template "nodeGroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }}"]
-        env:
-        - name: HONEYCOMB_KEY
-          value: {{ .Values.ndau.honeycomb.key }}
-        - name: HONEYCOMB_DATASET
-          value: {{ .Values.ndau.honeycomb.dataset }}
-        volumeMounts:
-        - mountPath: "/root/.ndau"
-          name: ndau-home-volume
-      {{ end }}
       containers:
       - name: ndaunode
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
