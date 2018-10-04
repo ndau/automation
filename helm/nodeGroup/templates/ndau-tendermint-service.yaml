@@ -27,7 +27,7 @@ spec:
     - name: nc
       port: 8080
       targetPort: 8080
-      nodePort: 8080
+      nodePort: 31111
   selector:
     app: {{ template "nodeGroup.name" . }}-ndau-tendermint
     release: {{ .Release.Name }}
