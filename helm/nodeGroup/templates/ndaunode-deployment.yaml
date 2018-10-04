@@ -36,6 +36,10 @@ spec:
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
         command: ["sh", "-c", "if [ ! -f /root/.ndau/ndau/config.toml ]; then echo copying config.toml; cp /root/config-ro/config.toml /root/.ndau/ndau/config.toml; else echo not copying config.toml; fi"]
+        volumeMounts:
+        - name: config-toml
+          mountPath: /root/config-ro/config.toml
+          subPath: config.toml
       {{ if .Values.ndaunode.chaosLink.enabled }}
       - name: make-chaos-mocks
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
