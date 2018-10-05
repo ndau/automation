@@ -29,7 +29,7 @@ metadata:
     heritage: {{ .Release.Service }}
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: {{ .Values.ndau.tendermint.persistence.size }}

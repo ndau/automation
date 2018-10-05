@@ -29,9 +29,6 @@ spec:
         command: ["sh", "-c", "echo Opening port and waiting; nc -l 8080"]
         ports:
           - containerPort: 8080
-        volumeMounts:
-        - name: tendermint-home-volume
-          mountPath: /tendermint
       # copy/ammend read only config files to real config folder
       - name: config
         image: {{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}
