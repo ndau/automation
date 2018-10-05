@@ -40,8 +40,7 @@ lint_helm: &lint_helm
           curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > get_helm.sh
           chmod 700 get_helm.sh
           ./get_helm.sh
-    - run: helm lint helm/chaosnode
-    - run: helm lint helm/ndaunode
+    - run: helm lint helm/nodeGroup
 
 test_go: &test_go
   docker:
