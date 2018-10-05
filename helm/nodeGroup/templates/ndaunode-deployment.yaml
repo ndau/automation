@@ -65,7 +65,7 @@ spec:
         command: ["/bin/sh"]
         args: [
           "-c",
-          "/bin/ndaunode -echo-hash -spec http://{{ template "nodeGroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} >&1 | tail -n 1 | tr -d '[:space:]' > /root/empty_hash && while ! cat /root/empty_hash | nc {{ template "nodeGroup.fullname" . }}-ndau-tendermint-ping-service 8080; do sleep 2; echo \"Waiting to tendermint to be available to nc\"; done",
+          "/bin/ndaunode -echo-hash -spec http://{{ template "nodeGroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} >&1 | tail -n 1 | tr -d '[:space:]' > /root/empty_hash && while ! cat /root/empty_hash | nc {{ template "nodeGroup.fullname" . }}-ndau-tendermint-service 8080; do sleep 2; echo \"Waiting to tendermint to be available to nc\"; done",
         ]
         env:
         - name: HONEYCOMB_KEY
