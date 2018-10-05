@@ -2,7 +2,7 @@
 """
 gen_node_groups tool.
 
-generate node groups for 
+generate node groups for
 chaosnode/ndaunode/ordernode containers and nodes
 
 usage: gen_node_groups.py #ofnodes starting_port#
@@ -131,7 +131,7 @@ class Node:
         self.num = num
         self.home = home
         self.is_validator = is_validator
-        self.name = f'nodegroup{num}'
+        self.name = f'anothernodegroup{num}'
 
         # if generate_dc:
         #     with open(self.dcy_path(), 'w', encoding='utf8') as dc:
@@ -222,7 +222,7 @@ def init(nodes, ecr):
         ret = run_command(init_command)
 
         print(f'tm.init = {ret.stdout}')
-        
+
         priv_command = f'{dockerRun} \
             busybox \
             cat /tendermint/config/priv_validator.json'
@@ -260,7 +260,7 @@ def init(nodes, ecr):
         ret = run_command(init_command)
 
         print(f'tm.init = {ret.stdout}')
-        
+
         priv_command = f'{dockerRun} \
             busybox \
             cat /tendermint/config/priv_validator.json'
@@ -341,18 +341,18 @@ def emit_rpc_addresses(validators, verifiers):
 def makeTempVolume():
     # create a volume to save genesis.json
     try:
-        ret = subprocess.run(["docker", "volume", "create", dockerTmpVol], 
+        ret = subprocess.run(["docker", "volume", "create", dockerTmpVol],
             stdout=subprocess.PIPE,
             universal_newlines=True)
         print(f'Created volume: {dockerTmpVol}')
         madeVolume = True
     except subprocess.CalledProcessError:
         print(f'error creating temp volume: {ret.returncode}')
-    
+
 def clean():
   if madeVolume:
     try:
-        ret = subprocess.run(["docker", "volume", "rm", dockerTmpVol], 
+        ret = subprocess.run(["docker", "volume", "rm", dockerTmpVol],
             stdout=subprocess.PIPE,
             universal_newlines=True)
         print(f'Removed volume: {dockerTmpVol}')
@@ -397,7 +397,7 @@ if __name__ == '__main__':
     if (HONEYCOMB_KEY == None or HONEYCOMB_DATASET == None):
         print('Either HONEYCOMB_KEY or HONEYCOMB_DATASET env vars are undefined.\n\
         Logging output will default to stdout/stderr without these vars defined.')
-    
+
 
     ret = subprocess.run("kubectl config current-context",
         stdout=subprocess.PIPE,
@@ -425,7 +425,7 @@ if __name__ == '__main__':
             print(f'kubectl command: {ret.stdout}')
             masterIP = ret.stdout
         except subprocess.CalledProcessError:
-            abortClean("Could not get master node's IP address: ${ret.returncode}")            
+            abortClean("Could not get master node's IP address: ${ret.returncode}")
 
     envSpecificHelmOpts = ''
 
@@ -500,7 +500,7 @@ if __name__ == '__main__':
                     return None
                 chaosPeerIds.append(peer.chaos_priv['address'])
                 return f"{peer.chaos_priv['address']}@{masterIP}:{peer.chaos_p2p_port()}"
-            
+
             chaosPeers = list(map(chaos_create_peers, nodes))
 
             chaosPeers = ','.join(list(filter(lambda x: x is not None, chaosPeers)))
@@ -519,7 +519,7 @@ if __name__ == '__main__':
                     return None
                 ndauPeerIds.append(peer.ndau_priv['address'])
                 return f"{peer.ndau_priv['address']}@{masterIP}:{peer.ndau_p2p_port()}"
-            
+
             ndauPeers = list(map(ndau_create_peers, nodes))
 
             ndauPeers = ','.join(list(filter(lambda x: x is not None, ndauPeers)))
