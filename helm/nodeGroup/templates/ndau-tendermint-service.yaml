@@ -24,12 +24,18 @@ spec:
       {{ if .Values.ndau.tendermint.nodePorts.enabled }}
       nodePort: {{ .Values.ndau.tendermint.nodePorts.rpc }}
       {{ end }}
-    - name: nc
-      port: 8080
-      targetPort: 8080
-      nodePort: 31111
   selector:
     app: {{ template "nodeGroup.name" . }}-ndau-tendermint
     release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: {{ template "nodeGroup.name" . }}-ndau-tendermint
+    release: {{ .Release.Name }}
+
 
 {{ end }}
