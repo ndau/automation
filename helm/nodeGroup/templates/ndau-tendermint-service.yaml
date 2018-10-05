@@ -24,7 +24,8 @@ spec:
       {{ if .Values.ndau.tendermint.nodePorts.enabled }}
       nodePort: {{ .Values.ndau.tendermint.nodePorts.rpc }}
       {{ end }}
-    - port: 8080
+    - name: nc-ping
+      port: 8080
       targetPort: 8080
       nodePort: 31111
       protocol: TCP
