@@ -1,13 +1,15 @@
+{{ if .Values.ndau.enabled }}
+
 kind: ConfigMap
 metadata:
-  name: {{ template "chaos.fullname" . }}-tendermint-config
+  name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
 apiVersion: v1
 data:
-  genesis.json: {{ b64dec .Values.genesis | quote }}
+  genesis.json: {{ b64dec .Values.ndau.genesis | quote }}
 
-  node_key.json: {{ b64dec .Values.nodeKey | quote }}
+  node_key.json: {{ b64dec .Values.ndau.nodeKey | quote }}
 
-  priv_validator.json: {{ b64dec .Values.privValidator | quote }}
+  priv_validator.json: {{ b64dec .Values.ndau.privValidator | quote }}
 
   config.toml: |
     # This is a TOML config file.
@@ -17,10 +19,10 @@ data:
 
     # TCP or UNIX socket address of the ABCI application,
     # or the name of an ABCI application compiled in with the Tendermint binary
-    proxy_app = "tcp://{{ include "chaos.fullname" . }}-chaosnode-service:{{ .Values.chaosnode.port }}"
+    proxy_app = "tcp://{{ include "nodeGroup.fullname" . }}-ndaunode-service:{{ .Values.ndaunode.port }}"
 
     # A custom human readable name for this node
-    moniker = {{ .Values.tendermint.moniker | quote }}
+    moniker = {{ .Values.ndau.tendermint.moniker | quote }}
 
     # If this node is many blocks behind the tip of the chain, FastSync
     # allows them to catchup quickly by downloading blocks in parallel
@@ -63,7 +65,7 @@ data:
     [rpc]
 
     # TCP or UNIX socket address for the RPC server to listen on
-    laddr = "tcp://0.0.0.0:{{ required ".Values.tendermint.ports.rpc required" .Values.tendermint.ports.rpc }}"
+    laddr = "tcp://0.0.0.0:{{ required ".Values.ndau.tendermint.ports.rpc required" .Values.ndau.tendermint.ports.rpc }}"
 
     # TCP or UNIX socket address for the gRPC server to listen on
     # NOTE: This server only supports /broadcast_tx_commit
@@ -83,7 +85,7 @@ data:
     [p2p]
 
     # Address to listen for incoming connections
-    laddr = "tcp://0.0.0.0:{{ required ".Values.tendermint.ports.p2p required" .Values.tendermint.ports.p2p }}"
+    laddr = "tcp://0.0.0.0:{{ required ".Values.ndau.tendermint.ports.p2p required" .Values.ndau.tendermint.ports.p2p }}"
 
     # Address to advertise to peers for them to dial
     # If empty, will use the same port as the laddr,
@@ -167,7 +169,7 @@ data:
 
     # EmptyBlocks mode and possible interval between empty blocks in seconds
     create_empty_blocks = true
-    create_empty_blocks_interval = {{ .Values.tendermint.createEmptyBlocksInterval }}
+    create_empty_blocks_interval = {{ .Values.ndau.tendermint.createEmptyBlocksInterval }}
 
     # Reactor sleep duration parameters are in milliseconds
     peer_gossip_sleep_duration = 100
@@ -285,3 +287,5 @@ data:
 
     # mark this as having initialized
     touch /tendermint/config/init-done && init_log "Touched /tendermint/config/init-done"
+
+{{ end }}

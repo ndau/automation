@@ -1,0 +1,109 @@
+{{ if .Values.ndau.enabled }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint
+  labels:
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "nodeGroup.name" . }}-ndau-tendermint
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "nodeGroup.name" . }}-ndau-tendermint
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: tendermint
+        image: "{{ .Values.ndau.tendermint.image.repository }}:{{ .Values.ndau.tendermint.image.tag }}"
+        command: ["/bin/sh"]
+        args: ["-c", "echo Opening port and waiting; nc -l -p 8080 > /tendermint/empty_hash && /bin/sh /tendermint/init.sh && tendermint node --moniker={{ .Values.ndau.tendermint.moniker }} --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\""]
+        imagePullPolicy: {{ .Values.ndau.tendermint.image.pullPolicy }}
+        ports:
+          - containerPort: 8080
+          - containerPort: {{ .Values.ndau.tendermint.ports.p2p }}
+          - containerPort: {{ .Values.ndau.tendermint.ports.rpc }}
+        volumeMounts:
+        - name: tendermint-home-volume
+          mountPath: /tendermint
+        - name: tendermint-init
+          mountPath: /tendermint/init.sh
+          subPath: init.sh
+        - name: genesis-json
+          mountPath: /tendermint/config-ro/genesis.json
+          subPath: genesis.json
+        - name: node-key-json
+          mountPath: /tendermint/config-ro/node_key.json
+          subPath: node_key.json
+        - name: priv-json
+          mountPath: /tendermint/config-ro/priv_validator.json
+          subPath: priv_validator.json
+        - name: config-toml
+          mountPath: /tendermint/config-ro/config.toml
+          subPath: config.toml
+        env:
+        - name: TMHOME
+          value: "/tendermint"
+        - name: HONEYCOMB_KEY
+          value: {{ .Values.ndau.honeycomb.key }}
+        - name: HONEYCOMB_DATASET
+          value: {{ .Values.ndau.honeycomb.dataset }}
+        - name: UPDATE_PERSISTENT_PEERS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-peers
+              key: updatePeerAddresses
+        - name: PERSISTENT_PEERS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-peers
+              key: addresses
+        - name: PRIVATE_PEER_IDS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-peers
+              key: privatePeerIds
+      volumes:
+        - name: tendermint-home-volume
+          persistentVolumeClaim:
+            claimName: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-claim
+        - name: tendermint-init
+          configMap:
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
+            items:
+            - key: init.sh
+              path: init.sh
+        - name: config-toml
+          configMap:
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
+            items:
+            - key: config.toml
+              path: config.toml
+        - name: genesis-json
+          configMap:
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
+            items:
+            - key: genesis.json
+              path: genesis.json
+        - name: priv-json
+          configMap:
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
+            items:
+            - key: priv_validator.json
+              path: priv_validator.json
+        - name: node-key-json
+          configMap:
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
+            items:
+            - key: node_key.json
+              path: node_key.json
+
+{{ end }}

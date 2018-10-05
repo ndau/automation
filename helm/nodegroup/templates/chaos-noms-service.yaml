@@ -1,0 +1,22 @@
+{{ if .Values.chaos.enabled }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "nodeGroup.fullname" . }}-chaos-noms-service
+  labels:
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.chaos.noms.service.type }}
+  ports:
+    - port: {{ .Values.chaos.noms.port }}
+      targetPort: {{ .Values.chaos.noms.port }}
+      protocol: TCP
+  selector:
+    app: {{ template "nodeGroup.name" . }}-chaos-noms
+    release: {{ .Release.Name }}
+
+{{ end }}

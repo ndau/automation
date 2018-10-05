@@ -1,10 +1,12 @@
+{{ if .Values.ndau.enabled }}
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ template "ndau.fullname" . }}-ndaunode-service
+  name: {{ template "nodeGroup.fullname" . }}-ndaunode-service
   labels:
-    app: {{ template "ndau.name" . }}
-    chart: {{ template "ndau.chart" . }}
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
@@ -13,5 +15,7 @@ spec:
     - port: {{ .Values.ndaunode.port }}
       targetPort: {{ .Values.ndaunode.port }}
   selector:
-    app: {{ template "ndau.name" . }}-ndaunode
+    app: {{ template "nodeGroup.name" . }}-ndaunode
     release: {{ .Release.Name }}
+
+{{ end }}

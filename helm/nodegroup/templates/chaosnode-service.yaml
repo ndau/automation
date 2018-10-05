@@ -1,10 +1,12 @@
+{{ if .Values.chaos.enabled }}
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ template "chaos.fullname" . }}-chaosnode-service
+  name: {{ template "nodeGroup.fullname" . }}-chaosnode-service
   labels:
-    app: {{ template "chaos.name" . }}
-    chart: {{ template "chaos.chart" . }}
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
@@ -13,5 +15,7 @@ spec:
     - port: {{ .Values.chaosnode.port }}
       targetPort: {{ .Values.chaosnode.port }}
   selector:
-    app: {{ template "chaos.name" . }}-chaosnode
+    app: {{ template "nodeGroup.name" . }}-chaosnode
     release: {{ .Release.Name }}
+
+{{ end }}

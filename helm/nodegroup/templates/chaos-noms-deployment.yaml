@@ -1,0 +1,38 @@
+{{ if .Values.chaos.enabled }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "nodeGroup.fullname" . }}-chaos-noms
+  labels:
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "nodeGroup.name" . }}-chaos-noms
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "nodeGroup.name" . }}-chaos-noms
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: noms
+        image: "{{ .Values.chaos.noms.image.repository }}:{{ .Values.chaos.noms.image.tag }}"
+        imagePullPolicy: {{ .Values.chaos.noms.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.chaos.noms.port }}
+        volumeMounts:
+        - mountPath: "/data"
+          name: noms-volume
+      volumes:
+      - name: noms-volume
+        persistentVolumeClaim:
+          claimName: {{ template "nodeGroup.fullname" . }}-chaos-noms-claim
+
+{{ end }}
