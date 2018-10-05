@@ -131,7 +131,7 @@ class Node:
         self.num = num
         self.home = home
         self.is_validator = is_validator
-        self.name = f'anothernodegroup{num}'
+        self.name = f'nodegroup{num}'
 
         # if generate_dc:
         #     with open(self.dcy_path(), 'w', encoding='utf8') as dc:
