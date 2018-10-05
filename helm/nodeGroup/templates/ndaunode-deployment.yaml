@@ -65,16 +65,13 @@ spec:
         command: ["/bin/sh"]
         args: [
           "-c",
-          "/bin/ndaunode -echo-empty-hash >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/empty_hash && echo -e '\\004' | nc {{ template "nodeGroup.fullname" . }}-ndau-tendermint-service 8080",
+          "/bin/ndaunode -echo-empty-hash >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/empty_hash && while ! cat /tendermint/empty_hash | nc {{ template "nodeGroup.fullname" . }}-ndau-tendermint-service 8080; do sleep 2; echo "Waiting to "; done",
         ]
         env:
         - name: HONEYCOMB_KEY
           value: {{ .Values.ndau.honeycomb.key }}
         - name: HONEYCOMB_DATASET
           value: {{ .Values.ndau.honeycomb.dataset }}
-        volumeMounts:
-        - name: tendermint-home-volume
-          mountPath: /tendermint
       - name: config
         image: busybox
         command: ["/bin/sh", "/root/init.sh"]
@@ -108,9 +105,6 @@ spec:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
       volumes:
-      - name: tendermint-home-volume
-        persistentVolumeClaim:
-          claimName: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-claim
       - name: ndau-home-volume
         persistentVolumeClaim:
           claimName: {{ template "nodeGroup.fullname" . }}-ndaunode-claim
