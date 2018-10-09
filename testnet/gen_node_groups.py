@@ -132,6 +132,8 @@ class Node:
         self.home = home
         self.is_validator = is_validator
         prefix = os.environ.get('RELEASE_PREFIX')
+        if prefix is None:
+            prefix = ''
         self.name = f'{prefix}nodegroup{num}'
 
         # if generate_dc:

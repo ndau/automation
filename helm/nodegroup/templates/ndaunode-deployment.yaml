@@ -42,22 +42,6 @@ spec:
           subPath: config.toml
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
-      {{ if .Values.ndaunode.chaosLink.enabled }}
-      - name: make-chaos-mocks
-        image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
-        imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
-        args: ["-make-chaos-mocks", "-spec", "http://{{ template "nodeGroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }}"]
-        env:
-        - name: HONEYCOMB_KEY
-          value: {{ .Values.ndau.honeycomb.key }}
-        - name: HONEYCOMB_DATASET
-          value: {{ .Values.ndau.honeycomb.dataset }}
-        - name: NDAUHOME
-          value: "/root/.ndau"
-        volumeMounts:
-        - mountPath: "/root/.ndau"
-          name: ndau-home-volume
-      {{ end }}
       # Uses ndaunode image to get empty hash and saves it
       - name: hash
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
