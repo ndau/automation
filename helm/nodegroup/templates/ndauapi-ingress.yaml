@@ -2,10 +2,10 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: {{ template "ndau.fullname" . }}-ndauapi-ingress
+  name: {{ template "nodeGroup.fullname" . }}-ndauapi-ingress
   labels:
-    app: {{ template "ndau.name" . }}
-    chart: {{ template "ndau.chart" . }}
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 
@@ -20,6 +20,6 @@ spec:
       http:
         paths:
           - backend:
-            serviceName: {{ template "ndau.fullname" . }}-ndauapi-service
+            serviceName: {{ template "nodeGroup.fullname" . }}-ndauapi-service
             servicePort: 80
 {{- end }}

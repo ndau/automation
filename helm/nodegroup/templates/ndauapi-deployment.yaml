@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "ndau.fullname" . }}-ndauapi
+  name: {{ template "nodeGroup.fullname" . }}-ndauapi
   labels:
-    app: {{ template "ndau.name" . }}
-    chart: {{ template "ndau.chart" . }}
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: {{ .Values.ndauapi.replicas }}
   selector:
     matchLabels:
-      app: {{ template "ndau.name" . }}-ndauapi
+      app: {{ template "nodeGroup.name" . }}-ndauapi
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "ndau.name" . }}-ndauapi
+        app: {{ template "nodeGroup.name" . }}-ndauapi
         release: {{ .Release.Name }}
     spec:
       containers:
@@ -25,7 +25,7 @@ spec:
         imagePullPolicy: {{ .Values.ndauapi.image.pullPolicy }}
         env:
         - name: NDAUAPI_NODE_ADDRESS
-          value: http://{{ template "ndau.fullname" . }}-tendermint-service:{{ .Values.tendermint.ports.rpc }}
+          value: http://{{ template "nodeGroup.fullname" . }}-ndau-tendermint-service:{{ .Values.ndau.tendermint.ports.rpc }}
 
         ports:
         - containerPort: {{ .Values.ndauapi.port }}

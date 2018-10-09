@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ template "ndau.fullname" . }}-ndauapi-service
+  name: {{ template "nodeGroup.fullname" . }}-ndauapi-service
   labels:
-    app: {{ template "ndau.name" . }}
-    chart: {{ template "ndau.chart" . }}
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
@@ -15,5 +15,6 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app: {{ template "ndau.name" . }}-ndauapi
+
+    app: {{ template "nodeGroup.name" . }}-ndauapi
     release: {{ .Release.Name }}
