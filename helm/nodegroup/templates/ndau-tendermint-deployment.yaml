@@ -21,7 +21,6 @@ spec:
         app: {{ template "nodeGroup.name" . }}-ndau-tendermint
         release: {{ .Release.Name }}
     spec:
-      containers:
       initContainers:
       # Uses chaosnode image to get empty hash and saves it
       - name: noms-wait
@@ -44,10 +43,11 @@ spec:
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
+      containers:
       - name: tendermint
         image: "{{ .Values.ndau.tendermint.image.repository }}:{{ .Values.ndau.tendermint.image.tag }}"
         command: ["/bin/sh"]
-        args: ["-c", "echo Opening port and waiting; nc -l -p 8080 > /tendermint/empty_hash && /bin/sh /tendermint/init.sh && tendermint node --moniker={{ .Values.ndau.tendermint.moniker }} --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\""]
+        args: ["-c", "/bin/sh /tendermint/init.sh && tendermint node --moniker={{ .Values.ndau.tendermint.moniker }} --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\""]
         imagePullPolicy: {{ .Values.ndau.tendermint.image.pullPolicy }}
         ports:
           - containerPort: 8080
