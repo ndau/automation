@@ -5,8 +5,4 @@ imports:
   version: d8387025d2b9d158cf4efb07e7ebf814bcce2057
   subpackages:
   - edwards25519
-- name: github.com/tendermint/tendermint
-  version: d542d2c3945116697f60451e6a407082c41c3cc9
-  subpackages:
-  - crypto/tmhash
 testImports: []

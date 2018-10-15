@@ -1,7 +1,4 @@
 package: .
 import:
 - package: github.com/tendermint/ed25519
-- package: github.com/tendermint/tendermint
-  version: ~0.22.8
-  subpackages:
-  - crypto/tmhash
+  version: d8387025d2b9d158cf4efb07e7ebf814bcce2057

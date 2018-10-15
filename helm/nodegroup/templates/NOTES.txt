@@ -25,3 +25,12 @@ Your instance of Tendermint will be available on any of the nodes of your cluste
 ```
 kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}' | tr " " "\n"
 ```
+
+ndauapi
+-------
+
+To get the address of the ndauapi use the following command.
+
+```
+kubectl get ingress {{ template "nodeGroup.fullname" . }}-ndauapi-ingress -o jsonpath="{.spec.rules[0].host}" --namespace {{ .Release.Namespace }}
+```
