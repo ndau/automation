@@ -18,7 +18,7 @@ data:
     ChaosTimeout = 500 # seconds
 
     [SystemVariableIndirect]
-    Namespace = "vcmjHmyzE8jZTcWVFpMuFHHj6nJDNw5MSs9BmZEKeqU="
+    Namespace = "gRCMbCe90S3DNT4Rpse50plNzmK3gxcDcqjC2ry50TI="
     Key = "c3Zp"
     [Node]
       Address = "ndaa2a5f3tn2uxvn5u7f7igiay4q4s8qge48pw2xdsf9urue"
