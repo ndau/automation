@@ -520,6 +520,7 @@ def make_args(opts):
     args = ''
 
     def recurse(candidate, accumulator=''):
+        nonlocal args
         if isinstance(candidate, dict):
             nonlocal args
             for k, v in candidate.items():
