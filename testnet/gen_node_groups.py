@@ -138,7 +138,7 @@ class Conf:
 
         # get IP address of the kubernete's cluster's master node
         self.MASTER_IP = ''
-        if (c.IS_MINIKUBE):
+        if (self.IS_MINIKUBE):
             try:
                 ret = run_command("minikube ip")
                 self.MASTER_IP = ret.stdout.strip()
