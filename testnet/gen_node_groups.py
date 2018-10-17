@@ -11,6 +11,7 @@ import os # for environment variables, path, and exits
 import subprocess # for running commands
 import signal # to handle cleaning after sigint, ctrl+c
 import sys # to print to stderr
+import functools # for lru_cache on preflight calls
 from base64 import b64encode # for making json safe to send to helm through the command-line
 from datetime import datetime, timezone # to datestamp temporary docker volumes
 import platform # for dynamically running different builds of addy on different platforms.
@@ -88,6 +89,11 @@ class Conf:
         ports = PortFactory(self.START_PORT)
         self.QUANTITY = args.quantity
 
+        if self.QUANTITY < 1:
+            abortClean("quantity must be higher than 1")
+        elif self.QUANTITY > 16:
+            abortClean("quantity should be lower than 16")
+
         #
         # Environment variables
         #
@@ -100,58 +106,58 @@ class Conf:
         if self.RELEASE == None:
             abortClean(f'RELEASE env var not set.')
 
-        self.CHAOS_VERSION = os.environ.get('CHAOS_VERSION')
-        if self.CHAOS_VERSION == None:
+        self.CHAOSNODE_TAG = os.environ.get('CHAOSNODE_TAG')
+        if self.CHAOSNODE_TAG == None:
             try:
-                preflight('git', 'grep','awk','cut')  # check environment
+                self.CHAOSNODE_TAG = fetch_master_sha('https://github.com/oneiro-ndev/chaos')
             except OSError as e:
-                abortClean(f'CHAOS_VERSION env var empty and could not fetch version: {e}')
-            self.CHAOS_VERSION = run_command("\
-                git ls-remote https://github.com/oneiro-ndev/chaos | \
-                grep 'refs/heads/master' | \
-                awk '{print $1}' | \
-                cut -c1-7").stdout.strip()
+                abortClean(f'CHAOSNODE_TAG env var empty and could not fetch version: {e}')
 
-        self.NDAU_VERSION = os.environ.get('NDAU_VERSION')
-        if self.NDAU_VERSION == None:
-            try:
-                preflight('git', 'grep','awk','cut')  # check environment
-            except OSError as e:
-                abortClean(f'NDAU_VERSION env var empty and could not fetch version: {e}')
-            self.NDAU_VERSION = run_command("\
-                git ls-remote https://github.com/oneiro-ndev/ndau |\
-                grep 'refs/heads/master' | \
-                awk '{print $1}' | \
-                cut -c1-7").stdout.strip()
 
-        self.NOMS_VERSION = os.environ.get('NOMS_VERSION')
-        if self.NOMS_VERSION == None:
+        self.NDAUNODE_TAG = os.environ.get('NDAUNODE_TAG')
+        if self.NDAUNODE_TAG == None:
             try:
-                preflight('aws', 'jq','sed','sort','tail')  # check environment
+                self.NDAUNODE_TAG = fetch_master_sha('https://github.com/oneiro-ndev/ndau')
             except OSError as e:
-                abortClean(f'NOMS_VERSION env var empty and could not fetch version: {e}')
-            self.NOMS_VERSION = run_command("\
-                aws ecr list-images --repository-name noms | \
-                jq -r '[ .imageIds[] | .imageTag] | .[] ' | \
-                sed 's/[^0-9.]//g' | \
-                sort --version-sort --field-separator=. | \
-                tail -n 1").stdout.strip()
+                abortClean(f'NDAUNODE_TAG env var empty and could not fetch version: {e}')
 
-        self.TM_VERSION = os.environ.get('TM_VERSION')
-        if self.TM_VERSION == None:
+        # chaos noms and tendermint
+        self.CHAOS_NOMS_TAG = os.environ.get('CHAOS_NOMS_TAG')
+        if self.CHAOS_NOMS_TAG == None:
             try:
-                preflight('aws', 'jq','sed','sort','tail')  # check environment
+                self.CHAOS_NOMS_TAG = highest_version_tag('noms')
             except OSError as e:
-                abortClean(f'TM_VERSION env var empty and could not fetch version: {e}')
-            self.TM_VERSION = run_command("\
-                aws ecr list-images --repository-name tendermint | \
-                jq -r '[ .imageIds[] | .imageTag] | .[] ' | \
-                sed 's/[^0-9.]//g' | \
-                sort --version-sort --field-separator=. | \
-                tail -n 1").stdout.strip()
+                abortClean(f'CHAOS_NOMS_TAG env var empty and could not fetch version: {e}')
+
+        self.CHAOS_TM_TAG = os.environ.get('CHAOS_TM_TAG')
+        if self.CHAOS_TM_TAG == None:
+            try:
+                self.CHAOS_TM_TAG = highest_version_tag('tendermint')
+            except OSError as e:
+                abortClean(f'CHAOS_TM_TAG env var empty and could not fetch version: {e}')
+
+        # ndau noms and tendermint
+        self.NDAU_NOMS_TAG = os.environ.get('NDAU_NOMS_TAG')
+        if self.NDAU_NOMS_TAG == None:
+            try:
+                self.NDAU_NOMS_TAG = highest_version_tag('noms')
+            except OSError as e:
+                abortClean(f'NDAU_NOMS_TAG env var empty and could not fetch version: {e}')
+
+        self.NDAU_TM_TAG = os.environ.get('NDAU_TM_TAG')
+        if self.NDAU_TM_TAG == None:
+            try:
+                self.NDAU_TM_TAG = highest_version_tag('tendermint')
+            except OSError as e:
+                abortClean(f'NDAU_TM_TAG env var empty and could not fetch version: {e}')
+
 
         self.HONEYCOMB_KEY = os.environ.get('HONEYCOMB_KEY')
         self.HONEYCOMB_DATASET = os.environ.get('HONEYCOMB_DATASET')
+        if self.HONEYCOMB_KEY == None or self.HONEYCOMB_DATASET == None:
+            self.HONEYCOMB_KEY = ''
+            self.HONEYCOMB_DATASET = ''
+            warn_print('Logs will be written to stdout/stderr without env vars HONEYCOMB_KEY and HONEYCOMB_DATASET.')
 
         #
         # dynamic constants
@@ -229,7 +235,7 @@ def initNodegroup(nodes):
         steprint(f'Initializing chaosnode\'s tendermint')
         ret = run_command(f'{c.DOCKER_RUN} \
           -e TMHOME=/tendermint \
-          {c.ECR}tendermint:{c.TM_VERSION} \
+          {c.ECR}tendermint:{c.CHAOS_TM_TAG} \
           init')
         vprint(f'tendermint init: {ret.stdout}')
 
@@ -255,7 +261,7 @@ def initNodegroup(nodes):
         steprint(f'Initializing ndaunode\'s tendermint')
         ret = run_command(f'{c.DOCKER_RUN} \
           -e TMHOME=/tendermint \
-          {c.ECR}tendermint:{c.TM_VERSION} \
+          {c.ECR}tendermint:{c.NDAU_TM_TAG} \
           init')
         vprint(f'tendermint init: {ret.stdout}')
 
@@ -322,18 +328,6 @@ def main():
         steprint(f'Could not start. Missing tools: {e}')
         exit(1)
 
-    envSpecificHelmOpts = ''
-
-    if (c.IS_MINIKUBE):
-        envSpecificHelmOpts = '\
-        --set chaosnode.image.repository="chaos"\
-        --set tendermint.image.repository="tendermint"\
-        --set noms.image.repository="noms"\
-        --set deployUtils.image.repository="deploy-utils"\
-        --set deployUtils.image.tag="latest"'
-    else:
-        envSpecificHelmOpts = '--tls'
-
     # Create a temporary docker volume
     try:
         makeTempVolume()
@@ -344,22 +338,36 @@ def main():
 
     initNodegroup(nodes)
 
-    steprint('Getting genesis.json...')
-
+    steprint('Getting chaos\'s genesis.json')
     run_command(f'{c.DOCKER_RUN} \
         -e TMHOME=/tendermint \
-        {c.ECR}tendermint:{c.TM_VERSION} \
+        {c.ECR}tendermint:{c.CHAOS_TM_TAG} \
         init')
-
     ret = run_command(f'{c.DOCKER_RUN} \
         busybox \
-        cat /tendermint/config/genesis.json')
+        cat /tendermint/config/genesis.json').stdout
 
-    vprint(f'genesis.json: {ret.stdout}')
-    chaos_genesis = json.loads(ret.stdout)
-    ndau_genesis = json.loads(ret.stdout)
+    vprint(f'chaos genesis.json: {ret}')
+    chaos_genesis = json.loads(ret)
 
-    # add our new nodes
+    steprint('Removing tendermint\'s config directory')
+    run_command(f'{c.DOCKER_RUN} \
+        busybox \
+        rm -rf /tendermint/config')
+
+    steprint('Getting ndau\'s genesis.json')
+    run_command(f'{c.DOCKER_RUN} \
+        -e TMHOME=/tendermint \
+        {c.ECR}tendermint:{c.NDAU_TM_TAG} \
+        init')
+    ret = run_command(f'{c.DOCKER_RUN} \
+        busybox \
+        cat /tendermint/config/genesis.json').stdout
+
+    vprint(f'ndau\'s genesis.json: {ret}')
+    ndau_genesis = json.loads(ret)
+
+    # add our new nodes to genesis.json's validator list
     chaos_genesis['validators'] = list(map(lambda node: {
         'name': node.name,
         'pub_key': node.chaos_priv['pub_key'],
@@ -378,7 +386,7 @@ def main():
 
     # install a node group
     for node in nodes:
-        steprint(f'Installing node group: {node.name}')
+        steprint(f'\nInstalling node group: {node.name}')
 
         # excludes self
         otherNodes = list(filter(lambda peer: peer.name == node.name, nodes))
@@ -392,10 +400,6 @@ def main():
         vprint(f'chaos peers: {chaosPeers}')
         vprint(f'chaos peer ids: {chaosPeerIds}')
 
-        chaosLinkOpts = f'\
-            --set ndaunode.chaosLink.enabled=true\
-            --set ndaunode.chaosLink.address=\"{c.MASTER_IP}:{node.chaos["port"]["rpc"]}\"'
-
         # create a string of ndau peers in tendermint's formats
         def ndau_peer(peer):
             return f'{peer.ndau_priv["address"]}@{c.MASTER_IP}:{peer.ndau["port"]["p2p"]}'
@@ -408,7 +412,7 @@ def main():
         chaos_args = make_args({
             'chaosnode': {
                 'image': {
-                    'tag': c.CHAOS_VERSION,
+                    'tag': c.CHAOSNODE_TAG,
                 }
             },
             'chaos': {
@@ -417,7 +421,7 @@ def main():
                 'privValidator': jsonB64(node.chaos_priv),
                 'noms': {
                     'image': {
-                        'tag': c.NOMS_VERSION,
+                        'tag': c.CHAOS_NOMS_TAG,
                     }
                 },
                 'tendermint': {
@@ -425,7 +429,7 @@ def main():
                     'persistentPeers': b64(chaosPeers),
                     'privatePeerIds': b64(chaosPeerIds),
                     'image': {
-                        'tag': c.TM_VERSION,
+                        'tag': c.CHAOS_TM_TAG,
                     },
                     'nodePorts': {
                         'enabled': 'true',
@@ -436,14 +440,14 @@ def main():
             }
         })
         ndau_args = make_args({
-            'ndaunode': {'image': {'tag': c.NDAU_VERSION}},
+            'ndaunode': {'image': {'tag': c.NDAUNODE_TAG}},
             'ndau': {
                 'genesis': jsonB64(ndau_genesis),
                 'privValidator': jsonB64(node.ndau_priv),
                 'nodeKey': jsonB64(node.ndau_nodeKey),
-                'noms': {'image': {'tag': c.NOMS_VERSION}},
+                'noms': {'image': {'tag': c.NDAU_NOMS_TAG}},
                 'tendermint': {
-                    'image': {'tag': c.TM_VERSION},
+                    'image': {'tag': c.NDAU_TM_TAG},
                     'moniker': node.name,
                     'persistentPeers': b64(ndauPeers),
                     'privatePeerIds': b64(ndauPeerIds),
@@ -456,6 +460,23 @@ def main():
             },
         })
 
+        # options that point ndaunode to the chaos node's rpc port
+        chaosLinkOpts = f'\
+            --set ndaunode.chaosLink.enabled=true\
+            --set ndaunode.chaosLink.address=\"{c.MASTER_IP}:{node.chaos["port"]["rpc"]}\"'
+
+        envSpecificHelmOpts = ''
+
+        if c.IS_MINIKUBE:
+            envSpecificHelmOpts = '\
+            --set chaosnode.image.repository="chaos"\
+            --set tendermint.image.repository="tendermint"\
+            --set noms.image.repository="noms"\
+            --set deployUtils.image.repository="deploy-utils"\
+            --set deployUtils.image.tag="latest"'
+        else:
+            envSpecificHelmOpts = '--tls'
+
         helm_command = f'helm install --name {node.name} {helmChartPath} \
             {chaos_args} \
             {ndau_args} \
@@ -467,7 +488,7 @@ def main():
             {chaosLinkOpts}'
 
         vprint(f'helm command: {helm_command}')
-        ret = run_command(helm_command)
+        ret = run_command(helm_command, isCritical = False)
         if ret.returncode == 0:
             steprint(f'{node.name} installed successfully')
         else:
@@ -475,6 +496,7 @@ def main():
 
     steprint('All done.')
 
+@functools.lru_cache(4)
 def preflight(*cmds):
     """Ensures the environment has the necessary command-line tools."""
     missing = []
@@ -494,19 +516,39 @@ def cmd_exists(x):
 
 def run_command(command, isCritical=True):
     """Runs a command in a subprocess."""
-
     ret = subprocess.run(command,
                             stdout=subprocess.PIPE,
                             universal_newlines=True,
                             stderr=subprocess.STDOUT,
                             shell=True,
     )
-
     if isCritical and ret.returncode != 0:
-        abortClean(f'Command failed with non-zero exit code {ret.returncode}: {command} \nstderr\n{ret.stderr}\nstdout\n{ret.stdout}')
-
+        abortClean(f'Command failed: {command}\nexit code: {ret.returncode}\nstderr\n{ret.stderr}\nstdout\n{ret.stdout}')
     return ret
 
+
+def fetch_master_sha(repo):
+    """Fetches the 7 character sha from a remote git repo's master branch."""
+    preflight('git', 'grep','awk','cut')
+    sha = run_command(f"\
+        git ls-remote {repo} |\
+        grep 'refs/heads/master' | \
+        awk '{{print $1}}' | \
+        cut -c1-7").stdout.strip()
+    vprint(f'{repo} master sha: {sha}')
+    return sha
+
+def highest_version_tag(repo):
+    """Fetches the latest semver'd version from an AWS ECR repo."""
+    preflight('aws', 'jq','sed','sort','tail')  # check environment
+    tag = run_command(f"\
+        aws ecr list-images --repository-name {repo} | \
+        jq -r '[ .imageIds[] | .imageTag] | .[] ' | \
+        sed 's/[^0-9.]//g' | \
+        sort --version-sort --field-separator=. | \
+        tail -n 1").stdout.strip()
+    vprint(f'{repo}\'s highest version tag: {tag}')
+    return tag
 
 def makeTempVolume():
     """Creates a volume for persistence between docker containers."""
