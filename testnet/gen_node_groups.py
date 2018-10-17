@@ -41,14 +41,44 @@ class PortFactory:
 
 class Conf:
     """Handles all configuration for this script.
+        Command-line arguments:
         START_PORT          Port at which to start a sequence of ports.
-        SCRIPT_DIR          The absolute path of this script.
+        QUANTITY            Number of nodegroups to install.
+
+        Environment variables required
+        ELB_SUBDOMAIN       Subdomain for ndauapi. (e.g. api.ndau.tech).
+                            Each nodegroup's ndauapi will appear at my-release-0.ndau.tech.
+        RELEASE             The helm release "base name". Each nodegroup's name will
+                            start with this name and be suffixed with a node number.
+
+        Environment variables that map to image tags in ECR. Optional. Fetched automatically.
+        CHAOSNODE_TAG       chaosnode ABCI app.
+        NDAUNODE_TAG        ndaunode ABCI app.
+        CHAOS_NOMS_TAG      chaosnode's nomsdb.
+        CHAOS_TM_TAG        chaosnode's tendermint.
+        NDAU_NOMS_TAG       ndaunode's nomsdb.
+        NDAU_TM_TAG         ndaunode's tendermint.
+
+        Environment variables that are optional
         HONEYCOMB_KEY       API key for honeycomb.
         HONEYCOMB_DATASET   Honeycomb data bucket name.
+
+        Dynamically generaed constants
+        SCRIPT_DIR          The absolute path of this script.
+        IS_MINIKUBE         True when kubectl's current context is minikube.
+        ECR                 ECR repo's host. For minikube it will use local images.
+        ADDY_CMD            Path to the addy utility.
+        MASTER_IP           IP of either minikube or the kubernete's cluser master node.
+
+        Genuine constants
+        TMP_VOL             Name of a docker volume used for passing things between containers.
+        DOCKER_RUN          Command to run a command in a docker image with our temp volume.
+
+
     """
 
     def __init__(self, args):
-        """Initializes with defaults"""
+        """Initializes config with defaults and fetched values."""
 
         #
         # Arguments
@@ -138,7 +168,7 @@ class Conf:
 
         # get IP address of the kubernete's cluster's master node
         self.MASTER_IP = ''
-        if (self.IS_MINIKUBE):
+        if self.IS_MINIKUBE:
             try:
                 ret = run_command("minikube ip")
                 self.MASTER_IP = ret.stdout.strip()
@@ -150,15 +180,10 @@ class Conf:
                     jq -rj '.items[] | select(.metadata.labels[\"kubernetes.io/role\"]==\"master\") | .status.addresses[] | select(.type==\"ExternalIP\") .address'")
                 self.MASTER_IP = ret.stdout.strip()
             except subprocess.CalledProcessError:
-                abortClean(
-                    "Could not get master node's IP address: ${ret.returncode}")
+                abortClean("Could not get master node's IP address: ${ret.returncode}")
 
         # add ECR string to image names, or not
         self.ECR = '' if self.IS_MINIKUBE else '578681496768.dkr.ecr.us-east-1.amazonaws.com/'
-
-        if (self.HONEYCOMB_KEY == None or self.HONEYCOMB_DATASET == None):
-            steprint('HONEYCOMB_KEY and HONEYCOMB_DATASET must both be set env vars are undefined.\n\
-            Logging output will default to stdout/stderr without these vars defined.')
 
         #
         # Genuine constants
@@ -169,6 +194,8 @@ class Conf:
 
         # used as a prefix for the real command to be run inside the container.
         self.DOCKER_RUN = f'docker run --rm --mount src={self.TMP_VOL},dst=/tendermint '
+
+        # dump all our config variables in verbose mode
         pp = pprint.PrettyPrinter(indent=4,stream=sys.stderr)
         vprint('Configuration')
         pp.pprint(self.__dict__)
@@ -292,7 +319,7 @@ def main():
     try:
         preflight('docker', 'kubectl')  # check environment tools
     except OSError as e:
-        steprint(f'Could not start install: {e}')
+        steprint(f'Could not start. Missing tools: {e}')
         exit(1)
 
     envSpecificHelmOpts = ''
