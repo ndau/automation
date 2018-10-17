@@ -21,7 +21,6 @@ spec:
         app: {{ template "nodeGroup.name" . }}-ndau-tendermint
         release: {{ .Release.Name }}
     spec:
-      containers:
       initContainers:
       # Uses chaosnode image to get empty hash and saves it
       - name: noms-wait
@@ -44,6 +43,7 @@ spec:
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
+      containers:
       - name: tendermint
         image: "{{ .Values.ndau.tendermint.image.repository }}:{{ .Values.ndau.tendermint.image.tag }}"
         command: ["/bin/sh"]
