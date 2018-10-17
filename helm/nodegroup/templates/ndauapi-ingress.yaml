@@ -16,10 +16,10 @@ metadata:
 {{- end }}
 spec:
   rules:
-    - host: {{ .Values.ndauapi.ingress.host }}
-      http:
-        paths:
-          - backend:
-            serviceName: {{ template "nodeGroup.fullname" . }}-ndauapi-service
-            servicePort: 80
+  - host: {{ .Values.ndauapi.ingress.host }}
+    http:
+      paths:
+      - backend:
+          serviceName: {{ template "nodeGroup.fullname" . }}-ndauapi-service
+          servicePort: 80
 {{- end }}
