@@ -389,7 +389,7 @@ def main():
         steprint(f'\nInstalling node group: {node.name}')
 
         # excludes self
-        otherNodes = list(filter(lambda peer: peer.name == node.name, nodes))
+        otherNodes = list(filter(lambda peer: peer.name != node.name, nodes))
 
         # create a string of chaos peers in tendermint's formats
         def chaos_peer(peer):
