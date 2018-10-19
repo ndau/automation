@@ -439,6 +439,10 @@ def main():
                 }
             }
         })
+
+        steprint(f'{node.name} chaos P2P port: {node.chaos["port"]["p2p"]}')
+        steprint(f'{node.name} chaos RPC port: {node.chaos["port"]["rpc"]}')
+
         ndau_args = make_args({
             'ndaunode': {'image': {'tag': c.NDAUNODE_TAG}},
             'ndau': {
@@ -459,6 +463,8 @@ def main():
                 }
             },
         })
+        steprint(f'{node.name} ndau P2P port: {node.ndau["port"]["p2p"]}')
+        steprint(f'{node.name} ndau RPC port: {node.ndau["port"]["rpc"]}')
 
         # options that point ndaunode to the chaos node's rpc port
         chaosLinkOpts = f'\
