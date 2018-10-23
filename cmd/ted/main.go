@@ -16,7 +16,7 @@ func main() {
 		Path  string `arg:"-p" help:".-separated path for the value to change"`
 		Value string `arg:"-v" help:"value in file to set"`
 		File  string `arg:"-f" help:"TOML file to modify; otherwise reads from stdin and writes to stdout"`
-		Type  string `arg:"-t" help:"type of value (int,string) (default string)"`
+		Type  string `arg:"-t" help:"type of value (bool,uint,int,string,float,time) (default string)"`
 	}
 	args.Type = "s"
 	arg.MustParse(&args)
