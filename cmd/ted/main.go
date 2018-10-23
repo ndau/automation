@@ -44,7 +44,7 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			value = v
+			value = int64(v)
 		}
 		tree.Set(args.Path, value)
 	}
