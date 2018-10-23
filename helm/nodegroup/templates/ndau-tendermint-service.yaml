@@ -27,7 +27,6 @@ spec:
     - name: nc-ping
       port: 8080
       targetPort: 8080
-      nodePort: 31111
       protocol: TCP
   selector:
     app: {{ template "nodeGroup.name" . }}-ndau-tendermint

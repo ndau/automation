@@ -24,15 +24,25 @@ spec:
       containers:
       - name: noms
         image: "{{ .Values.chaos.noms.image.repository }}:{{ .Values.chaos.noms.image.tag }}"
+        command: ["/bin/sh"]
+        args: ["-c", "cd /data && base64 -d data.tar.gz | gunzip -c | tar xvf - && noms serve /data"]
         imagePullPolicy: {{ .Values.chaos.noms.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.chaos.noms.port }}
         volumeMounts:
-        - mountPath: "/data"
-          name: noms-volume
+        - name: noms-volume
+          mountPath: /data
+        - name: noms-data
+          mountPath: /data/data.tar.gz
+          subPath: data.tar.gz      
       volumes:
       - name: noms-volume
         persistentVolumeClaim:
           claimName: {{ template "nodeGroup.fullname" . }}-chaos-noms-claim
-
+      - name: noms-data
+        configMap:
+          name: {{ template "nodeGroup.fullname" . }}-chaos-noms-config
+          items:
+          - key: data.tar.gz
+            path: data.tar.gz
 {{ end }}

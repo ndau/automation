@@ -1,0 +1,10 @@
+{{ if .Values.ndau.enabled }}
+
+kind: ConfigMap
+metadata:
+  name: {{ template "nodeGroup.fullname" . }}-ndau-noms-config
+apiVersion: v1
+data:
+  data.tar.gz: {{ .Values.ndau.nomsData }}
+
+{{ end }}

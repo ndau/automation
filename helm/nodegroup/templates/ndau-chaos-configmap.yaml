@@ -1,0 +1,10 @@
+{{ if .Values.chaos.enabled }}
+
+kind: ConfigMap
+metadata:
+  name: {{ template "nodeGroup.fullname" . }}-chaos-noms-config
+apiVersion: v1
+data:
+  data.tar.gz: {{ .Values.chaos.nomsData }}
+
+{{ end }}

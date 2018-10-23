@@ -23,14 +23,25 @@ spec:
       containers:
       - name: noms
         image: "{{ .Values.ndau.noms.image.repository }}:{{ .Values.ndau.noms.image.tag }}"
+        command: ["/bin/sh"]
+        args: ["-c", "cd /data && base64 -d data.tar.gz | gunzip -c | tar xvf - && noms serve /data"]
         imagePullPolicy: {{ .Values.ndau.noms.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.ndau.noms.port }}
         volumeMounts:
-        - mountPath: "/data"
-          name: noms-volume
+        - name: noms-volume
+          mountPath: /data
+        - name: noms-data
+          mountPath: /data/data.tar.gz
+          subPath: data.tar.gz
       volumes:
       - name: noms-volume
         persistentVolumeClaim:
           claimName: {{ template "nodeGroup.fullname" . }}-ndau-noms-claim
+      - name: noms-data
+        configMap:
+          name: {{ template "nodeGroup.fullname" . }}-ndau-noms-config
+          items:
+          - key: data.tar.gz
+            path: data.tar.gz
 {{ end }}

@@ -66,16 +66,22 @@ const abortClean = (msg) => {
   process.exit(1)
 }
 
-// main will exectute first
+// main will execute first
 async function main () {
   // Usage and argument count validation
-  if (process.argv.length < 4 || process.env.VERSION_TAG === undefined) {
-    console.log(`
-    Please supply a version tag, a port to start and some node names.
+  if (process.argv.length < 4 || process.env.VERSION_TAG === undefined || process.env.ELB_SUBDOMAIN === undefined) {
+    console.error(`
+    Please supply a version tag, a subdomain, a port to start and some node names.
     noms and tendermint versions reflect our container versions, not the applications themselves. They are optional and default to "latest".
 
     Usage
-    [NOMS_VERSION=0.0.1] [TM_VERSION=0.0.1] [CHAOS_LINK=http://127.0.0.0:26657] VERSION_TAG=0.0.1 ./ndau.js 30000 mario luigi
+
+    [NOMS_VERSION=0.0.1] \
+    [TM_VERSION=0.0.1] \
+    [CHAOS_LINK=http://127.0.0.0:26657] \
+    VERSION_TAG=0.0.1 \
+    ELB_SUBDOMAIN=api.ndau.tech \
+    ./ndau.js 30000 mario luigi
     `)
     process.exit(1)
   }
@@ -84,15 +90,17 @@ async function main () {
   const NOMS_VERSION = process.env.NOMS_VERSION || 'latest'
   const TM_VERSION = process.env.TM_VERSION || 'latest'
   const CHAOS_LINK = process.env.CHAOS_LINK
+  const ELB_SUBDOMAIN = process.env.ELB_SUBDOMAIN
+  const HONEYCOMB_KEY = process.env.HONEYCOMB_KEY
+  const HONEYCOMB_DATASET = process.env.HONEYCOMB_DATASET
+
   // JSG check to see that HONEYCOMB env vars are set
-  if (process.env.HONEYCOMB_KEY === undefined || process.env.HONEYCOMB_DATASET === undefined) {
+  if (HONEYCOMB_KEY === undefined || HONEYCOMB_DATASET === undefined) {
     console.error(`
     Either HONEYCOMB_KEY or HONEYCOMB_DATASET env vars are undefined.
     Logging output will default to stdout/stderr without these vars defined.
     `)
   }
-  const HONEYCOMB_KEY = process.env.HONEYCOMB_KEY
-  const HONEYCOMB_DATASET = process.env.HONEYCOMB_DATASET
 
   // get the starting port from the arguments
   portCount = parseInt(process.argv[2])
@@ -283,6 +291,7 @@ async function main () {
         --set ndaunode.image.tag=${VERSION_TAG} \
         --set tendermint.image.tag=${TM_VERSION} \
         --set noms.image.tag=${NOMS_VERSION} \
+        --set ndauapi.ingress.host="${node.name}.${ELB_SUBDOMAIN}" \
         --set honeycomb.key=${HONEYCOMB_KEY} \
         --set honeycomb.dataset=${HONEYCOMB_DATASET} \
         ${envSpecificHelmOpts} \
