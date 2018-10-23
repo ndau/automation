@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 
 	arg "github.com/alexflint/go-arg"
 	toml "github.com/pelletier/go-toml"
@@ -39,12 +41,39 @@ func main() {
 		switch args.Type {
 		case "s", "string":
 			value = args.Value
+		case "b", "bool":
+			switch strings.ToLower(args.Value) {
+			case "t", "true", "yes", "y":
+				value = true
+			case "f", "false", "no", "n":
+				value = false
+			default:
+				log.Fatal(args.Value + " could not be interpreted as boolean")
+			}
 		case "i", "int":
-			v, err := strconv.Atoi(args.Value)
+			v, err := strconv.ParseInt(args.Value, 10, 64)
 			if err != nil {
 				log.Fatal(err)
 			}
-			value = int64(v)
+			value = v
+		case "u", "uint":
+			v, err := strconv.ParseUint(args.Value, 10, 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+			value = v
+		case "f", "float":
+			v, err := strconv.ParseFloat(args.Value, 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+			value = v
+		case "t", "time", "timestamp":
+			v, err := time.Parse(time.RFC3339, args.Value)
+			if err != nil {
+				log.Fatal(err)
+			}
+			value = v
 		}
 		tree.Set(args.Path, value)
 	}
