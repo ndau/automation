@@ -1,57 +1,58 @@
 #!/bin/bash
 
+set -x
+set -e
 
+clean() (
 
-clean() {
-
+	set +e
+	set +x
 	# clean up processes
 	NOMS_PIDS=$(ps aux | grep "noms" | grep -v "grep" | awk '{print $2}')
 	kill -9 $NOMS_PIDS
 
 	CHAOS_PID=$(ps aux | grep "chaosnode" | grep -v "grep" | awk '{print $2}')
 	NDAU_PID=$(ps aux | grep "ndaunode" | grep -v "grep" | awk '{print $2}')
-	kill -9 $CHAOS_PID
+	kill -9 $CHAOS_PID ||
 	kill -9 $NDAU_PID
 
 	TM_PIDS=$(ps aux | grep "tendermint" | grep -v "grep" | awk '{print $2}')
 	kill -9 $TM_PIDS
 
-	# clean up directories
-	rm -rf "$TEMP_DIR"
+)
 
-	rm data.chaos.tar data.chaos.tar.gz
-	rm data.ndau.tar data.ndau.tar.gz
-}
 trap clean EXIT
 
-clean
-
-# exit on any error
+! clean
 
 # configy things
 
 # noms seems to need this
 export NOMS_VERSION_NEXT=1
 
-TEMP_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/tmp"
+# used for temp directory and s3 upload
+DATE=$(date '+%Y-%m-%dT%H:%M:%SZ')
+
+RND=$((10000 + RANDOM % 10000))
+
+TEMP_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/tmp-$DATE"
 
 LH=127.0.0.1
-
-CHAOS_NOMS="$TEMP_DIR"/data.chaos
-CHAOS_NOMS_PORT=4200
-CHAOS_ABCI_PORT=4201
+CHAOS_NOMS="$TEMP_DIR"/chaos-noms
+CHAOS_NOMS_PORT=$((0 + RND))
+CHAOS_ABCI_PORT=$((1 + RND))
 CHAOS_TM="$TEMP_DIR"/chaos-tm
-CHAOS_TM_P2P_LADDR=tcp://$LH:4202
-CHAOS_TM_RPC_LADDR=tcp://$LH:4203
-CHAOS_LINK=http://$LH:4203
+CHAOS_TM_P2P_LADDR=tcp://$LH:$((2 + RND))
+CHAOS_TM_RPC_LADDR=tcp://$LH:$((3 + RND))
+CHAOS_LINK=http://$LH:$((3 + RND))
 
-NDAU_NOMS="$TEMP_DIR"/data.ndau
+NDAU_NOMS="$TEMP_DIR"/ndau-noms
 NDAU_HOME="$TEMP_DIR"/ndau-home
-NDAU_NOMS_PORT=4300
-NDAU_ABCI_PORT=4301
+NDAU_NOMS_PORT=$((4 + RND))
+NDAU_ABCI_PORT=$((5 + RND))
 NDAU_TM="$TEMP_DIR"/ndau-tm
-NDAU_TM_P2P_LADDR=tcp://$LH:4302
-NDAU_TM_RPC_LADDR=tcp://$LH:4303
+NDAU_TM_P2P_LADDR=tcp://$LH:$((6 + RND))
+NDAU_TM_RPC_LADDR=tcp://$LH:$((7 + RND))
 
 CHAOS_CMD="$GOPATH/src/github.com/oneiro-ndev/chaos/cmd/chaosnode/chaosnode"
 NDAU_CMD="$GOPATH/src/github.com/oneiro-ndev/ndau/cmd/ndaunode/ndaunode"
@@ -68,12 +69,17 @@ mkdir "$TEMP_DIR"
 
 # start chaos's noms
 mkdir "$CHAOS_NOMS"
-noms serve "$CHAOS_NOMS" --port=$CHAOS_NOMS_PORT &
+(
+	cd "$CHAOS_NOMS"
+	noms serve . --port=$CHAOS_NOMS_PORT &
+)
 
 # start ndau's noms
 mkdir "$NDAU_NOMS"
-noms serve "$NDAU_NOMS" --port=$NDAU_NOMS_PORT &
-
+(
+	cd "$NDAU_NOMS"
+	noms serve . --port=$NDAU_NOMS_PORT &
+)
 sleep 2
 
 # get empty hashes
@@ -114,21 +120,59 @@ sleep 5 # let it get ready
 NDAUHOME="$NDAU_HOME" $NDAU_CMD -make-mocks --spec http://$LH:$NDAU_NOMS_PORT
 
 CFG_TOML=$NDAU_HOME/ndau/config.toml
-gsed -i '1,2d' $CFG_TOML
+
+# use gsed if availabile
+SED="sed"
+which gsed && SED=gsed
+
+$SED -i '1,2d' $CFG_TOML
 echo -e "UseMock = \"\"\n$(cat $CFG_TOML)" > $CFG_TOML
 echo -e "ChaosAddress = \"$CHAOS_LINK\"\n$(cat $CFG_TOML)" > $CFG_TOML
 
 # make chaos mocks
 NDAUHOME="$NDAU_HOME" $NDAU_CMD -make-chaos-mocks --spec http://$LH:$NDAU_NOMS_PORT
 
-PROJECT_ROOT=$TEMP_DIR/..
+# if ted tool isn't there, build it
+ted_dir="$TEMP_DIR"/../../ted
+ted="$ted_dir"/ted
+[ -x "$ted" ] || ( cd "$ted_dir"; go build .)
 
-tar cvf data.chaos.tar $CHAOS_NOMS
-gzip data.chaos.tar
-base64 -i data.chaos.tar.gz > data.chaos.b64
+# get svi variables
+"$ted" --file "$CFG_TOML" --path "SystemVariableIndirect.Namespace" > "$TEMP_DIR"/svi-namespace
+"$ted" --file "$CFG_TOML" --path "SystemVariableIndirect.Key" > "$TEMP_DIR"/svi-key
 
-tar cvf data.ndau.tar $NDAU_NOMS
-gzip data.ndau.tar
-base64 -i data.ndau.tar.gz > data.ndau.b64
+# zip up the noms databases
+(
+	cd "$CHAOS_NOMS"
+	tar czvf "$TEMP_DIR"/chaos-noms.tgz .
+)
+
+(
+	cd "$NDAU_NOMS"
+	tar czvf "$TEMP_DIR"/ndau-noms.tgz .
+)
+
+(
+	cd "$CHAOS_TM"/data
+	tar czvf "$TEMP_DIR"/chaos-tm.tgz .
+)
+
+(
+	cd "$NDAU_TM"/data
+	tar czvf "$TEMP_DIR"/ndau-tm.tgz .
+)
+
+# update latest timestamp
+printf "$DATE" > "$TEMP_DIR"/latest.txt
+aws s3 cp "$TEMP_DIR"/latest.txt s3://ndau-snapshots/latest.txt
+
+# upload svi variables
+aws s3 cp "$TEMP_DIR"/svi-namespace s3://ndau-snapshots/"$DATE"/svi-namespace
+
+# upload tarballs
+aws s3 cp "$TEMP_DIR"/ndau-noms.tgz s3://ndau-snapshots/"$DATE"/ndau-noms.tgz
+aws s3 cp "$TEMP_DIR"/chaos-noms.tgz s3://ndau-snapshots/"$DATE"/chaos-noms.tgz
+aws s3 cp "$TEMP_DIR"/ndau-tm.tgz s3://ndau-snapshots/"$DATE"/ndau-tm.tgz
+aws s3 cp "$TEMP_DIR"/chaos-tm.tgz s3://ndau-snapshots/"$DATE"/chaos-tm.tgz
 
 exit 0
