@@ -36,6 +36,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if args.Path != "" && args.Value == "" {
+		fmt.Printf("%v", tree.Get(args.Path))
+		os.Exit(0)
+	}
+
 	if args.Path != "" {
 		var value interface{}
 		switch args.Type {
