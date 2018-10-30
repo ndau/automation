@@ -492,6 +492,7 @@ def main():
             {ndau_args} \
             --set ndauapi.ingress.enabled=true \
             --set ndauapi.ingress.host="{node.name}.{c.ELB_SUBDOMAIN}" \
+            --set ndauapi.image.tag="{c.NDAUNODE_TAG}" \
             --set honeycomb.key="{c.HONEYCOMB_KEY}" \
             --set honeycomb.dataset="{c.HONEYCOMB_DATASET}" \
             {envSpecificHelmOpts} \

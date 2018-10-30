@@ -26,6 +26,7 @@ spec:
         env:
         - name: NDAUAPI_NODE_ADDRESS
           value: http://{{ template "nodeGroup.fullname" . }}-ndau-tendermint-service:{{ .Values.ndau.tendermint.ports.rpc }}
-
+        - name: NDAUAPI_CHAOS_ADDRESS
+          value: http://{{ template "nodeGroup.fullname" . }}-chaos-tendermint-service:{{ .Values.chaos.tendermint.ports.rpc }}
         ports:
         - containerPort: {{ .Values.ndauapi.port }}
