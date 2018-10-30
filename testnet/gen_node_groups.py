@@ -243,6 +243,7 @@ def initNodegroup(nodes):
         ret = run_command(f'{c.DOCKER_RUN} \
             busybox \
             cat /tendermint/config/priv_validator.json')
+        print(":".join("{:02x}".format(ord(c)) for c in ret.stdout))
         vprint(f'priv_validator: {ret.stdout}')
         node.chaos_priv = json.loads(ret.stdout)
 
