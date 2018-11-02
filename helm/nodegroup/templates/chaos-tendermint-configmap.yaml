@@ -212,9 +212,6 @@ data:
     LOG_TAG=chaos \
       /bin/sh /root/tendermint-init.sh
 
-    ls /
-    ls /bin
-
     # start tendermint
     /bin/tendermint node \
       --moniker={{ .Values.chaos.tendermint.moniker }} \
