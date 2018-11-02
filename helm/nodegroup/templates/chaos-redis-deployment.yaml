@@ -25,7 +25,7 @@ spec:
       - name: redis
         image: "{{ .Values.chaos.redis.image.repository }}:{{ .Values.chaos.redis.image.tag }}"
         command: ["redis-server"]
-        args: ["--dir", "/redis", "--save", "60", "1"]
+        args: ["--dir", "/redis", "--save", "60", "1", "--tcp-backlog", "128"]
         imagePullPolicy: {{ .Values.chaos.redis.image.pullPolicy }}
         env:
         - name: NDAUHOME
