@@ -11,3 +11,6 @@ tmp
 env/aws/subdomain.json
 manifests/tendermint-ingress.yaml
 env/aws/cname-update.json
+
+# temp files for uploading snapshots
+genesis/tmp-*

@@ -2,7 +2,7 @@
 
 kind: ConfigMap
 metadata:
-  name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-config
+  name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
 apiVersion: v1
 data:
   genesis.json: {{ b64dec .Values.chaos.genesis | quote }}
@@ -19,7 +19,7 @@ data:
 
     # TCP or UNIX socket address of the ABCI application,
     # or the name of an ABCI application compiled in with the Tendermint binary
-    proxy_app = "tcp://{{ include "nodeGroup.fullname" . }}-chaosnode-service:{{ .Values.chaosnode.port }}"
+    proxy_app = "tcp://{{ include "nodegroup.fullname" . }}-chaosnode-service:{{ .Values.chaosnode.port }}"
 
     # A custom human readable name for this node
     moniker = {{ .Values.chaos.tendermint.moniker | quote }}
@@ -198,94 +198,27 @@ data:
     index_all_tags = false
 
 
-  init.sh: |
+  tendermint-start.sh: |
+    #!/bin/sh
 
-    # exit on failed command
-    set -e
+    DATA_DIR=/tendermint/data \
+    DATA_EXISTS_FILE=/tendermint/data/manifest \
+    FLAG_DIR=/tendermint \
+    SNAPSHOT_FILE=chaos-tm.tgz \
+    LOG_TAG=chaos-tendermint \
+      /bin/sh /root/snapshot.sh
 
-    TAG=init.sh
+    # init tendermint config
+    LOG_TAG=chaos \
+      /bin/sh /root/tendermint-init.sh
 
-    init_log () {
-      echo "$TAG: $@"
-    }
+    ls /
+    ls /bin
 
-    init_err () {
-      echo "$TAG: $@"
-      exit 1
-    }
-
-    # ensure directory for read-writeable config files
-    if mkdir -p /tendermint/config; then
-      init_log "Created /tendermint/config directory"
-    else
-      init_log "Could not create /tendermint/config"
-    fi
-
-    # Add an environment variable for persistent peers
-    #  if it's not already there OR
-    #  if the update persistent peers variable is set to true
-    if [ ! -f "/tendermint/config/persistent-peers" ] || [ "$UPDATE_PERSISTENT_PEERS" == "true" ]; then
-      init_log "Updating persistent peers."
-      echo "$PERSISTENT_PEERS" > /tendermint/config/persistent-peers
-      echo "$PRIVATE_PEER_IDS" > /tendermint/config/private-peer-ids
-    else
-      init_log "Not updating persistent peers."
-    fi
-
-    # update genesis.json with chaosnode's empty hash
-    empty_hash=$(cat /tendermint/empty_hash)
-
-    # check to see if genesis.json already exists, if so update the empty hash
-    if [ -f "/tendermint/config/genesis.json" ]; then
-      cp /tendermint/config/genesis.json /tendermint/config/genesis-old.json
-      if jq ".app_hash=\"$empty_hash\"" /tendermint/config/genesis-old.json > /tendermint/config/genesis.json; then
-        init_log "Updated old genesis with empty hash $empty_hash"
-      else
-        init_err "Could not update genesis with empty hash."
-      fi
-    fi
-
-    # early exit. do not initialize if config already exists
-    if [ -f "/tendermint/config/init-done" ]; then
-      init_log "Volume already has configuration. Initialization stopping."
-      exit 0
-    fi
-
-    # copy all read only files from config map to real config directory
-    if cp /tendermint/config-ro/* /tendermint/config; then
-      init_log "Read only files copied"
-    else
-      init_err "Could not copy read-only files to tendermint config"
-    fi
-
-    # copy genesis and insert empty hash
-    if [ -f "/tendermint/config/genesis.json" ]; then
-      cp /tendermint/config/genesis.json /tendermint/config/genesis-old.json
-      if jq ".app_hash=\"$empty_hash\"" /tendermint/config/genesis-old.json > /tendermint/config/genesis.json; then
-        init_log "Updated old genesis with empty hash $empty_hash"
-      else
-        init_err "Could not update genesis with empty hash."
-      fi
-    else
-      if jq ".app_hash=\"$empty_hash\"" /tendermint/config-ro/genesis.json > /tendermint/config/genesis.json; then
-        init_log "config-ro genesis.json"
-        init_log $(cat /tendermint/config-ro/genesis.json)
-        init_log "config genesis.json"
-        init_log $(cat /tendermint/config/genesis.json)
-        init_log "Created new genesis with empty hash $empty_hash"
-      else
-        init_err "Could not update genesis with empty hash."
-      fi
-    fi
-
-    # output empty hash
-    init_log "Empty hash: $empty_hash"
-
-    # output for the logs
-    init_log "Final config files"
-    init_log $(cat /tendermint/config/* | sed ':a;N;$!ba;s/\n/\\n/g')
-
-    # mark this as having initialized
-    touch /tendermint/config/init-done && init_log "Touched /tendermint/config/init-done"
+    # start tendermint
+    /bin/tendermint node \
+      --moniker={{ .Values.chaos.tendermint.moniker }} \
+      --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" \
+      --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\"
 
 {{ end }}
