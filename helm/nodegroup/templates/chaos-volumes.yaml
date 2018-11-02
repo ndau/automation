@@ -21,6 +21,25 @@ spec:
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
+  name: {{ template "nodeGroup.fullname" . }}-chaos-redis-claim
+  labels:
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.chaos.noms.persistence.size }}
+
+---
+
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
   name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-claim
   labels:
     app: {{ template "nodeGroup.name" . }}
