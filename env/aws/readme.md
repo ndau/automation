@@ -30,6 +30,27 @@ _Kubernetes OPerationS._ Kops is a tool that automates setting up a cluster on A
 These permissions need to be given to the user currently logged in with `aws-cli`
 AmazonEC2FullAccess, AmazonRoute53FullAccess, AmazonS3FullAccess,IAMFullAccess, AmazonVPCFullAccess, autoscalling:*
 
+# Cluster's instance group settings
+
+There are two scipts that are run on each EC2 machine in the cluster when it starts. They are located in [./cluster-spec.json](./cluster-spec.json) and run automatically when the machine boots.
+
+## inodes
+
+Noms uses many files. It's best to have a large number of inodes available so noms doesn't run out. In order to do this, we change the default formatting settings in `/etc/mke2fs.conf`.
+
+
+## Transparent Huge Pages (THP)
+
+THP is a memory optimization that can cause poor or leaky performance in Redis and applications that have sparse disk access patterns.
+
+It runs the following commands to disable THP for all containers running on the node.
+
+```
+sudo sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/enabled'
+sudo sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/defrag'
+```
+
+
 ## Traefik
 
 For any services that use ingresses, Traefik is used as a load balancer/gateway.
