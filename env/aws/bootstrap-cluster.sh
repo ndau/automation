@@ -68,7 +68,7 @@ kops create cluster \
 
 # update instance group `nodes` with kope-ig-nodes.json
 kops get ig nodes --state s3://"$BUCKET" -o json > kops-current.json
-jq -s '.[0] * .[1]' current.json kops-ig-nodes.json > kops-merged.json
+jq -s '.[0] * .[1]' current.json cluster-spec.json > kops-merged.json
 kops replace -f kops-merged.json --state s3://"$BUCKET"
 rm kops-merged.json kops-current.json
 
