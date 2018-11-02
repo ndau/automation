@@ -1,0 +1,22 @@
+{{ if .Values.ndau.enabled }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "nodeGroup.fullname" . }}-ndau-redis-service
+  labels:
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.ndau.redis.service.type }}
+  ports:
+    - port: {{ .Values.ndau.redis.port }}
+      targetPort: {{ .Values.ndau.redis.port }}
+      protocol: TCP
+  selector:
+    app: {{ template "nodeGroup.name" . }}-ndau-redis
+    release: {{ .Release.Name }}
+
+{{ end }}
