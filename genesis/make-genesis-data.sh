@@ -3,21 +3,17 @@
 set -x
 set -e
 
+# used for temp directory and s3 upload
+DATE=$(date '+%Y-%m-%dT%H:%M:%SZ')
+TEMP_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/tmp-$DATE"
+
+
 clean() (
 
-	set +e
 	set +x
 	# clean up processes
-	NOMS_PIDS=$(pgrep "noms" | awk '{print $2}')
-	kill -9 "$NOMS_PIDS"
-
-	CHAOS_PID=$(pgrep "chaosnode" | awk '{print $2}')
-	NDAU_PID=$(pgrep "ndaunode" | awk '{print $2}')
-	kill -9 "$CHAOS_PID"
-	kill -9 "$NDAU_PID"
-
-	TM_PIDS=$(pgrep "tendermint" | awk '{print $2}')
-	kill -9 "$TM_PIDS"
+	# shellcheck disable=2046
+	kill -9 $(cat "$TEMP_DIR"/pids/* | tr "\n" " ")
 
 )
 
@@ -30,12 +26,9 @@ trap clean EXIT
 # noms seems to need this
 export NOMS_VERSION_NEXT=1
 
-# used for temp directory and s3 upload
-DATE=$(date '+%Y-%m-%dT%H:%M:%SZ')
-
+# random number to start the ports on
 RND=$((10000 + RANDOM % 10000))
 
-TEMP_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/tmp-$DATE"
 
 LH=127.0.0.1
 CHAOS_NOMS="$TEMP_DIR"/chaos-noms
@@ -66,12 +59,14 @@ fi
 
 # reset files
 mkdir "$TEMP_DIR"
+mkdir "$TEMP_DIR"/pids
 
 # start chaos's noms
 mkdir "$CHAOS_NOMS"
 (
 	cd "$CHAOS_NOMS"
 	noms serve . --port=$CHAOS_NOMS_PORT &
+	echo $! > "$TEMP_DIR"/pids/chaos-noms
 )
 
 # start ndau's noms
@@ -79,6 +74,7 @@ mkdir "$NDAU_NOMS"
 (
 	cd "$NDAU_NOMS"
 	noms serve . --port=$NDAU_NOMS_PORT &
+	echo $! > "$TEMP_DIR"/pids/ndau-noms
 )
 sleep 2
 
@@ -92,7 +88,7 @@ tendermint --home "$NDAU_TM" init
 
 # update configs
 jq ".app_hash=\"$CHAOS_HASH\"" "$CHAOS_TM"/config/genesis.json > "$CHAOS_TM"/config/new-genesis.json
-diff "$CHAOS_TM"/config/new-genesis.json "$CHAOS_TM"/config/genesis.json
+diff "$CHAOS_TM"/config/new-genesis.json "$CHAOS_TM"/config/genesis.json || true # will return 1 for no newline
 mv "$CHAOS_TM"/config/new-genesis.json "$CHAOS_TM"/config/genesis.json
 cat "$CHAOS_TM"/config/genesis.json
 
@@ -105,14 +101,17 @@ tendermint node --home "$CHAOS_TM" \
 	--proxy_app tcp://$LH:$CHAOS_ABCI_PORT \
 	--p2p.laddr $CHAOS_TM_P2P_LADDR \
 	--rpc.laddr $CHAOS_TM_RPC_LADDR &
+echo $! > "$TEMP_DIR"/pids/chaos-tm
 
 tendermint node --home "$NDAU_TM" \
 	--proxy_app tcp://$LH:$NDAU_ABCI_PORT \
 	--p2p.laddr $NDAU_TM_P2P_LADDR \
 	--rpc.laddr $NDAU_TM_RPC_LADDR &
+echo $! > "$TEMP_DIR"/pids/ndau-tm
 
 # fire up chaosnode
 $CHAOS_CMD -addr "$LH:$CHAOS_ABCI_PORT" --spec http://$LH:$CHAOS_NOMS_PORT &
+echo $! > "$TEMP_DIR"/pids/chaosnode
 
 sleep 5 # let it get ready
 
