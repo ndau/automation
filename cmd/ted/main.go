@@ -14,28 +14,13 @@ import (
 
 func main() {
 	var args struct {
-		SetString []string `arg:"--set-string" help:"path=value used to build new TOML output."`
-		SetBool   []string `arg:"--set-bool" help:"path=value used to build new TOML output."`
-		SetInt    []string `arg:"--set-int" help:"path=value used to build new TOML output."`
-		SetUint   []string `arg:"--set-uint" help:"path=value used to build new TOML output."`
-		SetFloat  []string `arg:"--set-float" help:"path=value used to build new TOML output."`
-		SetTime   []string `arg:"--set-time" help:"path=value used to build new TOML output."`
-		Path      string   `arg:"-p" help:".-separated path for the value to change."`
-		Value     string   `arg:"-v" help:"value in file to set."`
-		File      string   `arg:"-f" help:"TOML file to modify; otherwise reads from stdin and writes to stdout."`
-		Type      string   `arg:"-t" help:"type of value (bool,uint,int,string,float,time) (default string)."`
+		Path  string `arg:"-p" help:".-separated path for the value to change"`
+		Value string `arg:"-v" help:"value in file to set"`
+		File  string `arg:"-f" help:"TOML file to modify; otherwise reads from stdin and writes to stdout"`
+		Type  string `arg:"-t" help:"type of value (bool,uint,int,string,float,time) (default string)"`
 	}
 	args.Type = "s"
 	arg.MustParse(&args)
-
-	for pair := range args.SetString {
-		s := strings.Split(pair, "=")
-		p, v := s[0], s[1]
-		tree.Set(args.Path, value)
-
-	}
-	fmt.Println(args.SetString)
-	os.Exit(0)
 
 	in := os.Stdin
 	if args.File != "" {
