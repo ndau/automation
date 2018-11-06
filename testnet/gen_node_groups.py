@@ -555,7 +555,7 @@ def highest_version_tag(repo):
     tag = run_command(f"\
         aws ecr list-images --repository-name {repo} | \
         jq -r '[ .imageIds[] | .imageTag] | .[] ' | \
-        sed 's/[^0-9.]//g' | \
+        sed 's/[^0-9.v]//g' | \
         sort --version-sort --field-separator=. | \
         tail -n 1").stdout.strip()
     vprint(f'{repo}\'s highest version tag: {tag}')

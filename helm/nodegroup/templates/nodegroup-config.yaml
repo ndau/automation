@@ -1,0 +1,232 @@
+kind: ConfigMap
+metadata:
+  name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+apiVersion: v1
+data:
+  # This is used something like a cache buster.
+  # Since we want an operation to occur only once when the OPERATION_X value is set to true,
+  # we would like to set a flag by touching a file `operation_x_done` for example.
+  # This OPERATION_X value however, may remain set across different helm install/upgrades.
+  # So instead of simply touching a flag file, we also save a random token for this release.
+  # Now instead of checking for the existence of a flag file, we can compare our release-token
+  # to the saved release token in the flag file. *whew*
+  release-token: {{ randAlphaNum 10 | b64enc | quote }}
+
+  snapshot.sh: |
+    #!/bin/sh
+
+    # This depends on three variables being set prior to running.
+    #
+    # DATA_DIR            The directory that will recieve the snapshot
+    #                     e.g. /noms/data
+    # DATA_EXISTS_FILE    A file, such that it's existence means the database exists.
+    #                     e.g. /noms/data/manifest
+    # FLAG_DIR            The directory to store two flag files. Must be persistent and not container storage.
+    #                     e.g. /noms
+    # SNAPSHOT_FILE       The name of the tarball file on s3 to use.
+    #                     e.g. ndau-noms.tgz
+    # LOG_TAG             A simple string to better identify logs.
+    #                     e.g. ndau-noms
+
+    # Other variables that are not set dynamically but are set in the .
+
+    # When it comes to download snapshot data, we only want to do that once per pod deployment.
+    # Meaning, if the pod restarts, we don't want to download from the latest snapshot again.
+    # Otherwise, we would wipe out any data that we had created after the first download.
+    #
+    # Disregarding the amount of times it downloads, the desired behavior is still that we download
+    # in two different situations.
+    # 1) If there is no data. ( this only happens once, so we simply check to see if data is there.)
+    # 2) We're forcing an update.
+    #   In case 2, we set a variable with helm install. This means that every time the pod
+    # restarts it will still have that variable set until the next time a helm install occurs.
+
+    # This state machine-like block basically says only download once.
+    # In the following table, the important states are described with their actions.
+    # Where
+    #   AF is already forced (touched file present),
+    #   DS is the download snapshot variable and
+    #   DT is different token (written token is different from current token).
+    # For these, we assume some database is already present.
+
+    # 1  DS &&  AF &&  DT = download snapshot, update token
+    # 2  DS &&  AF && !DT = do nothing. (just a restarted pod)
+    # 3  DS && !AF &&  DT = download snapshot, set AF=true
+    # 4  DS && !AF && !DT = download snapshot, set AF=true. (DS newly set on this install)
+    # 5 !DS &&  AF &&  DT = don't download, set AF=false (this is a clean up step)
+    # 6 !DS &&  AF && !DT = don't download, set AF=false (this is a clean up step)
+    # 7 !DS && !AF &&  DT = do nothing
+    # 8 !DS && !AF && !DT = do nothing
+
+    log () {
+      >&2 echo "snapshot-$LOG_TAG:" "$@"
+    }
+
+    err () {
+      >&2 echo "snapshot-$LOG_TAG:" "$@"
+      exit 1
+    }
+
+    which curl || apk add --no-cache curl
+
+
+    # download
+    download() {
+      log "Downloading and restoring snapshot."
+      local token
+      if [ ! -z "$SNAPSHOT_CODE" ]; then
+        log "Using snapshot code: $SNAPSHOT_CODE"
+        token=$SNAPSHOT_CODE
+      else
+        token=$(curl https://s3.amazonaws.com/ndau-snapshots/latest.txt || err "Could not download latest.txt")
+        log "Using latest snapshot: $token"
+      fi
+      log "Clearing data directory and installing new one"
+      rm -rf $DATA_DIR/*
+      curl https://s3.amazonaws.com/ndau-snapshots/$token/$SNAPSHOT_FILE | tar xzvf - -C "$DATA_DIR"
+    }
+
+    # marks the last time we were forced to download a snapshot
+    update_token() {
+      printf $RELEASE_TOKEN > $FLAG_DIR/last_forced_release
+    }
+
+    # marks that we were not forced to download
+    set_af_false() {
+      rm $FLAG_DIR/already_forced
+    }
+
+    # marks that we were forced to download
+    set_af_true() {
+      touch $FLAG_DIR/already_forced
+    }
+
+    # get our variables to perform logic on
+
+    # already forced
+    AF=false
+    [ -f $FLAG_DIR/already_forced ] && AF=true
+
+    # download snapshot
+    DS=false
+    [ "$DOWNLOAD_SNAPSHOT" == "true" ] && DS=true
+
+    # different token
+    DT=false
+    [ "$RELEASE_TOKEN" != "$(cat $FLAG_DIR/last_forced_release)" ] && DT=true
+
+    if $DS; then
+      if $DT; then # cases 1 and 3
+        download
+        if $AF; then
+          update_token # 1
+        else
+          set_af_true # 3
+        fi
+      fi
+      if ! $AF && ! $DT; then # case 4
+        download
+        set_af_true
+      fi
+    else
+      if $AF; then
+        set_af_false # cases 5 and 6
+      fi
+    fi
+
+    # Case 2, 7, 8 do nothing
+
+    if [ ! -f "$DATA_EXISTS_FILE" ]; then
+      download
+    else
+      init_log "Data present, not downloading snapshot."
+    fi
+
+  tendermint-init.sh: |
+
+    log () {
+      >&2 echo "tendermint-init-$LOG_TAG: $@"
+    }
+
+    err () {
+      >&2 echo "tendermint-init-$LOG_TAG: $@"
+      exit 1
+    }
+
+    TM_CONFIG=$TMHOME/config
+    RO_CONFIG=/root/config-ro
+
+    # ensure directory for read-writeable config files
+    if mkdir -p $TM_CONFIG; then
+      log "Created $TM_CONFIG directory"
+    else
+      log "Could not create $TM_CONFIG"
+    fi
+
+    # Add an environment variable for persistent peers
+    #  if it's not already there OR
+    #  if the update persistent peers variable is set to true
+    if [ ! -f "$TM_CONFIG/persistent-peers" ] || [ "$UPDATE_PERSISTENT_PEERS" == "true" ]; then
+      log "Updating persistent peers."
+      echo "$PERSISTENT_PEERS" > $TM_CONFIG/persistent-peers
+      echo "$PRIVATE_PEER_IDS" > $TM_CONFIG/private-peer-ids
+    else
+      log "Not updating persistent peers."
+    fi
+
+    # update genesis.json with chaosnode's empty hash
+    empty_hash=$(cat $TMHOME/empty_hash)
+
+    # check to see if genesis.json already exists, if so update the empty hash
+    if [ -f "$TM_CONFIG/genesis.json" ]; then
+      cp $TM_CONFIG/genesis.json $TM_CONFIG/genesis-old.json
+      if jq ".app_hash=\"$empty_hash\"" $TM_CONFIG/genesis-old.json > $TM_CONFIG/genesis.json; then
+        log "Updated old genesis with empty hash $empty_hash"
+      else
+        err "Could not update genesis with empty hash."
+      fi
+    fi
+
+    # initialize if config does not already exist
+    if [ ! -f "$TM_CONFIG/init-done" ]; then
+
+      # copy all read only files from config map to real config directory
+      if cp $RO_CONFIG/* $TM_CONFIG; then
+        log "Read only files copied"
+      else
+        err "Could not copy read-only files to tendermint config"
+      fi
+
+      # copy genesis and insert empty hash
+      if [ -f "$TM_CONFIG/genesis.json" ]; then
+        cp $TM_CONFIG/genesis.json $TM_CONFIG/genesis-old.json
+        if jq ".app_hash=\"$empty_hash\"" $TM_CONFIG/genesis-old.json > $TM_CONFIG/genesis.json; then
+          log "Updated old genesis with empty hash $empty_hash"
+        else
+          err "Could not update genesis with empty hash."
+        fi
+      else
+        if jq ".app_hash=\"$empty_hash\"" $RO_CONFIG/genesis.json > $TM_CONFIG/genesis.json; then
+          log "config-ro genesis.json"
+          log $(cat $RO_CONFIG/genesis.json)
+          log "config genesis.json"
+          log $(cat $TM_CONFIG/genesis.json)
+          log "Created new genesis with empty hash $empty_hash"
+        else
+          err "Could not update genesis with empty hash."
+        fi
+      fi
+
+      # output empty hash
+      log "Empty hash: $empty_hash"
+
+      # output for the logs
+      log "Final config files"
+      log $(cat $TM_CONFIG/* | sed ':a;N;$!ba;s/\n/\\n/g')
+
+      # mark this as having initialized
+      touch $TM_CONFIG/init-done && log "Touched $TM_CONFIG/init-done"
+
+    else
+      log "Volume already has configuration. Not intializing config."
+    fi
