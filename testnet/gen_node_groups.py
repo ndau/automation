@@ -243,8 +243,12 @@ def initNodegroup(nodes):
         ret = run_command(f'{c.DOCKER_RUN} \
             busybox \
             cat /tendermint/config/priv_validator.json')
-        vprint(f'priv_validator: {ret.stdout}')
-        node.chaos_priv = json.loads(ret.stdout)
+        # JSG strip all output from above cat until the first brace,
+        # when this is run on circle there is extraneous output generated
+        # by the first load of busybox image
+        priv_val = ret.stdout[ret.stdout.index('{'):]
+        vprint(f'priv_validator: {priv_val}')
+        node.chaos_priv = json.loads(priv_val)
 
         steprint(f"Getting node_key.json")
         ret = run_command(f'{c.DOCKER_RUN} \
@@ -488,6 +492,7 @@ def main():
             {ndau_args} \
             --set ndauapi.ingress.enabled=true \
             --set ndauapi.ingress.host="{node.name}.{c.ELB_SUBDOMAIN}" \
+            --set ndauapi.image.tag="{c.NDAUNODE_TAG}" \
             --set honeycomb.key="{c.HONEYCOMB_KEY}" \
             --set honeycomb.dataset="{c.HONEYCOMB_DATASET}" \
             {envSpecificHelmOpts} \
