@@ -3,22 +3,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "nodeGroup.fullname" . }}-chaos-redis
+  name: {{ template "nodegroup.fullname" . }}-chaos-redis
   labels:
-    app: {{ template "nodeGroup.name" . }}
-    chart: {{ template "nodeGroup.chart" . }}
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ template "nodeGroup.name" . }}-chaos-redis
+      app: {{ template "nodegroup.name" . }}-chaos-redis
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "nodeGroup.name" . }}-chaos-redis
+        app: {{ template "nodegroup.name" . }}-chaos-redis
         release: {{ .Release.Name }}
     spec:
       containers:
@@ -38,6 +38,6 @@ spec:
       volumes:
       - name: redis-volume
         persistentVolumeClaim:
-          claimName: {{ template "nodeGroup.fullname" . }}-chaos-redis-claim
+          claimName: {{ template "nodegroup.fullname" . }}-chaos-redis-claim
 
 {{ end }}
