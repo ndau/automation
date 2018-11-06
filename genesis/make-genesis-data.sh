@@ -8,16 +8,16 @@ clean() (
 	set +e
 	set +x
 	# clean up processes
-	NOMS_PIDS=$(ps aux | grep "noms" | grep -v "grep" | awk '{print $2}')
-	kill -9 $NOMS_PIDS
+	NOMS_PIDS=$(pgrep "noms" | awk '{print $2}')
+	kill -9 "$NOMS_PIDS"
 
-	CHAOS_PID=$(ps aux | grep "chaosnode" | grep -v "grep" | awk '{print $2}')
-	NDAU_PID=$(ps aux | grep "ndaunode" | grep -v "grep" | awk '{print $2}')
-	kill -9 $CHAOS_PID ||
-	kill -9 $NDAU_PID
+	CHAOS_PID=$(pgrep "chaosnode" | awk '{print $2}')
+	NDAU_PID=$(pgrep "ndaunode" | awk '{print $2}')
+	kill -9 "$CHAOS_PID"
+	kill -9 "$NDAU_PID"
 
-	TM_PIDS=$(ps aux | grep "tendermint" | grep -v "grep" | awk '{print $2}')
-	kill -9 $TM_PIDS
+	TM_PIDS=$(pgrep "tendermint" | awk '{print $2}')
+	kill -9 "$TM_PIDS"
 
 )
 
@@ -91,14 +91,14 @@ tendermint --home "$CHAOS_TM" init
 tendermint --home "$NDAU_TM" init
 
 # update configs
-jq ".app_hash=\"$CHAOS_HASH\"" $CHAOS_TM/config/genesis.json > $CHAOS_TM/config/new-genesis.json
-diff $CHAOS_TM/config/new-genesis.json $CHAOS_TM/config/genesis.json || true
-mv $CHAOS_TM/config/new-genesis.json $CHAOS_TM/config/genesis.json
-cat $CHAOS_TM/config/genesis.json
+jq ".app_hash=\"$CHAOS_HASH\"" "$CHAOS_TM"/config/genesis.json > "$CHAOS_TM"/config/new-genesis.json
+diff "$CHAOS_TM"/config/new-genesis.json "$CHAOS_TM"/config/genesis.json
+mv "$CHAOS_TM"/config/new-genesis.json "$CHAOS_TM"/config/genesis.json
+cat "$CHAOS_TM"/config/genesis.json
 
 
-jq ".app_hash=\"$NDAU_HASH\"" $NDAU_TM/config/genesis.json > $NDAU_TM/config/new-genesis.json
-mv $NDAU_TM/config/new-genesis.json $NDAU_TM/config/genesis.json
+jq ".app_hash=\"$NDAU_HASH\"" "$NDAU_TM"/config/genesis.json > "$NDAU_TM"/config/new-genesis.json
+mv "$NDAU_TM"/config/new-genesis.json "$NDAU_TM"/config/genesis.json
 
 # start tendermints
 tendermint node --home "$CHAOS_TM" \
@@ -125,9 +125,9 @@ CFG_TOML=$NDAU_HOME/ndau/config.toml
 SED="sed"
 which gsed && SED=gsed
 
-$SED -i '1,2d' $CFG_TOML
-echo -e "UseMock = \"\"\n$(cat $CFG_TOML)" > $CFG_TOML
-echo -e "ChaosAddress = \"$CHAOS_LINK\"\n$(cat $CFG_TOML)" > $CFG_TOML
+$SED -i '1,2d' "$CFG_TOML"
+echo -e "UseMock = \"\"\n$(cat "$CFG_TOML")" > "$CFG_TOML"
+echo -e "ChaosAddress = \"$CHAOS_LINK\"\n$(cat "$CFG_TOML")" > "$CFG_TOML"
 
 # make chaos mocks
 NDAUHOME="$NDAU_HOME" $NDAU_CMD -make-chaos-mocks --spec http://$LH:$NDAU_NOMS_PORT
@@ -163,7 +163,7 @@ ted="$ted_dir"/ted
 )
 
 # update latest timestamp
-printf "$DATE" > "$TEMP_DIR"/latest.txt
+printf "%s" "$DATE" > "$TEMP_DIR"/latest.txt
 aws s3 cp "$TEMP_DIR"/latest.txt s3://ndau-snapshots/latest.txt
 
 # upload svi variables
