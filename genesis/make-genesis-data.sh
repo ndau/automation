@@ -131,6 +131,14 @@ echo -e "ChaosAddress = \"$CHAOS_LINK\"\n$(cat "$CFG_TOML")" > "$CFG_TOML"
 # make chaos mocks
 NDAUHOME="$NDAU_HOME" $NDAU_CMD -make-chaos-mocks --spec http://$LH:$NDAU_NOMS_PORT
 
+# Shut down tendermints
+kill -9 $(cat "$TEMP_DIR"/pids/chaos-tm)
+kill -9 $(cat "$TEMP_DIR"/pids/ndau-tm)
+
+# make hashes
+NDAUHOME="$NDAU_HOME" $NDAU_CMD -echo-hash --spec http://$LH:$NDAU_NOMS_PORT > "$TEMP_DIR"/chaos-hash
+NDAUHOME="$NDAU_HOME" $CHAOS_CMD -echo-hash --spec http://$LH:$CHAOS_NOMS_PORT > "$TEMP_DIR"/ndau-hash
+
 # if ted tool isn't there, build it
 ted_dir="$TEMP_DIR"/../../ted
 ted="$ted_dir"/ted
@@ -167,6 +175,10 @@ aws s3 cp "$TEMP_DIR"/latest.txt s3://ndau-snapshots/latest.txt
 
 # upload svi variables
 aws s3 cp "$TEMP_DIR"/svi-namespace s3://ndau-snapshots/"$DATE"/svi-namespace
+
+# upload hashes
+aws s3 cp "$TEMP_DIR"/chaos-hash s3://ndau-snapshots/"$DATE"/chaos-hash
+aws s3 cp "$TEMP_DIR"/ndau-hash s3://ndau-snapshots/"$DATE"/ndau-hash
 
 # upload tarballs
 aws s3 cp "$TEMP_DIR"/ndau-noms.tgz s3://ndau-snapshots/"$DATE"/ndau-noms.tgz
