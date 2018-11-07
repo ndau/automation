@@ -132,8 +132,8 @@ echo -e "ChaosAddress = \"$CHAOS_LINK\"\n$(cat "$CFG_TOML")" > "$CFG_TOML"
 NDAUHOME="$NDAU_HOME" $NDAU_CMD -make-chaos-mocks --spec http://$LH:$NDAU_NOMS_PORT
 
 # Shut down tendermints
-kill -9 $(cat "$TEMP_DIR"/pids/chaos-tm)
-kill -9 $(cat "$TEMP_DIR"/pids/ndau-tm)
+kill -9 "$(cat "$TEMP_DIR"/pids/chaos-tm)"
+kill -9 "$(cat "$TEMP_DIR"/pids/ndau-tm)"
 
 # make hashes
 NDAUHOME="$NDAU_HOME" $NDAU_CMD -echo-hash --spec http://$LH:$NDAU_NOMS_PORT > "$TEMP_DIR"/chaos-hash
