@@ -21,6 +21,24 @@ spec:
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
+  name: {{ template "nodegroup.fullname" . }}-ndau-redis-claim
+  labels:
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.ndau.noms.persistence.size }}
+
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
   name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-claim
   labels:
     app: {{ template "nodegroup.name" . }}

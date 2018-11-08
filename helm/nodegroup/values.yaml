@@ -65,6 +65,17 @@ ndau:
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
     updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
 
+  redis:
+    image:
+      repository: redis
+      tag: 4.0.11-alpine3.8
+      pullPolicy: IfNotPresent
+    persistence:
+      size: 4Gi
+    port: 6379
+    service:
+      type: ClusterIP
+
   noms:
     image:
       repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/noms
@@ -133,7 +144,6 @@ ndau:
   #    "value": "23MdSrpERxz9gIS+REJjGm8aN7sbKKOZyadXJkxDKGYoIrJpRBg9V/S4Ev+BHsMKoZi1MHa4iWIqKcZapKfb7w=="
   #  }
   #}
-
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
@@ -207,6 +217,18 @@ chaos:
     service:
       type: ClusterIP
 
+  redis:
+    image:
+      repository: redis
+      tag: 4.0.11-alpine3.8
+      pullPolicy: IfNotPresent
+    persistence:
+      size: 4Gi
+    port: 6379
+    service:
+      type: ClusterIP
+
+
   # deployUtils is an small image with tools used for small tasks.
   deployUtils:
     image:
@@ -282,4 +304,3 @@ chaos:
   #    "value": "23MdSrpERxz9gIS+REJjGm8aN7sbKKOZyadXJkxDKGYoIrJpRBg9V/S4Ev+BHsMKoZi1MHa4iWIqKcZapKfb7w=="
   #  }
   #}
-

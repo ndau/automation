@@ -61,7 +61,10 @@ spec:
       - name: ndaunode
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
-        args: ["-spec", "http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }}", "-addr", "0.0.0.0:{{ required ".Values.ndaunode.port not set" .Values.ndaunode.port }}"]
+        args: [
+          "-spec", "http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }}",
+          "-addr", "0.0.0.0:{{ required ".Values.ndaunode.port not set" .Values.ndaunode.port }}",
+          "-index", "{{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }}"]
         ports:
         - containerPort: {{ .Values.ndaunode.port }}
         env:
