@@ -1,0 +1,43 @@
+{{ if .Values.ndau.enabled }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "nodeGroup.fullname" . }}-ndau-redis
+  labels:
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "nodeGroup.name" . }}-ndau-redis
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "nodeGroup.name" . }}-ndau-redis
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: redis
+        image: "{{ .Values.ndau.redis.image.repository }}:{{ .Values.ndau.redis.image.tag }}"
+        command: ["redis-server"]
+        args: ["--dir", "/redis", "--save", "60", "1", "--tcp-backlog", "128"]
+        imagePullPolicy: {{ .Values.ndau.redis.image.pullPolicy }}
+        env:
+        - name: NDAUHOME
+          value: /redis
+        ports:
+        - containerPort: {{ .Values.ndau.redis.port }}
+        volumeMounts:
+        - name: redis-volume
+          mountPath: /redis
+      volumes:
+      - name: redis-volume
+        persistentVolumeClaim:
+          claimName: {{ template "nodeGroup.fullname" . }}-ndau-redis-claim
+
+{{ end }}
