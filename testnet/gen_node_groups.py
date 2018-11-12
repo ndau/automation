@@ -487,7 +487,8 @@ def main():
             {chaos_args} \
             {ndau_args} \
             --set ndauapi.ingress.enabled=true \
-            --set ndauapi.ingress.host="{node.name}.{c.ELB_SUBDOMAIN}" \
+            --set-string ndauapi.ingress.host="{node.name}.{c.ELB_SUBDOMAIN}" \
+            --set-string ndauapi.image.tag="{c.NDAUNODE_TAG}" \
             --set honeycomb.key="{c.HONEYCOMB_KEY}" \
             --set honeycomb.dataset="{c.HONEYCOMB_DATASET}" \
             {envSpecificHelmOpts} \
@@ -542,7 +543,7 @@ def fetch_master_sha(repo):
         awk '{{print $1}}' | \
         cut -c1-7").stdout.strip()
     vprint(f'{repo} master sha: {sha}')
-    return sha
+    return str(sha)
 
 def highest_version_tag(repo):
     """Fetches the latest semver'd version from an AWS ECR repo."""
@@ -554,7 +555,7 @@ def highest_version_tag(repo):
         sort --version-sort --field-separator=. | \
         tail -n 1").stdout.strip()
     vprint(f'{repo}\'s highest version tag: {tag}')
-    return tag
+    return str(tag)
 
 def makeTempVolume():
     """Creates a volume for persistence between docker containers."""
@@ -602,7 +603,7 @@ def make_args(opts):
                 dotOrNot = "" if accumulator == "" else f'{accumulator}.'
                 recurse(v, f'{dotOrNot}{k}')
         elif isinstance(candidate, str):
-            args += f'--set {accumulator}="{candidate}" '
+            args += f'--set-string {accumulator}="{candidate}" '
         elif isinstance(candidate, int):
             args += f'--set {accumulator}={candidate} '
         else:
