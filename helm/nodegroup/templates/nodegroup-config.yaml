@@ -11,9 +11,11 @@ data:
   # Now instead of checking for the existence of a flag file, we can compare our release-token
   # to the saved release token in the flag file. *whew*
   release-token: {{ randAlphaNum 10 | b64enc | quote }}
-
+  tm-home: "/tendermint"
   snapshot.sh: |
     #!/bin/sh
+
+    set -x
 
     # This depends on three variables being set prior to running.
     #
@@ -174,18 +176,8 @@ data:
       log "Not updating persistent peers."
     fi
 
-    # update genesis.json with chaosnode's empty hash
-    empty_hash=$(cat $TMHOME/empty_hash)
-
-    # check to see if genesis.json already exists, if so update the empty hash
-    if [ -f "$TM_CONFIG/genesis.json" ]; then
-      cp $TM_CONFIG/genesis.json $TM_CONFIG/genesis-old.json
-      if jq ".app_hash=\"$empty_hash\"" $TM_CONFIG/genesis-old.json > $TM_CONFIG/genesis.json; then
-        log "Updated old genesis with empty hash $empty_hash"
-      else
-        err "Could not update genesis with empty hash."
-      fi
-    fi
+    # update genesis.json with the app hash
+    app_hash=$(cat $TMHOME/app_hash)
 
     # initialize if config does not already exist
     if [ ! -f "$TM_CONFIG/init-done" ]; then
@@ -197,28 +189,28 @@ data:
         err "Could not copy read-only files to tendermint config"
       fi
 
-      # copy genesis and insert empty hash
+      # copy genesis and insert app hash
       if [ -f "$TM_CONFIG/genesis.json" ]; then
         cp $TM_CONFIG/genesis.json $TM_CONFIG/genesis-old.json
-        if jq ".app_hash=\"$empty_hash\"" $TM_CONFIG/genesis-old.json > $TM_CONFIG/genesis.json; then
-          log "Updated old genesis with empty hash $empty_hash"
+        if jq ".app_hash=\"$app_hash\"" $TM_CONFIG/genesis-old.json > $TM_CONFIG/genesis.json; then
+          log "Updated old genesis with app hash $app_hash"
         else
-          err "Could not update genesis with empty hash."
+          err "Could not update genesis with app hash."
         fi
       else
-        if jq ".app_hash=\"$empty_hash\"" $RO_CONFIG/genesis.json > $TM_CONFIG/genesis.json; then
+        if jq ".app_hash=\"$app_hash\"" $RO_CONFIG/genesis.json > $TM_CONFIG/genesis.json; then
           log "config-ro genesis.json"
           log $(cat $RO_CONFIG/genesis.json)
           log "config genesis.json"
           log $(cat $TM_CONFIG/genesis.json)
-          log "Created new genesis with empty hash $empty_hash"
+          log "Created new genesis with app hash $app_hash"
         else
-          err "Could not update genesis with empty hash."
+          err "Could not update genesis with app hash."
         fi
       fi
 
-      # output empty hash
-      log "Empty hash: $empty_hash"
+      # output app hash
+      log "app hash: $app_hash"
 
       # output for the logs
       log "Final config files"

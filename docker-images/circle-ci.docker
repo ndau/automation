@@ -1,0 +1,43 @@
+# This docker image contains the following:
+# awscli, openssl, jq, curl
+# github's ssh key is also included and added to known_hosts
+
+FROM docker:18.05.0-ce-git
+
+LABEL org.opencontainers.image.version=0.0.5
+
+RUN apk update &&\
+    apk -Uuv add groff less py-pip &&\
+    pip install awscli &&\
+    apk add jq &&\
+    apk add curl &&\
+    apk add tar
+
+RUN apk add --no-cache python3 && \
+    python3 -m ensurepip && \
+    rm -r /usr/lib/python*/ensurepip && \
+    pip3 install --upgrade pip setuptools && \
+    if [ ! -e /usr/bin/pip ]; then ln -s pip3 /usr/bin/pip ; fi && \
+    if [[ ! -e /usr/bin/python ]]; then ln -sf /usr/bin/python3 /usr/bin/python; fi && \
+    rm -r /root/.cache
+
+RUN cd /root && wget -c https://storage.googleapis.com/golang/go1.10.4.linux-amd64.tar.gz && \
+    tar -C /usr/local -xvzf go1.10.4.linux-amd64.tar.gz
+
+
+# download kubectl and install it
+RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl &&\
+    chmod +x ./kubectl &&\
+    mv ./kubectl /usr/local/bin/kubectl
+
+# download and install helm
+RUN curl https://storage.googleapis.com/kubernetes-helm/helm-v2.9.1-linux-amd64.tar.gz > helm.tgz &&\
+    tar -zxvf helm.tgz &&\
+    mv linux-amd64/helm /usr/local/bin/helm &&\
+    helm init --client-only
+
+# Preapprovve github by adding their public key to known_hosts. Allows interactionless git checkouts.
+# The following key is fetched from `ssh-keyscan github.com`
+RUN mkdir ~/.ssh &&\
+    echo "github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==" >> ~/.ssh/known_hosts
+

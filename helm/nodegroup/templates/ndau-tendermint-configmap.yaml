@@ -216,6 +216,6 @@ data:
     /bin/tendermint node \
       --moniker={{ .Values.ndau.tendermint.moniker }} \
       --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" \
-      --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\"
+      --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\" || sleep 600
 
 {{ end }}

@@ -33,7 +33,7 @@ spec:
         command: ["/bin/sh"]
         args: [
           "-c",
-          "/bin/chaosnode -echo-hash -spec http://{{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/empty_hash",
+          "/bin/chaosnode -echo-hash -spec http://{{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/app_hash",
         ]
         env:
         - name: HONEYCOMB_KEY
