@@ -165,17 +165,6 @@ data:
       log "Could not create $TM_CONFIG"
     fi
 
-    # Add an environment variable for persistent peers
-    #  if it's not already there OR
-    #  if the update persistent peers variable is set to true
-    if [ ! -f "$TM_CONFIG/persistent-peers" ] || [ "$UPDATE_PERSISTENT_PEERS" == "true" ]; then
-      log "Updating persistent peers."
-      echo "$PERSISTENT_PEERS" > $TM_CONFIG/persistent-peers
-      echo "$PRIVATE_PEER_IDS" > $TM_CONFIG/private-peer-ids
-    else
-      log "Not updating persistent peers."
-    fi
-
     # update genesis.json with the app hash
     app_hash=$(cat $TMHOME/app_hash)
 

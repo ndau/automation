@@ -215,7 +215,7 @@ data:
     # start tendermint
     /bin/tendermint node \
       --moniker={{ .Values.chaos.tendermint.moniker }} \
-      --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" \
-      --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\"
+      --p2p.private_peer_ids "$PRIVATE_PEER_IDS" \
+      --p2p.persistent_peers "$PERSISTENT_PEERS"
 
 {{ end }}
