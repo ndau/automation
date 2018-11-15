@@ -205,8 +205,8 @@ data:
     DATA_EXISTS_FILE=/tendermint/data/manifest \
     FLAG_DIR=/tendermint \
     SNAPSHOT_FILE=chaos-tm.tgz \
-    LOG_TAG=chaos-tendermint \
-      /bin/sh /root/snapshot.sh
+    LOG_TAG=chaos-tendermint ;
+      # /bin/sh /root/snapshot.sh
 
     # init tendermint config
     LOG_TAG=chaos \

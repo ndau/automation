@@ -206,8 +206,8 @@ data:
     DATA_EXISTS_FILE=/tendermint/data/manifest \
     FLAG_DIR=/tendermint \
     SNAPSHOT_FILE=ndau-tendermint.tgz \
-    LOG_TAG=ndau-tendermint \
-      /bin/sh /root/snapshot.sh
+    LOG_TAG=ndau-tendermint;
+      # /bin/sh /root/snapshot.sh
 
     # Tendermint config
     /bin/sh /root/tendermint-init.sh

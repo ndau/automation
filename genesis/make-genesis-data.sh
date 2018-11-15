@@ -8,7 +8,8 @@ RND=$((10000 + RANDOM % 10000))
 
 # used for temp directory and s3 upload
 DATE=$(date '+%Y-%m-%dT%H-%M-%SZ')
-TEMP_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/tmp-$DATE"
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+TEMP_DIR="$DIR/tmp-$DATE"
 
 clean() (
 
@@ -26,6 +27,8 @@ clean() (
 	docker kill ndau-tendermint-$RND || true
 	docker kill chaosnode-$RND || true
 	docker kill ndaunode-make-mocks-$RND || true
+	docker kill ndau-redis-$RND || true
+
 
 
 )
@@ -65,8 +68,8 @@ CHAOS_REDIS_PORT=$((9 + RND))
 CHAOS_REDIS_ADDR=$LH:$CHAOS_REDIS_PORT
 
 NOMS_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/noms:0.0.1
-CHAOS_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/chaosnode:b07872d
-NDAU_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/ndaunode:a5a5468
+CHAOS_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/chaosnode:8b5aeb8
+NDAU_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/ndaunode:51e5fe9
 TENDERMINT_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint:v0.25.0
 REDIS_IMAGE=redis:4.0.11-alpine3.8
 
@@ -82,6 +85,9 @@ mkdir -p "$CHAOS_TM"
 mkdir -p "$NDAU_TM"
 mkdir -p "$CHAOS_REDIS"
 mkdir -p "$NDAU_REDIS"
+
+# init chaos's noms with genesis tool
+genesis -g "$DIR"/genesis.toml -n "$CHAOS_NOMS"
 
 # start chaos's noms
 docker run -d \
@@ -102,12 +108,12 @@ docker run -d \
 	serve "$NDAU_NOMS" --port=$NDAU_NOMS_PORT
 
 # start chaos's redis
-docker run -d \
-	--name="chaos-redis-$RND" \
-	--network="host" \
-	--mount src="$CHAOS_REDIS",target="/data",type=bind \
-	$REDIS_IMAGE \
-	--port $CHAOS_REDIS_PORT
+#docker run -d \
+#	--name="chaos-redis-$RND" \
+#	--network="host" \
+#	--mount src="$CHAOS_REDIS",target="/data",type=bind \
+#	$REDIS_IMAGE \
+#	--port $CHAOS_REDIS_PORT
 
 # start ndau's redis
 docker run -d \
@@ -153,24 +159,47 @@ docker run \
 
 # update configs
 jq ".app_hash=\"$CHAOS_HASH\"" "$CHAOS_TM"/config/genesis.json > "$CHAOS_TM"/config/new-genesis.json
-diff "$CHAOS_TM"/config/new-genesis.json "$CHAOS_TM"/config/genesis.json
+diff "$CHAOS_TM"/config/new-genesis.json "$CHAOS_TM"/config/genesis.json || true # likes to choke on absence of newlines
 mv "$CHAOS_TM"/config/new-genesis.json "$CHAOS_TM"/config/genesis.json
 cat "$CHAOS_TM"/config/genesis.json
-
 
 jq ".app_hash=\"$NDAU_HASH\"" "$NDAU_TM"/config/genesis.json > "$NDAU_TM"/config/new-genesis.json
 mv "$NDAU_TM"/config/new-genesis.json "$NDAU_TM"/config/genesis.json
 
+
+# fire up chaosnode
+#docker run -d \
+#	--name="chaosnode-$RND" \
+#	--network="host" \
+#	-e NDAUHOME="$NDAU_HOME" \
+#	--mount src="$NDAU_HOME",target="$NDAU_HOME",type=bind \
+#	$CHAOS_IMAGE \
+#	-addr "$LH:$CHAOS_ABCI_PORT" \
+#	-index $CHAOS_REDIS_ADDR \
+#	-spec http://$LH:$CHAOS_NOMS_PORT
+
+
 # start tendermints
-docker run -d \
-	--name="chaos-tendermint-$RND" \
-	--network="host" \
-	--mount src="$CHAOS_TM",target="$CHAOS_TM",type=bind \
-	$TENDERMINT_IMAGE \
-	node --home "$CHAOS_TM" \
-	--proxy_app tcp://$LH:$CHAOS_ABCI_PORT \
-	--p2p.laddr $CHAOS_TM_P2P_LADDR \
-	--rpc.laddr $CHAOS_TM_RPC_LADDR
+#docker run -d \
+#	--name="chaos-tendermint-$RND" \
+#	--network="host" \
+#	--mount src="$CHAOS_TM",target="$CHAOS_TM",type=bind \
+#	$TENDERMINT_IMAGE \
+#	node --home "$CHAOS_TM" \
+#	--proxy_app tcp://$LH:$CHAOS_ABCI_PORT \
+#	--p2p.laddr $CHAOS_TM_P2P_LADDR \
+#	--rpc.laddr $CHAOS_TM_RPC_LADDR
+
+# make config.toml by running make-mocks
+#docker run \
+#	--name="ndaunode-make-mocks-$RND" \
+#	--network="host" \
+#	-e NDAUHOME="$NDAU_HOME" \
+#	--mount src="$NDAU_HOME",target="$NDAU_HOME",type=bind \
+#	$NDAU_IMAGE \
+#	-make-mocks \
+#	-index $NDAU_REDIS_ADDR \
+#	-spec http://$LH:$NDAU_NOMS_PORT
 
 docker run -d \
 	--name="ndau-tendermint-$RND" \
@@ -182,30 +211,25 @@ docker run -d \
 	--p2p.laddr $NDAU_TM_P2P_LADDR \
 	--rpc.laddr $NDAU_TM_RPC_LADDR
 
-# fire up chaosnode
-docker run -d \
-	--name="chaosnode-$RND" \
-	--network="host" \
-	-e NDAUHOME="$NDAU_HOME" \
-	--mount src="$NDAU_HOME",target="$NDAU_HOME",type=bind \
-	$CHAOS_IMAGE \
-	-addr "$LH:$CHAOS_ABCI_PORT" \
-	-index $CHAOS_REDIS_ADDR \
-	-spec http://$LH:$CHAOS_NOMS_PORT
+sleep 10 # let it get ready
 
-# make config.toml by running make-mocks
+
+# copy genesis to right place
+cp "$DIR"/genesis.toml "$NDAU_HOME"/genesis.toml
+# make config.toml
 docker run \
-	--name="ndaunode-make-mocks-$RND" \
+	--name="ndaunode-conf-$RND" \
 	--network="host" \
 	-e NDAUHOME="$NDAU_HOME" \
+	-w "$NDAU_HOME" \
 	--mount src="$NDAU_HOME",target="$NDAU_HOME",type=bind \
 	$NDAU_IMAGE \
-	-make-mocks \
-	-index $NDAU_REDIS_ADDR \
-	-spec http://$LH:$NDAU_NOMS_PORT
+		-index $CHAOS_REDIS_ADDR \
+		-spec http://$LH:$NDAU_NOMS_PORT  \
+		--update-conf-from "$NDAU_HOME"/genesis.toml
 
-
-sleep 10 # let it get ready
+rm "$NDAU_HOME"/genesis.toml
+find $TEMP_DIR
 
 CFG_TOML=$NDAU_HOME/ndau/config.toml
 
@@ -220,21 +244,37 @@ echo -e "ChaosAddress = \"$CHAOS_LINK\"\n$(cat "$CFG_TOML")" > "$CFG_TOML"
 cat $CFG_TOML
 
 # make chaos mocks
+
+
+#docker run \
+#	--name="ndaunode-make-chaos-mocks-$RND" \
+#	--network="host" \
+#	-e NDAUHOME="$NDAU_HOME" \
+#	--mount src="$NDAU_HOME",target="$NDAU_HOME",type=bind \
+#	$NDAU_IMAGE \
+#	-make-chaos-mocks \
+#	-index $CHAOS_REDIS_ADDR \
+#	-spec http://$LH:$NDAU_NOMS_PORT
+
+# do integration
+
+
+# Shut down tendermints
+#docker kill chaos-tendermint-$RND
+docker kill ndau-tendermint-$RND
+
+
+# use hash thing
+cp "$DIR"/assc.toml "$NDAU_HOME"
 docker run \
-	--name="ndaunode-make-chaos-mocks-$RND" \
+	--name="ndaunode-accts-$RND" \
 	--network="host" \
 	-e NDAUHOME="$NDAU_HOME" \
 	--mount src="$NDAU_HOME",target="$NDAU_HOME",type=bind \
 	$NDAU_IMAGE \
-	-make-chaos-mocks \
 	-index $CHAOS_REDIS_ADDR \
-	-spec http://$LH:$NDAU_NOMS_PORT
-
-
-# Shut down tendermints
-docker kill chaos-tendermint-$RND
-docker kill ndau-tendermint-$RND
-
+	-spec http://$LH:$NDAU_NOMS_PORT  \
+	--update-chain-from "$NDAU_HOME"/assc.toml
 
 # get hashes
 docker run \
@@ -244,7 +284,7 @@ docker run \
 	--mount src="$CHAOS_NOMS",target="$CHAOS_NOMS",type=bind \
 	$CHAOS_IMAGE \
 	-index $CHAOS_REDIS_PORT \
-	 -echo-hash --spec http://$LH:$CHAOS_NOMS_PORT  > "$TEMP_DIR"/chaos-hash
+	-echo-hash --spec http://$LH:$CHAOS_NOMS_PORT > "$TEMP_DIR"/chaos-hash
 
 docker run \
 	--name="ndaunode-last-hash-$RND" \
@@ -254,6 +294,10 @@ docker run \
 	$NDAU_IMAGE \
 	-index $CHAOS_REDIS_ADDR \
 	-echo-hash --spec http://$LH:$NDAU_NOMS_PORT  > "$TEMP_DIR"/ndau-hash
+
+# Shut down noms
+#docker kill chaos-noms-$RND
+docker kill ndau-noms-$RND
 
 # if ted tool isn't there, build it
 ted_dir="$TEMP_DIR"/../../ted
@@ -294,11 +338,12 @@ aws s3 cp "$TEMP_DIR"/latest.txt s3://ndau-snapshots/latest.txt
 
 # upload svi variables
 aws s3 cp "$TEMP_DIR"/svi-namespace s3://ndau-snapshots/"$DATE"/svi-namespace
+aws s3 cp "$TEMP_DIR"/svi-key s3://ndau-snapshots/"$DATE"/svi-key
 
 # upload tarballs
 aws s3 cp "$TEMP_DIR"/ndau-noms.tgz s3://ndau-snapshots/"$DATE"/ndau-noms.tgz
 aws s3 cp "$TEMP_DIR"/chaos-noms.tgz s3://ndau-snapshots/"$DATE"/chaos-noms.tgz
-aws s3 cp "$TEMP_DIR"/ndau-tm.tgz s3://ndau-snapshots/"$DATE"/ndau-tendermint.tgz
-aws s3 cp "$TEMP_DIR"/chaos-tm.tgz s3://ndau-snapshots/"$DATE"/chaos-tendermint.tgz
+#aws s3 cp "$TEMP_DIR"/ndau-tm.tgz s3://ndau-snapshots/"$DATE"/ndau-tendermint.tgz
+#aws s3 cp "$TEMP_DIR"/chaos-tm.tgz s3://ndau-snapshots/"$DATE"/chaos-tendermint.tgz
 
 exit 0

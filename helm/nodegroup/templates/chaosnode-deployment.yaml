@@ -26,11 +26,19 @@ spec:
         image: "{{ .Values.chaos.deployUtils.image.repository }}:{{ .Values.chaos.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.deployUtils.image.pullPolicy }}
         command: ["sh", "-c", "echo Starting noms wait loop; until curl -v {{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} --connect-timeout 5; do echo waiting for {{ template "nodegroup.fullname" . }}-chaos-noms-service; sleep 5; done;"]
+      - name: redis-wait
+        image: "{{ .Values.chaos.deployUtils.image.repository }}:{{ .Values.chaos.deployUtils.image.tag }}"
+        imagePullPolicy: {{ .Values.chaos.deployUtils.image.pullPolicy }}
+        command: ["sh", "-c", "echo Starting redis wait loop; until nc -z -w 5 {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}; do echo waiting for {{ template "nodegroup.fullname" . }}-chaos-redis-service; sleep 5; done;"]
       containers:
       - name: chaosnode
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
         imagePullPolicy: {{ .Values.chaosnode.image.pullPolicy }}
-        args: ["-spec", "http://{{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }}", "-addr", "0.0.0.0:{{ required ".Values.chaosnode.port required" .Values.chaosnode.port }}"]
+        args: [
+          "-spec", "http://{{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }}",
+          "-addr", "0.0.0.0:{{ required ".Values.chaosnode.port required" .Values.chaosnode.port }}",
+          "-index", "{{ template "nodegroup.fullname" . }}-chaos-redis-service:{{ .Values.chaos.redis.port }}"
+        ]
         ports:
         - containerPort: {{ .Values.chaosnode.port }}
         env:

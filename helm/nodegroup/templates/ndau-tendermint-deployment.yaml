@@ -70,16 +70,16 @@ spec:
 
         # read only config files
         - name: genesis-json
-          mountPath: /tendermint/config-ro/genesis.json
+          mountPath: /root/config-ro/genesis.json
           subPath: genesis.json
         - name: node-key-json
-          mountPath: /tendermint/config-ro/node_key.json
+          mountPath: /root/config-ro/node_key.json
           subPath: node_key.json
         - name: priv-validator-json
-          mountPath: /tendermint/config-ro/priv_validator.json
+          mountPath: /root/config-ro/priv_validator.json
           subPath: priv_validator.json
         - name: config-toml
-          mountPath: /tendermint/config-ro/config.toml
+          mountPath: /root/config-ro/config.toml
           subPath: config.toml
         env:
         - name: TMHOME
@@ -158,7 +158,7 @@ spec:
               path: tendermint-init.sh
         - name: tendermint-start-sh
           configMap:
-            name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+            name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-config
             items:
             - key: tendermint-start.sh
               path: tendermint-start.sh
