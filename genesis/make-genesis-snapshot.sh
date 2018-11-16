@@ -1,4 +1,6 @@
 #!/bin/bash
+# This file creates a genesis snapshot for noms databases, svi-namespace, svi-key and updates the latest.txt file.
+
 
 set -e
 set -x
@@ -16,18 +18,18 @@ clean() (
 	set +e
 	set +x
 
-	# clean up processes
-	docker kill chaos-noms-$RND || true
-	docker kill ndau-noms-$RND || true
-	docker kill chaosnode-hash-$RND || true
-	docker kill ndaunode-hash-$RND || true
-	docker kill chaos-tendermint-init-$RND || true
-	docker kill ndau-tendermint-init-$RND || true
-	docker kill chaos-tendermint-$RND || true
-	docker kill ndau-tendermint-$RND || true
-	docker kill chaosnode-$RND || true
-	docker kill ndaunode-make-mocks-$RND || true
-	docker kill ndau-redis-$RND || true
+	# kill all the containers that we dealt with
+	docker kill chaos-noms-$RND
+	docker kill ndau-noms-$RND
+	docker kill chaosnode-hash-$RND
+	docker kill ndaunode-hash-$RND
+	docker kill chaos-tendermint-init-$RND
+	docker kill ndau-tendermint-init-$RND
+	docker kill chaos-tendermint-$RND
+	docker kill ndau-tendermint-$RND
+	docker kill chaosnode-$RND
+	docker kill ndaunode-make-mocks-$RND
+	docker kill ndau-redis-$RND
 )
 
 trap clean EXIT
@@ -56,9 +58,28 @@ NDAU_REDIS_ADDR=$LH:$NDAU_REDIS_PORT
 CHAOS_REDIS_PORT=$((7 + RND))
 CHAOS_REDIS_ADDR=$LH:$CHAOS_REDIS_PORT
 
+# if there's no NDAUNODE_TAG specified, use these
+if [ ! -z "$NDAUNODE_TAG" ]; then
+	NDAUNODE_TAG=$(git ls-remote https://github.com/oneiro-ndev/ndau |\
+        grep 'refs/heads/master' | \
+        awk '{{print $1}}' | \
+        cut -c1-7)
+	echo "Using chaos master $NDAUNODE_TAG"
+fi
+
+
+if [ ! -z "$CHAOSNODE_TAG" ]; then
+	CHAOSNODE_TAG=$(git ls-remote https://github.com/oneiro-ndev/ndau |\
+        grep 'refs/heads/master' | \
+        awk '{{print $1}}' | \
+        cut -c1-7)
+	echo "Using chaos master $CHAOSNODE_TAG"
+fi
+
+# Use these images
 NOMS_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/noms:0.0.1
-CHAOS_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/chaosnode:8b5aeb8
-NDAU_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/ndaunode:51e5fe9
+CHAOS_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/chaosnode:$CHAOSNODE_TAG
+NDAU_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/ndaunode:$NDAUNODE_TAG
 TENDERMINT_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint:v0.25.0
 REDIS_IMAGE=redis:4.0.11-alpine3.8
 
@@ -244,8 +265,8 @@ printf "%s" "$DATE" > "$TEMP_DIR"/latest.txt
 aws s3 cp "$TEMP_DIR"/latest.txt s3://ndau-snapshots/latest.txt
 
 # upload svi variables
-aws s3 cp "$TEMP_DIR"/svi-namespace s3://ndau-snapshots/"$DATE"/svi-namespace
-aws s3 cp "$TEMP_DIR"/svi-key s3://ndau-snapshots/"$DATE"/svi-key
+aws s3 cp "$TEMP_DIR"/svi-namespace s3://ndau-snapshots/svi-namespace
+aws s3 cp "$TEMP_DIR"/svi-key s3://ndau-snapshots/svi-key
 
 # upload tarballs
 aws s3 cp "$TEMP_DIR"/ndau-noms.tgz s3://ndau-snapshots/"$DATE"/ndau-noms.tgz

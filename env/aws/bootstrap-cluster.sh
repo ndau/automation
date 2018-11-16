@@ -63,7 +63,8 @@ export KOPS_STATE_STORE=s3://"$BUCKET"
 # use kops to create the cluster in the availability zone specified.
 kops create cluster \
   --zones "$AZ" \
-  --name "$NAME"
+  --name "$NAME" \
+  --ssh-public-key $HOME/.ssh/kops-rsa.pub
 
 # update instance group `nodes` with kope-ig-nodes.json
 kops get ig nodes --state s3://"$BUCKET" -o json > kops-current.json
