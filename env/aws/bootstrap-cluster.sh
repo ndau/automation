@@ -67,10 +67,16 @@ kops create cluster \
   --ssh-public-key $HOME/.ssh/kops-rsa.pub
 
 # update instance group `nodes` with kope-ig-nodes.json
-kops get ig nodes --state s3://"$BUCKET" -o json > kops-current.json
-jq -s '.[0] * .[1]' current.json cluster-spec.json > kops-merged.json
-kops replace -f kops-merged.json --state s3://"$BUCKET"
-rm kops-merged.json kops-current.json
+kops get ig nodes --name "$NAME" --state s3://"$BUCKET" -o json > kops-nodes.json
+kops get ig master-"$AZ" --name "$NAME" --state s3://"$BUCKET" -o json > kops-master.json
+jq -s '.[0] * .[1]' kops-nodes.json nodes-spec.json > nodes-merged.json
+jq -s '.[0] * .[1]' kops-master.json master-spec.json > master-merged.json
+kops replace -f nodes-merged.json --state s3://"$BUCKET"
+kops replace -f master-merged.json --state s3://"$BUCKET"
+
+rm nodes-merged.json
+rm master-merged.json
+
 
 # bring up the cluster
 kops update cluster --name "$NAME" --yes

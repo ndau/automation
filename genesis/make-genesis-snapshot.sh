@@ -36,6 +36,11 @@ trap clean EXIT
 
 ! clean
 
+if [ ! -f "$DIR"/genesis.toml ] || [ ! -f "$DIR"/assc.toml ]; then
+	>&2 echo "Missing files"
+	exit 1
+fi
+
 # configy things
 LH=127.0.0.1
 CHAOS_NOMS="$TEMP_DIR"/chaos-noms
@@ -59,7 +64,7 @@ CHAOS_REDIS_PORT=$((7 + RND))
 CHAOS_REDIS_ADDR=$LH:$CHAOS_REDIS_PORT
 
 # if there's no NDAUNODE_TAG specified, use these
-if [ ! -z "$NDAUNODE_TAG" ]; then
+if [ -z "$NDAUNODE_TAG" ]; then
 	NDAUNODE_TAG=$(git ls-remote https://github.com/oneiro-ndev/ndau |\
         grep 'refs/heads/master' | \
         awk '{{print $1}}' | \
@@ -67,9 +72,8 @@ if [ ! -z "$NDAUNODE_TAG" ]; then
 	echo "Using chaos master $NDAUNODE_TAG"
 fi
 
-
-if [ ! -z "$CHAOSNODE_TAG" ]; then
-	CHAOSNODE_TAG=$(git ls-remote https://github.com/oneiro-ndev/ndau |\
+if [ -z "$CHAOSNODE_TAG" ]; then
+	CHAOSNODE_TAG=$(git ls-remote https://github.com/oneiro-ndev/chaos |\
         grep 'refs/heads/master' | \
         awk '{{print $1}}' | \
         cut -c1-7)
