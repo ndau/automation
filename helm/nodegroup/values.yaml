@@ -18,6 +18,14 @@ ndaunode:
   chaosLink:
     enabled: false
     #address: "" # http://host:port
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 0.2
+    limits:
+      memory: 1Gi
+      cpu: 1
+
 
 ndauapi:
   image:
@@ -33,6 +41,14 @@ ndauapi:
     annotations: {}
   service:
     type: ClusterIP
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 0.1
+    limits:
+      memory: 1Gi
+      cpu: 0.5
+
 
 ndau:
   enabled: true
@@ -64,6 +80,13 @@ ndau:
     createEmptyBlocksInterval: 10
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
     updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 0.2
+      limits:
+        memory: 4Gi
+        cpu: 1
 
   noms:
     image:
@@ -75,6 +98,14 @@ ndau:
     port: 8000
     service:
       type: ClusterIP
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 0.2
+      limits:
+        memory: 4Gi
+        cpu: 1
+
 
   redis:
     image:
@@ -86,7 +117,13 @@ ndau:
     port: 6379
     service:
       type: ClusterIP
-
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 0.2
+      limits:
+        memory: 4Gi
+        cpu: 1
   # deployUtils is an small image with tools used for small tasks.
   deployUtils:
     image:
@@ -145,23 +182,6 @@ ndau:
   #  }
   #}
 
-  resources: {}
-    # We usually recommend not to specify default resources and to leave this as a conscious
-    # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube. If you do want to specify resources, uncomment the following
-    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-    # limits:
-    #  cpu: 100m
-    #  memory: 128Mi
-    # requests:
-    #  cpu: 100m
-    #  memory: 128Mi
-
-  nodeSelector: {}
-
-  tolerations: []
-
-  affinity: {}
 
 chaosnode:
   image:
@@ -173,6 +193,13 @@ chaosnode:
   port: 26658
   service:
     type: ClusterIP
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 0.2
+    limits:
+      memory: 1Gi
+      cpu: 1
 
 chaos:
 
@@ -205,7 +232,13 @@ chaos:
     createEmptyBlocksInterval: 10
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
     updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
-
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 0.2
+      limits:
+        memory: 4Gi
+        cpu: 1
 
   noms:
     image:
@@ -217,6 +250,13 @@ chaos:
     port: 8000
     service:
       type: ClusterIP
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 0.2
+      limits:
+        memory: 4Gi
+        cpu: 1
 
   redis:
     image:
@@ -228,6 +268,13 @@ chaos:
     port: 6379
     service:
       type: ClusterIP
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 0.2
+      limits:
+        memory: 4Gi
+        cpu: 1
 
   # deployUtils is an small image with tools used for small tasks.
   deployUtils:
@@ -236,23 +283,6 @@ chaos:
       tag: 0.0.1
       pullPolicy: IfNotPresent
 
-  resources: {}
-    # We usually recommend not to specify default resources and to leave this as a conscious
-    # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube. If you do want to specify resources, uncomment the following
-    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-    # limits:
-    #  cpu: 100m
-    #  memory: 128Mi
-    # requests:
-    #  cpu: 100m
-    #  memory: 128Mi
-
-  nodeSelector: {}
-
-  tolerations: []
-
-  affinity: {}
 
   # default configuration for tendermint's priv_validator.json file in base64
   # This should be supplied in the commandline.

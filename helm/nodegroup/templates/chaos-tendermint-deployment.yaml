@@ -161,5 +161,12 @@ spec:
             items:
             - key: tendermint-start.sh
               path: tendermint-start.sh
+      resources:
+        requests:
+          memory: {{ .Values.chaos.tendermint.resources.requests.memory }}
+          cpu: {{ .Values.chaos.tendermint.resources.requests.cpu }}
+        limits:
+          memory: {{ .Values.chaos.tendermint.resources.limits.memory }}
+          cpu: {{ .Values.chaos.tendermint.resources.limits.cpu }}
 
 {{ end }}

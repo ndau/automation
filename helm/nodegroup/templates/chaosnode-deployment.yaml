@@ -51,6 +51,13 @@ spec:
         volumeMounts:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
+        resources:
+          requests:
+            memory: {{ .Values.chaosnode.resources.requests.memory }}
+            cpu: {{ .Values.chaosnode.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.chaosnode.resources.limits.memory }}
+            cpu: {{ .Values.chaosnode.resources.limits.cpu }}
       volumes:
       - name: ndau-home-volume
         persistentVolumeClaim:

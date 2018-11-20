@@ -39,5 +39,12 @@ spec:
       - name: redis-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-chaos-redis-claim
+      resources:
+        requests:
+          memory: {{ .Values.chaos.redis.resources.requests.memory }}
+          cpu: {{ .Values.chaos.redis.resources.requests.cpu }}
+        limits:
+          memory: {{ .Values.chaos.redis.resources.limits.memory }}
+          cpu: {{ .Values.chaos.redis.resources.limits.cpu }}
 
 {{ end }}

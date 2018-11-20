@@ -30,3 +30,10 @@ spec:
           value: http://{{ template "nodegroup.fullname" . }}-chaos-tendermint-service:{{ .Values.chaos.tendermint.ports.rpc }}
         ports:
         - containerPort: {{ .Values.ndauapi.port }}
+      resources:
+        requests:
+          memory: {{ .Values.ndauapi.resources.requests.memory }}
+          cpu: {{ .Values.ndauapi.resources.requests.cpu }}
+        limits:
+          memory: {{ .Values.ndauapi.resources.limits.memory }}
+          cpu: {{ .Values.ndauapi.resources.limits.cpu }}

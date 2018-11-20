@@ -162,5 +162,12 @@ spec:
             items:
             - key: tendermint-start.sh
               path: tendermint-start.sh
+      resources:
+        requests:
+          memory: {{ .Values.ndau.tendermint.resources.requests.memory }}
+          cpu: {{ .Values.ndau.tendermint.resources.requests.cpu }}
+        limits:
+          memory: {{ .Values.ndau.tendermint.resources.limits.memory }}
+          cpu: {{ .Values.ndau.tendermint.resources.limits.cpu }}
 
 {{ end }}

@@ -65,5 +65,13 @@ spec:
           items:
           - key: snapshot.sh
             path: snapshot.sh
+      resources:
+        requests:
+          memory: {{ .Values.chaos.noms.resources.requests.memory }}
+          cpu: {{ .Values.chaos.noms.resources.requests.cpu }}
+        limits:
+          memory: {{ .Values.chaos.noms.resources.limits.memory }}
+          cpu: {{ .Values.chaos.noms.resources.limits.cpu }}
+
 
 {{ end }}

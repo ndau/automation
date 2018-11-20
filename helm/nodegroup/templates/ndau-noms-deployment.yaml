@@ -64,4 +64,12 @@ spec:
           items:
           - key: noms-start.sh
             path: noms-start.sh
+      resources:
+        requests:
+          memory: {{ .Values.ndau.noms.resources.requests.memory }}
+          cpu: {{ .Values.ndau.noms.resources.requests.cpu }}
+        limits:
+          memory: {{ .Values.ndau.noms.resources.limits.memory }}
+          cpu: {{ .Values.ndau.noms.resources.limits.cpu }}
+
 {{ end }}

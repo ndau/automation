@@ -36,12 +36,6 @@ data:
       echo "Not creating ndau config directory. $CFG_DIR"
     fi
 
-    if [ ! -f "$CFG_DIR"/genesis.json ]; then
-      cp /root/config-ro/config.toml "$CFG_DIR"/config.toml
-    else
-      cp /root/config-ro/config.toml "$CFG_DIR"/config.toml
-    fi
-
     if [ ! -f "$CFG_DIR"/config.toml ]; then
 
       echo "Copying config.toml"

@@ -39,5 +39,12 @@ spec:
       - name: redis-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-ndau-redis-claim
+      resources:
+        requests:
+          memory: {{ .Values.ndau.redis.resources.requests.memory }}
+          cpu: {{ .Values.ndau.redis.resources.requests.cpu }}
+        limits:
+          memory: {{ .Values.ndau.redis.resources.limits.memory }}
+          cpu: {{ .Values.ndau.redis.resources.limits.cpu }}
 
 {{ end }}
