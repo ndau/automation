@@ -77,7 +77,7 @@ OPTS=""
 # More logs for debugging
 #OPTS+="--set acme.logging=true "
 
-
+# set docker image tag to 1.7.4
 OPTS+="--set imageTag=1.7.4 "
 
 # Use https.
@@ -96,7 +96,7 @@ OPTS+="--set acme.delayBeforeCheck=60 "
 OPTS+="--set acme.email=$EMAIL "
 
 # Staging=true will get fake certificates. Use it for testing. False is the real deal.
-OPTS+="--set acme.staging=true "
+OPTS+="--set acme.staging=false "
 
 # For k8s 1.5+
 OPTS+="--set rbac.enabled=true "
@@ -114,11 +114,11 @@ if helm ls --tls | grep "$RELEASE_NAME"; then
 	echo_green "$me" "Upgrading $RELEASE_NAME"
 	# shellcheck disable=2086
 	helm upgrade "$RELEASE_NAME" "$CHART" --recreate-pods --tls $OPTS
-	echo "$OPTS"
+	errcho "helm upgrad options\n$OPTS"
 else
 	# shellcheck disable=2086
 	helm install "$CHART" --name "$RELEASE_NAME" --tls $OPTS
-	echo "$OPTS"
+	errcho "helm install options\n$OPTS"
 fi
 
 # wait for elb assignment
@@ -143,6 +143,7 @@ ELB_ADDRESS=$(kubectl describe svc "$RELEASE_NAME" --namespace default | grep In
 cp traefik.json.template traefik.json
 
 # replace variables
+# Yes, that's how you write "*" in crazytown
 $sed -i "s/ELB_DOMAIN/\\\\\\\\052.${ELB_DOMAIN}./g" "$DIR"/traefik.json
 $sed -i "s/ELB_ADDRESS/$ELB_ADDRESS/g" "$DIR"/traefik.json
 
