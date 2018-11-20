@@ -8,7 +8,7 @@ usage() {
 	errcho "    RELEASE_NAME   Traefik's name, used for installing with helm."
 	errcho "    ELB_DOMIAN     Subdomain to add for Traefik's ELB. Endpoints will exist as subdomains of"
 	errcho "                   the subdomain you provide here. This script will prefix the CNAME with \"*.\""
-	errcho "Usage: EMAIL=email@example.com RELEASE_NAME=ndau-traefik ./traefik.sh"
+	errcho "Usage: EMAIL=email@example.com ELB_DOMAIN=api.ndau.tech RELEASE_NAME=ndau-traefik ./traefik.sh"
 }
 
 # Config
@@ -71,11 +71,14 @@ fi
 OPTS=""
 
 # Use this image with alpine for shelling into container for debugging
-# OPTS+="--set imageTag=1.7-alpine "
+#OPTS+="--set imageTag=1.7-alpine "
 # Sets log level to debug and turns on profiler
-# OPTS+="--set debug.enabled=false "
+#OPTS+="--set debug.enabled=false "
 # More logs for debugging
-# OPTS+="--set acme.logging=true "
+#OPTS+="--set acme.logging=true "
+
+
+OPTS+="--set imageTag=1.7.4 "
 
 # Use https.
 OPTS+="--set ssl.enabled=true "
@@ -103,7 +106,7 @@ OPTS+="--set acme.dnsProvider.name=route53 "
 
 # AWS specific authorization and config
 OPTS+="--set acme.dnsProvider.route53.AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID "
-OPTS+="--set acme.dnsProvider.route53.AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_ID "
+OPTS+="--set acme.dnsProvider.route53.AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY "
 OPTS+="--set acme.dnsProvider.route53.AWS_REGION=us-east-1 "
 
 # "Upstall"
@@ -111,9 +114,11 @@ if helm ls --tls | grep "$RELEASE_NAME"; then
 	echo_green "$me" "Upgrading $RELEASE_NAME"
 	# shellcheck disable=2086
 	helm upgrade "$RELEASE_NAME" "$CHART" --recreate-pods --tls $OPTS
+	echo "$OPTS"
 else
 	# shellcheck disable=2086
 	helm install "$CHART" --name "$RELEASE_NAME" --tls $OPTS
+	echo "$OPTS"
 fi
 
 # wait for elb assignment
