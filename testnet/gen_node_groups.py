@@ -153,6 +153,8 @@ class Conf:
                 abortClean(f'NDAU_TM_TAG env var empty and could not fetch version: {e}')
 
         self.SNAPSHOT_CODE = os.environ.get('SNAPSHOT_CODE')
+        if self.SNAPSHOT_CODE == None:
+            self.SNAPSHOT_CODE = ""
 
         self.HONEYCOMB_KEY = os.environ.get('HONEYCOMB_KEY')
         self.HONEYCOMB_DATASET = os.environ.get('HONEYCOMB_DATASET')
@@ -595,7 +597,7 @@ def abortClean(msg):
 
 def make_args(opts):
     """
-    Converts a dict to a helm-style --set arguments.
+    Converts a dict to a helm-style --set and --set-string arguments.
     Helm allows you to set one property at a time, which is desirable because it's effectively a merge.
     The drawback is the redundancy and readability. This function allows a dict to represent all of the options.
     """
