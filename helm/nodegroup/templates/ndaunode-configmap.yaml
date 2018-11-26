@@ -54,8 +54,8 @@ data:
       echo "getting new svi-namespace"
       SVI_NAMESPACE=$(curl https://s3.amazonaws.com/ndau-snapshots/svi-namespace)
       SVI_KEY=$(curl https://s3.amazonaws.com/ndau-snapshots/svi-key)
-      sed "s/NAMESPACE_TOKEN/$SVI_NAMESPACE/" -i "$CFG_DIR"/config.toml
-      sed "s/KEY_TOKEN/$SVI_KEY/" -i "$CFG_DIR"/config.toml
+      sed "s%NAMESPACE_TOKEN%$SVI_NAMESPACE%" -i "$CFG_DIR"/config.toml
+      sed "s%KEY_TOKEN%$SVI_KEY%" -i "$CFG_DIR"/config.toml
 
       echo config.toml is now
       cat "$CFG_DIR"/config.toml
