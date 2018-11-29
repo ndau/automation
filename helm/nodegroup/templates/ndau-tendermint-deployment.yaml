@@ -3,22 +3,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "nodegroup.fullname" . }}-ndau-tendermint
+  name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint
   labels:
-    app: {{ template "nodegroup.name" . }}
-    chart: {{ template "nodegroup.chart" . }}
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ template "nodegroup.name" . }}-ndau-tendermint
+      app: {{ template "nodeGroup.name" . }}-ndau-tendermint
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "nodegroup.name" . }}-ndau-tendermint
+        app: {{ template "nodeGroup.name" . }}-ndau-tendermint
         release: {{ .Release.Name }}
     spec:
       initContainers:
@@ -26,7 +26,7 @@ spec:
       - name: noms-wait
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} --connect-timeout 5; do echo waiting for {{ template "nodegroup.fullname" . }}-ndau-noms-service; sleep 5; done;"]
+        command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ template "nodeGroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} --connect-timeout 5; do echo waiting for {{ template "nodeGroup.fullname" . }}-ndau-noms-service; sleep 5; done;"]
       - name: hash
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.tendermint.image.pullPolicy }}
@@ -47,28 +47,18 @@ spec:
       - name: tendermint
         image: "{{ .Values.ndau.tendermint.image.repository }}:{{ .Values.ndau.tendermint.image.tag }}"
         command: ["/bin/sh"]
-        args: ["/root/tendermint-start.sh"]
+        args: ["-c", "/bin/sh /tendermint/init.sh && tendermint node --moniker={{ .Values.ndau.tendermint.moniker }} --p2p.private_peer_ids \"$(cat /tendermint/config/private-peer-ids)\" --p2p.persistent_peers \"$(cat /tendermint/config/persistent-peers)\""]
         imagePullPolicy: {{ .Values.ndau.tendermint.image.pullPolicy }}
         ports:
+          - containerPort: 8080
           - containerPort: {{ .Values.ndau.tendermint.ports.p2p }}
           - containerPort: {{ .Values.ndau.tendermint.ports.rpc }}
         volumeMounts:
-        # home volume
         - name: tendermint-home-volume
           mountPath: /tendermint
-
-        # scripts
-        - name: tendermint-init-sh
-          mountPath: /root/tendermint-init.sh
-          subPath: tendermint-init.sh
-        - name: tendermint-start-sh
-          mountPath: /root/tendermint-start.sh
-          subPath: tendermint-start.sh
-        - name: snapshot-sh
-          mountPath: /root/snapshot.sh
-          subPath: snapshot.sh
-
-        # read only config files
+        - name: tendermint-init
+          mountPath: /tendermint/init.sh
+          subPath: init.sh
         - name: genesis-json
           mountPath: /root/config-ro/genesis.json
           subPath: genesis.json
@@ -91,58 +81,54 @@ spec:
         - name: UPDATE_PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-peers
+              name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-peers
               key: updatePeerAddresses
         - name: PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-peers
+              name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-peers
               key: addresses
         - name: PRIVATE_PEER_IDS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-peers
+              name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-peers
               key: privatePeerIds
-        - name: SNAPSHOT_CODE
-          value: {{ .Values.ndau.noms.snapshotCode }}
-        - name: DOWNLOAD_SNAPSHOT
-          value: {{ .Values.ndau.noms.downloadSnapshot }}
-        - name: RELEASE_TOKEN
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-              key: release-token
       volumes:
         - name: tendermint-home-volume
           persistentVolumeClaim:
-            claimName: {{ template "nodegroup.fullname" . }}-ndau-tendermint-claim
-
-        # read only config files
+            claimName: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-claim
+        - name: tendermint-init
+          configMap:
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
+            items:
+            - key: init.sh
+              path: init.sh
         - name: config-toml
           configMap:
-            name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
             items:
             - key: config.toml
               path: config.toml
         - name: genesis-json
           configMap:
-            name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
             items:
             - key: genesis.json
               path: genesis.json
-        - name: priv-validator-json
+        - name: priv-json
           configMap:
-            name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
             items:
             - key: priv_validator.json
               path: priv_validator.json
         - name: node-key-json
           configMap:
-            name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-config
+            name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
             items:
             - key: node_key.json
               path: node_key.json
 
+<<<<<<< HEAD
         # Scripts
         - name: snapshot-sh
           configMap:
@@ -170,4 +156,6 @@ spec:
           memory: {{ .Values.ndau.tendermint.resources.limits.memory }}
           cpu: {{ .Values.ndau.tendermint.resources.limits.cpu }}
 
+=======
+>>>>>>> master
 {{ end }}

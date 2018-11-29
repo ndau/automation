@@ -2,7 +2,7 @@
 
 kind: ConfigMap
 metadata:
-  name: {{ template "nodegroup.fullname" . }}-ndau-config
+  name: {{ template "nodeGroup.fullname" . }}-ndau-config
 apiVersion: v1
 data:
   config.toml: |

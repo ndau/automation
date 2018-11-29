@@ -7,17 +7,17 @@ ip=$(minikube ip | tr -d '[:space:]')
 # Kubernetes cluster
 ip=$(kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}' | tr " " "\n" | head -n 1 | tr -d "[:space:]")
 
-n_p2p=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"p2p\")].nodePort}" {{ template "nodegroup.fullname" . }}-ndau-tendermint-service)
-n_rpc=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"rpc\")].nodePort}" {{ template "nodegroup.fullname" . }}-ndau-tendermint-service)
-c_p2p=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"p2p\")].nodePort}" {{ template "nodegroup.fullname" . }}-chaos-tendermint-service)
-c_rpc=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"rpc\")].nodePort}" {{ template "nodegroup.fullname" . }}-chaos-tendermint-service)
+n_p2p=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"p2p\")].nodePort}" {{ template "nodeGroup.fullname" . }}-ndau-tendermint-service)
+n_rpc=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"rpc\")].nodePort}" {{ template "nodeGroup.fullname" . }}-ndau-tendermint-service)
+c_p2p=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"p2p\")].nodePort}" {{ template "nodeGroup.fullname" . }}-chaos-tendermint-service)
+c_rpc=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"rpc\")].nodePort}" {{ template "nodeGroup.fullname" . }}-chaos-tendermint-service)
 echo -e "ndau-P2P\tndau-RPC\tchaos-P2P\tchaos-RPC\n${ip}:${n_p2p}\t${ip}:${n_rpc}\t${ip}:${c_p2p}\t${ip}:${c_rpc}" | column -t
 ```
 
 Minikube also provides a simpler way to get the ip and ports but doesn't specify which is which.
 
 ```
-minikube service  --namespace {{ .Release.Namespace }} {{ template "nodegroup.fullname" . }}-ndau-tendermint-service --url
+minikube service  --namespace {{ .Release.Namespace }} {{ template "nodeGroup.fullname" . }}-ndau-tendermint-service --url
 ```
 
 Your instance of Tendermint will be available on any of the nodes of your cluster. To get their IPs use the following command:
@@ -32,5 +32,5 @@ ndauapi
 To get the address of the ndauapi use the following command.
 
 ```
-kubectl get ingress {{ template "nodegroup.fullname" . }}-ndauapi-ingress -o jsonpath="{.spec.rules[0].host}" --namespace {{ .Release.Namespace }}
+kubectl get ingress {{ template "nodeGroup.fullname" . }}-ndauapi-ingress -o jsonpath="{.spec.rules[0].host}" --namespace {{ .Release.Namespace }}
 ```

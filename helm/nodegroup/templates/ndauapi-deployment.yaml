@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "nodegroup.fullname" . }}-ndauapi
+  name: {{ template "nodeGroup.fullname" . }}-ndauapi
   labels:
-    app: {{ template "nodegroup.name" . }}
-    chart: {{ template "nodegroup.chart" . }}
+    app: {{ template "nodeGroup.name" . }}
+    chart: {{ template "nodeGroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: {{ .Values.ndauapi.replicas }}
   selector:
     matchLabels:
-      app: {{ template "nodegroup.name" . }}-ndauapi
+      app: {{ template "nodeGroup.name" . }}-ndauapi
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "nodegroup.name" . }}-ndauapi
+        app: {{ template "nodeGroup.name" . }}-ndauapi
         release: {{ .Release.Name }}
     spec:
       containers:

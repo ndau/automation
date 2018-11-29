@@ -4,7 +4,7 @@
 # A list of address@ip:port, separated by commas.
 kind: ConfigMap
 metadata:
-  name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-peers
+  name: {{ template "nodeGroup.fullname" . }}-chaos-tendermint-peers
 apiVersion: v1
 data:
   addresses: {{ default "" ( b64dec .Values.chaos.tendermint.persistentPeers ) | quote }}

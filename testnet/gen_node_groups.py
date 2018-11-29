@@ -247,8 +247,12 @@ def initNodegroup(nodes):
         ret = run_command(f'{c.DOCKER_RUN} \
             busybox \
             cat /tendermint/config/priv_validator.json')
-        vprint(f'priv_validator: {ret.stdout}')
-        node.chaos_priv = json.loads(ret.stdout)
+        # JSG strip all output from above cat until the first brace,
+        # when this is run on circle there is extraneous output generated
+        # by the first load of busybox image
+        priv_val = ret.stdout[ret.stdout.index('{'):]
+        vprint(f'priv_validator: {priv_val}')
+        node.chaos_priv = json.loads(priv_val)
 
         steprint(f"Getting node_key.json")
         ret = run_command(f'{c.DOCKER_RUN} \
@@ -559,7 +563,7 @@ def highest_version_tag(repo):
     tag = run_command(f"\
         aws ecr list-images --repository-name {repo} | \
         jq -r '[ .imageIds[] | .imageTag] | .[] ' | \
-        sed 's/[^0-9.v]//g' | \
+        sed 's/[^0-9v.]//g' | \
         sort --version-sort --field-separator=. | \
         tail -n 1").stdout.strip()
     vprint(f'{repo}\'s highest version tag: {tag}')
