@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -34,6 +35,11 @@ func main() {
 	in.Close()
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if args.Path != "" && args.Value == "" {
+		fmt.Printf("%v", tree.Get(args.Path))
+		os.Exit(0)
 	}
 
 	if args.Path != "" {

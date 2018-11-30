@@ -3,22 +3,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "nodeGroup.fullname" . }}-chaosnode
+  name: {{ template "nodegroup.fullname" . }}-chaosnode
   labels:
-    app: {{ template "nodeGroup.name" . }}
-    chart: {{ template "nodeGroup.chart" . }}
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ template "nodeGroup.name" . }}-chaosnode
+      app: {{ template "nodegroup.name" . }}-chaosnode
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "nodeGroup.name" . }}-chaosnode
+        app: {{ template "nodegroup.name" . }}-chaosnode
         release: {{ .Release.Name }}
     spec:
       initContainers:
@@ -61,7 +61,7 @@ spec:
       volumes:
       - name: ndau-home-volume
         persistentVolumeClaim:
-          claimName: {{ template "nodeGroup.fullname" . }}-chaosnode-claim
+          claimName: {{ template "nodegroup.fullname" . }}-chaosnode-claim
 
 
 {{ end }}

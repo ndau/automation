@@ -2,7 +2,7 @@
 
 kind: ConfigMap
 metadata:
-  name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-config
+  name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-config
 apiVersion: v1
 data:
   genesis.json: {{ b64dec .Values.ndau.genesis | quote }}
@@ -19,7 +19,7 @@ data:
 
     # TCP or UNIX socket address of the ABCI application,
     # or the name of an ABCI application compiled in with the Tendermint binary
-    proxy_app = "tcp://{{ include "nodeGroup.fullname" . }}-ndaunode-service:{{ .Values.ndaunode.port }}"
+    proxy_app = "tcp://{{ include "nodegroup.fullname" . }}-ndaunode-service:{{ .Values.ndaunode.port }}"
 
     # A custom human readable name for this node
     moniker = {{ .Values.ndau.tendermint.moniker | quote }}
