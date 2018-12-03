@@ -63,6 +63,7 @@ class Conf:
         Environment variables that are optional
         HONEYCOMB_KEY       API key for honeycomb.
         HONEYCOMB_DATASET   Honeycomb data bucket name.
+        SNAPSHOT_CODE       Timestamp of directory to use inside the snapshot bucket. (e.g. 2018-11-16T13-17-16Z)
 
         Dynamically generaed constants
         SCRIPT_DIR          The absolute path of this script.
@@ -151,6 +152,9 @@ class Conf:
             except OSError as e:
                 abortClean(f'NDAU_TM_TAG env var empty and could not fetch version: {e}')
 
+        self.SNAPSHOT_CODE = os.environ.get('SNAPSHOT_CODE')
+        if self.SNAPSHOT_CODE == None:
+            self.SNAPSHOT_CODE = ""
 
         self.HONEYCOMB_KEY = os.environ.get('HONEYCOMB_KEY')
         self.HONEYCOMB_DATASET = os.environ.get('HONEYCOMB_DATASET')
@@ -424,6 +428,7 @@ def main():
                 'nodeKey': jsonB64(node.chaos_nodeKey),
                 'privValidator': jsonB64(node.chaos_priv),
                 'noms': {
+                    'snapshotCode': c.SNAPSHOT_CODE,
                     'image': {
                         'tag': c.CHAOS_NOMS_TAG,
                     }
@@ -453,7 +458,10 @@ def main():
                 'genesis': jsonB64(ndau_genesis),
                 'privValidator': jsonB64(node.ndau_priv),
                 'nodeKey': jsonB64(node.ndau_nodeKey),
-                'noms': {'image': {'tag': c.NDAU_NOMS_TAG}},
+                'noms': {
+                    'snapshotCode': c.SNAPSHOT_CODE,
+                    'image': {'tag': c.NDAU_NOMS_TAG}
+                    },
                 'tendermint': {
                     'image': {'tag': c.NDAU_TM_TAG},
                     'moniker': node.name,
@@ -555,7 +563,7 @@ def highest_version_tag(repo):
     tag = run_command(f"\
         aws ecr list-images --repository-name {repo} | \
         jq -r '[ .imageIds[] | .imageTag] | .[] ' | \
-        sed 's/[^0-9v.]//g' | \
+        sed 's/[^0-9.v]//g' | \
         sort --version-sort --field-separator=. | \
         tail -n 1").stdout.strip()
     vprint(f'{repo}\'s highest version tag: {tag}')
@@ -593,7 +601,7 @@ def abortClean(msg):
 
 def make_args(opts):
     """
-    Converts a dict to a helm-style --set arguments.
+    Converts a dict to a helm-style --set and --set-string arguments.
     Helm allows you to set one property at a time, which is desirable because it's effectively a merge.
     The drawback is the redundancy and readability. This function allows a dict to represent all of the options.
     """

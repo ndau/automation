@@ -3,46 +3,75 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "nodeGroup.fullname" . }}-chaos-noms
+  name: {{ template "nodegroup.fullname" . }}-chaos-noms
   labels:
-    app: {{ template "nodeGroup.name" . }}
-    chart: {{ template "nodeGroup.chart" . }}
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ template "nodeGroup.name" . }}-chaos-noms
+      app: {{ template "nodegroup.name" . }}-chaos-noms
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "nodeGroup.name" . }}-chaos-noms
+        app: {{ template "nodegroup.name" . }}-chaos-noms
         release: {{ .Release.Name }}
     spec:
       containers:
       - name: noms
         image: "{{ .Values.chaos.noms.image.repository }}:{{ .Values.chaos.noms.image.tag }}"
-        command: ["/bin/sh"]
-        args: ["-c", "cd /data && base64 -d data.tar.gz | gunzip -c | tar xvf - && noms serve /data"]
         imagePullPolicy: {{ .Values.chaos.noms.image.pullPolicy }}
+        command: ["/bin/sh"]
+        args: ["/root/noms-start.sh"]
+        env:
+        - name: SNAPSHOT_CODE
+          value: {{ .Values.ndau.noms.snapshotCode }}
+        - name: DOWNLOAD_SNAPSHOT
+          value: {{ .Values.ndau.noms.downloadSnapshot }}
+        - name: RELEASE_TOKEN
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+              key: release-token
         ports:
         - containerPort: {{ .Values.chaos.noms.port }}
         volumeMounts:
+        - name: noms-start-sh
+          mountPath: /root/noms-start.sh
+          subPath: noms-start.sh
+        - name: snapshot-sh
+          mountPath: /root/snapshot.sh
+          subPath: snapshot.sh
         - name: noms-volume
-          mountPath: /data
-        - name: noms-data
-          mountPath: /data/data.tar.gz
-          subPath: data.tar.gz      
+          mountPath: /noms
       volumes:
       - name: noms-volume
         persistentVolumeClaim:
-          claimName: {{ template "nodeGroup.fullname" . }}-chaos-noms-claim
-      - name: noms-data
+          claimName: {{ template "nodegroup.fullname" . }}-chaos-noms-claim
+      # scripts
+      - name: noms-start-sh
         configMap:
-          name: {{ template "nodeGroup.fullname" . }}-chaos-noms-config
+          name: {{ template "nodegroup.fullname" . }}-chaos-noms-config
           items:
-          - key: data.tar.gz
-            path: data.tar.gz
+          - key: noms-start.sh
+            path: noms-start.sh
+      - name: snapshot-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+          items:
+          - key: snapshot.sh
+            path: snapshot.sh
+      resources:
+        requests:
+          memory: {{ .Values.chaos.noms.resources.requests.memory }}
+          cpu: {{ .Values.chaos.noms.resources.requests.cpu }}
+        limits:
+          memory: {{ .Values.chaos.noms.resources.limits.memory }}
+          cpu: {{ .Values.chaos.noms.resources.limits.cpu }}
+
+
 {{ end }}

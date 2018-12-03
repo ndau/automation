@@ -3,48 +3,46 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "nodeGroup.fullname" . }}-ndaunode
+  name: {{ template "nodegroup.fullname" . }}-ndaunode
   labels:
-    app: {{ template "nodeGroup.name" . }}
-    chart: {{ template "nodeGroup.chart" . }}
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ template "nodeGroup.name" . }}-ndaunode
+      app: {{ template "nodegroup.name" . }}-ndaunode
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "nodeGroup.name" . }}-ndaunode
+        app: {{ template "nodegroup.name" . }}-ndaunode
         release: {{ .Release.Name }}
     spec:
       initContainers:
       - name: noms-wait
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ template "nodeGroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} --connect-timeout 5; do echo waiting for {{ template "nodeGroup.fullname" . }}-ndau-noms-service; sleep 5; done;"]
+        command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} --connect-timeout 5; do echo waiting for {{ template "nodegroup.fullname" . }}-ndau-noms-service; sleep 5; done;"]
       {{ if .Values.ndaunode.chaosLink.enabled }}
       - name: chaos-wait
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
         command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ .Values.ndaunode.chaosLink.address }} --connect-timeout 5; do echo {{ .Values.ndaunode.chaosLink.address }}; sleep 5; done;"]
       {{ end }}
-      - name: copy-config
+      - name: redis-wait
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["sh", "-c", "if [ ! -f /root/.ndau/ndau/config.toml ]; then echo copying config.toml; mkdir -p /root/.ndau/ndau && cp /root/config-ro/config.toml /root/.ndau/ndau/config.toml; else echo not copying config.toml; fi"]
-        volumeMounts:
-        - name: config-toml
-          mountPath: /root/config-ro/config.toml
-          subPath: config.toml
-        - mountPath: "/root/.ndau"
-          name: ndau-home-volume
+        command: ["sh", "-c", "echo starting redis wait loop; until nc -z -w 5 {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}; do echo waiting for {{ template "nodegroup.fullname" . }}-ndau-redis-service; sleep 5; done;"]
       - name: config
-        image: busybox
+        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
+        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
         command: ["/bin/sh", "/root/init.sh"]
+        env:
+        - name: NDAUHOME
+          value: "/root/.ndau"
         volumeMounts:
         - name: ndau-config-init
           mountPath: /root/init.sh
@@ -62,9 +60,10 @@ spec:
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
         args: [
-          "-spec", "http://{{ template "nodeGroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }}",
-          "-addr", "0.0.0.0:{{ required ".Values.ndaunode.port not set" .Values.ndaunode.port }}",
-          "-index", "{{ template "nodeGroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }}"]
+          "-spec", "http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }}",
+          "-addr", "0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }}",
+          "-index", "{{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }}"
+        ]
         ports:
         - containerPort: {{ .Values.ndaunode.port }}
         env:
@@ -77,25 +76,32 @@ spec:
         volumeMounts:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
+        resources:
+          requests:
+            memory: {{ .Values.ndaunode.resources.requests.memory }}
+            cpu: {{ .Values.ndaunode.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.ndaunode.resources.limits.memory }}
+            cpu: {{ .Values.ndaunode.resources.limits.cpu }}
       volumes:
       - name: ndau-home-volume
         persistentVolumeClaim:
-          claimName: {{ template "nodeGroup.fullname" . }}-ndaunode-claim
+          claimName: {{ template "nodegroup.fullname" . }}-ndaunode-claim
       - name: config-toml
         configMap:
-          name: {{ template "nodeGroup.fullname" . }}-ndau-config
+          name: {{ template "nodegroup.fullname" . }}-ndau-config
           items:
           - key: config.toml
             path: config.toml
       - name: ndau-config-init
         configMap:
-          name: {{ template "nodeGroup.fullname" . }}-ndau-config
+          name: {{ template "nodegroup.fullname" . }}-ndau-config
           items:
           - key: init.sh
             path: init.sh
       - name: mock-chaos-msgp
         configMap:
-          name: {{ template "nodeGroup.fullname" . }}-ndau-config
+          name: {{ template "nodegroup.fullname" . }}-ndau-config
           items:
           - key: mock-chaos.msgp
             path: mock-chaos.msgp

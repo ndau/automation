@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "nodeGroup.fullname" . }}-ndauapi
+  name: {{ template "nodegroup.fullname" . }}-ndauapi
   labels:
-    app: {{ template "nodeGroup.name" . }}
-    chart: {{ template "nodeGroup.chart" . }}
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: {{ .Values.ndauapi.replicas }}
   selector:
     matchLabels:
-      app: {{ template "nodeGroup.name" . }}-ndauapi
+      app: {{ template "nodegroup.name" . }}-ndauapi
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "nodeGroup.name" . }}-ndauapi
+        app: {{ template "nodegroup.name" . }}-ndauapi
         release: {{ .Release.Name }}
     spec:
       containers:
@@ -25,8 +25,15 @@ spec:
         imagePullPolicy: {{ .Values.ndauapi.image.pullPolicy }}
         env:
         - name: NDAUAPI_NDAU_RPC_URL
-          value: http://{{ template "nodeGroup.fullname" . }}-ndau-tendermint-service:{{ .Values.ndau.tendermint.ports.rpc }}
+          value: http://{{ template "nodegroup.fullname" . }}-ndau-tendermint-service:{{ .Values.ndau.tendermint.ports.rpc }}
         - name: NDAUAPI_CHAOS_RPC_URL
-          value: http://{{ template "nodeGroup.fullname" . }}-chaos-tendermint-service:{{ .Values.chaos.tendermint.ports.rpc }}
+          value: http://{{ template "nodegroup.fullname" . }}-chaos-tendermint-service:{{ .Values.chaos.tendermint.ports.rpc }}
         ports:
         - containerPort: {{ .Values.ndauapi.port }}
+      resources:
+        requests:
+          memory: {{ .Values.ndauapi.resources.requests.memory }}
+          cpu: {{ .Values.ndauapi.resources.requests.cpu }}
+        limits:
+          memory: {{ .Values.ndauapi.resources.limits.memory }}
+          cpu: {{ .Values.ndauapi.resources.limits.cpu }}

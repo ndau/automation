@@ -3,10 +3,10 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: {{ template "nodeGroup.fullname" . }}-ndau-noms-claim
+  name: {{ template "nodegroup.fullname" . }}-ndau-noms-claim
   labels:
-    app: {{ template "nodeGroup.name" . }}
-    chart: {{ template "nodeGroup.chart" . }}
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
@@ -21,10 +21,10 @@ spec:
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: {{ template "nodeGroup.fullname" . }}-ndau-redis-claim
+  name: {{ template "nodegroup.fullname" . }}-ndau-redis-claim
   labels:
-    app: {{ template "nodeGroup.name" . }}
-    chart: {{ template "nodeGroup.chart" . }}
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
@@ -32,17 +32,17 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: {{ .Values.ndau.noms.persistence.size }}
+      storage: {{ .Values.ndau.redis.persistence.size }}
 
 ---
 
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: {{ template "nodeGroup.fullname" . }}-ndau-tendermint-claim
+  name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-claim
   labels:
-    app: {{ template "nodeGroup.name" . }}
-    chart: {{ template "nodeGroup.chart" . }}
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
@@ -57,10 +57,10 @@ spec:
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: {{ template "nodeGroup.fullname" . }}-ndaunode-claim
+  name: {{ template "nodegroup.fullname" . }}-ndaunode-claim
   labels:
-    app: {{ template "nodeGroup.name" . }}
-    chart: {{ template "nodeGroup.chart" . }}
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
