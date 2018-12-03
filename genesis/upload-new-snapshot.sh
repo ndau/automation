@@ -4,9 +4,6 @@
 set -e
 set -x
 
-# random number to start the ports on
-RND=$((10000 + RANDOM % 10000))
-
 # used for temp directory and s3 upload
 DATE=$(date '+%Y-%m-%dT%H-%M-%SZ')
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
@@ -51,10 +48,6 @@ if [ -z "$CHAOSNODE_TAG" ]; then
 	verrcho "Using chaos master sha: $CHAOSNODE_TAG"
 fi
 
-# Use these images
-CHAOS_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/chaosnode:$CHAOSNODE_TAG
-NDAU_IMAGE=578681496768.dkr.ecr.us-east-1.amazonaws.com/ndaunode:$NDAUNODE_TAG
-
 # configy things
 CHAOS_NOMS=~/go/src/github.com/attic-labs/noms/cmd/noms/s3/data.chaos
 NDAU_NOMS=~/go/src/github.com/attic-labs/noms/cmd/noms/s3/data.ndau
@@ -64,20 +57,6 @@ NDAU_NOMS=~/go/src/github.com/attic-labs/noms/cmd/noms/s3/data.ndau
 
 # reset files
 mkdir -p "$TEMP_DIR"
-
-# get hashes
-# CHAOS_HASH=$(docker run \
-#	--name="chaosnode-hash-$RND" \
-#	--network="host" \
-	# --mount src="$NDAUHOME",target="$NDAUHOME",type=bind \
-	# $CHAOS_IMAGE \
-	# -echo-hash --spec http://$LH:$CHAOS_NOMS_PORT >&1 )
-# NDAU_HASH=$(docker run \
-	# --name="ndaunode-hash-$RND" \
-	# --network="host" \
-	# --mount src="$NDAUHOME",target="$NDAUHOME",type=bind \
-	# $NDAU_IMAGE \
-	#  -echo-hash --spec http://$LH:$NDAU_NOMS_PORT >&1 )
 
 # zip up the noms databases
 (
