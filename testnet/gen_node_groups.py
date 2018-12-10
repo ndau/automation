@@ -110,7 +110,7 @@ class Conf:
         self.CHAOSNODE_TAG = os.environ.get('CHAOSNODE_TAG')
         if self.CHAOSNODE_TAG == None:
             try:
-                self.CHAOSNODE_TAG = fetch_master_sha('https://github.com/oneiro-ndev/chaos')
+                self.CHAOSNODE_TAG = fetch_master_sha('git@github.com:oneiro-ndev/chaos')
             except OSError as e:
                 abortClean(f'CHAOSNODE_TAG env var empty and could not fetch version: {e}')
 
@@ -118,7 +118,7 @@ class Conf:
         self.NDAUNODE_TAG = os.environ.get('NDAUNODE_TAG')
         if self.NDAUNODE_TAG == None:
             try:
-                self.NDAUNODE_TAG = fetch_master_sha('https://github.com/oneiro-ndev/ndau')
+                self.NDAUNODE_TAG = fetch_master_sha('git@github.com:oneiro-ndev/ndau')
             except OSError as e:
                 abortClean(f'NDAUNODE_TAG env var empty and could not fetch version: {e}')
 
