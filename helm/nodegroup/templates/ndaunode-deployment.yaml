@@ -68,9 +68,9 @@ spec:
         - containerPort: {{ .Values.ndaunode.port }}
         env:
         - name: HONEYCOMB_KEY
-          value: {{ .Values.ndau.honeycomb.key }}
+          value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
-          value: {{ .Values.ndau.honeycomb.dataset }}
+          value: {{ .Values.honeycomb.dataset }}-ndau
         - name: NDAUHOME
           value: "/root/.ndau"
         volumeMounts:

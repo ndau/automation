@@ -64,11 +64,6 @@ ndau:
     service:
       type: ClusterIP
 
-
-  honeycomb:
-    key: ''
-    dataset: ''
-
   tendermint:
     image:
       repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint
@@ -228,11 +223,6 @@ chaos:
     service:
       type: ClusterIP
 
-
-  honeycomb:
-    key: ''
-    dataset: ''
-
   tendermint:
     image:
       repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/tendermint
@@ -307,7 +297,6 @@ chaos:
       tag: 0.0.1
       pullPolicy: IfNotPresent
 
-
   # default configuration for tendermint's priv_validator.json file in base64
   # This should be supplied in the commandline.
   # What ever value is supplied for app_hash here or the commandline gets overriden by the tendermint deployment init containers.
@@ -359,3 +348,6 @@ chaos:
   #  }
   #}
 
+honeycomb:
+  key: ''
+  dataset: ''

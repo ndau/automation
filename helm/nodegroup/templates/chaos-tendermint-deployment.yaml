@@ -37,9 +37,9 @@ spec:
         ]
         env:
         - name: HONEYCOMB_KEY
-          value: {{ .Values.chaos.honeycomb.key }}
+          value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
-          value: {{ .Values.chaos.honeycomb.dataset }}
+          value: {{ .Values.honeycomb.dataset }}-chaos
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
@@ -84,9 +84,9 @@ spec:
         - name: TMHOME
           value: "/tendermint"
         - name: HONEYCOMB_KEY
-          value: {{ .Values.chaos.honeycomb.key }}
+          value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
-          value: {{ .Values.chaos.honeycomb.dataset }}
+          value: {{ .Values.honeycomb.dataset }}-chaos
         - name: UPDATE_PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:
