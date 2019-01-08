@@ -5,6 +5,11 @@
 # not merged, they are overrides. For this reason the `--set`
 # flag provides the dot notation for changing a single property.
 
+# This controls imagePullSecrets for ECR and must be configured with
+# minikube addons configure awsecr-creds
+# minikube addons enable awsecr-creds
+minikube: false
+
 ndaunode:
   image:
     repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/ndaunode
@@ -15,9 +20,6 @@ ndaunode:
   port: 26658
   service:
     type: ClusterIP
-  chaosLink:
-    enabled: false
-    #address: "" # http://host:port
   resources:
     requests:
       memory: 200Mi

@@ -21,6 +21,10 @@ spec:
         app: {{ template "nodegroup.name" . }}-chaos-noms
         release: {{ .Release.Name }}
     spec:
+      {{ if .Values.minikube }}
+      imagePullSecrets:
+      - name: awsecr-cred
+      {{ end }}
       containers:
       - name: noms
         image: "{{ .Values.chaos.noms.image.repository }}:{{ .Values.chaos.noms.image.tag }}"

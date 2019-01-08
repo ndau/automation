@@ -20,6 +20,10 @@ spec:
         app: {{ template "nodegroup.name" . }}-ndau-noms
         release: {{ .Release.Name }}
     spec:
+      {{ if .Values.minikube }}
+      imagePullSecrets:
+      - name: awsecr-cred
+      {{ end }}
       containers:
       - name: noms
         image: "{{ .Values.ndau.noms.image.repository }}:{{ .Values.ndau.noms.image.tag }}"

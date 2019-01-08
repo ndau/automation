@@ -53,6 +53,7 @@ class Conf:
                             start with this name and be suffixed with a node number.
 
         Environment variables that map to image tags in ECR. Optional. Fetched automatically.
+        COMMANDS_TAG        if this is set, it overrides the CHAOSNODE_TAG, and NDAUNODE_TAG.
         CHAOSNODE_TAG       chaosnode ABCI app.
         NDAUNODE_TAG        ndaunode ABCI app.
         CHAOS_NOMS_TAG      chaosnode's nomsdb.
@@ -107,20 +108,25 @@ class Conf:
         if self.RELEASE == None:
             abortClean(f'RELEASE env var not set.')
 
+        # let commands tag override chaosnode and ndaunode tags
+        self.COMMANDS_TAG = os.environ.get('COMMANDS_TAG')
         self.CHAOSNODE_TAG = os.environ.get('CHAOSNODE_TAG')
-        if self.CHAOSNODE_TAG == None:
-            try:
-                self.CHAOSNODE_TAG = fetch_master_sha('git@github.com:oneiro-ndev/chaos')
-            except OSError as e:
-                abortClean(f'CHAOSNODE_TAG env var empty and could not fetch version: {e}')
-
-
         self.NDAUNODE_TAG = os.environ.get('NDAUNODE_TAG')
-        if self.NDAUNODE_TAG == None:
+
+        if self.COMMANDS_TAG == None:
             try:
-                self.NDAUNODE_TAG = fetch_master_sha('git@github.com:oneiro-ndev/ndau')
+                self.COMMANDS_TAG = fetch_master_sha('https://github.com/oneiro-ndev/commands')
+                if self.CHAOSNODE_TAG == None:
+                    self.CHAOSNODE_TAG = self.COMMANDS_TAG
+                if self.NDAUNODE_TAG == None:
+                    self.NDAUNODE_TAG = self.COMMANDS_TAG
             except OSError as e:
-                abortClean(f'NDAUNODE_TAG env var empty and could not fetch version: {e}')
+                abortClean(f'COMMANDS_TAG env var empty and could not fetch version: {e}')
+        else:
+            if self.CHAOSNODE_TAG == None:
+                self.CHAOSNODE_TAG = self.COMMANDS_TAG
+            if self.NDAUNODE_TAG == None:
+                self.NDAUNODE_TAG = self.COMMANDS_TAG
 
         # chaos noms and tendermint
         self.CHAOS_NOMS_TAG = os.environ.get('CHAOS_NOMS_TAG')
@@ -192,8 +198,8 @@ class Conf:
             except subprocess.CalledProcessError:
                 abortClean("Could not get master node's IP address: ${ret.returncode}")
 
-        # add ECR string to image names, or not
-        self.ECR = '' if self.IS_MINIKUBE else '578681496768.dkr.ecr.us-east-1.amazonaws.com/'
+        # the ECR string gets added to image names
+        self.ECR = '578681496768.dkr.ecr.us-east-1.amazonaws.com/'
 
         #
         # Genuine constants
@@ -478,33 +484,25 @@ def main():
         steprint(f'{node.name} ndau P2P port: {node.ndau["port"]["p2p"]}')
         steprint(f'{node.name} ndau RPC port: {node.ndau["port"]["rpc"]}')
 
-        # options that point ndaunode to the chaos node's rpc port
-        chaosLinkOpts = f'\
-            --set ndaunode.chaosLink.enabled=true\
-            --set ndaunode.chaosLink.address=\"{c.MASTER_IP}:{node.chaos["port"]["rpc"]}\"'
-
         envSpecificHelmOpts = ''
 
         if c.IS_MINIKUBE:
             envSpecificHelmOpts = '\
-            --set chaosnode.image.repository="chaos"\
-            --set tendermint.image.repository="tendermint"\
-            --set noms.image.repository="noms"\
-            --set deployUtils.image.repository="deploy-utils"\
-            --set deployUtils.image.tag="latest"'
+            --set minikube=true '
         else:
-            envSpecificHelmOpts = '--tls'
+            envSpecificHelmOpts = ''#--tls'
 
         helm_command = f'helm install --name {node.name} {helmChartPath} \
             {chaos_args} \
             {ndau_args} \
+            --set ndau.deployUtils.image.tag="0.0.2" \
+            --set chaos.deployUtils.image.tag="0.0.2" \
             --set ndauapi.ingress.enabled=true \
             --set-string ndauapi.ingress.host="{node.name}.{c.ELB_SUBDOMAIN}" \
             --set-string ndauapi.image.tag="{c.NDAUNODE_TAG}" \
             --set honeycomb.key="{c.HONEYCOMB_KEY}" \
             --set honeycomb.dataset="{c.HONEYCOMB_DATASET}" \
-            {envSpecificHelmOpts} \
-            {chaosLinkOpts}'
+            {envSpecificHelmOpts}'
 
         vprint(f'helm command: {helm_command}')
         ret = run_command(helm_command, isCritical = False)

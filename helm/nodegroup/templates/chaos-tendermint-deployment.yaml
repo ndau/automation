@@ -21,6 +21,10 @@ spec:
         app: {{ template "nodegroup.name" . }}-chaos-tendermint
         release: {{ .Release.Name }}
     spec:
+      {{ if .Values.minikube }}
+      imagePullSecrets:
+      - name: awsecr-cred
+      {{ end }}
       initContainers:
       # Uses chaosnode image to get empty hash and saves it
       - name: noms-wait

@@ -21,12 +21,16 @@ spec:
         app: {{ template "nodegroup.name" . }}-chaos-redis
         release: {{ .Release.Name }}
     spec:
+      {{ if .Values.minikube }}
+      imagePullSecrets:
+      - name: awsecr-cred
+      {{ end }}
       containers:
       - name: redis
         image: "{{ .Values.chaos.redis.image.repository }}:{{ .Values.chaos.redis.image.tag }}"
+        imagePullPolicy: {{ .Values.chaos.redis.image.pullPolicy }}
         command: ["redis-server"]
         args: ["--dir", "/redis", "--save", "60", "1", "--tcp-backlog", "128", "--port", "{{ .Values.ndau.redis.port }}"]
-        imagePullPolicy: {{ .Values.chaos.redis.image.pullPolicy }}
         env:
         - name: NDAUHOME
           value: /redis

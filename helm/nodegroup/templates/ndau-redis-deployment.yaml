@@ -21,6 +21,10 @@ spec:
         app: {{ template "nodegroup.name" . }}-ndau-redis
         release: {{ .Release.Name }}
     spec:
+      {{ if .Values.minikube }}
+      imagePullSecrets:
+      - name: awsecr-cred
+      {{ end }}
       containers:
       - name: redis
         image: "{{ .Values.ndau.redis.image.repository }}:{{ .Values.ndau.redis.image.tag }}"
