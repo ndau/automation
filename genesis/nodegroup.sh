@@ -12,6 +12,7 @@ This file starts a nodegroup using docker. It can also create a genesis snapshot
 Arguments
   RELEASE just a name (the default is a timestamp). Has to be the first argument
     This will be used to name the temp directory `rel-RELEASE`.
+	To use a timestamp, set the release value to the string `timestamp`.
   BASE_PORT port to start allocating ports for services, noms, etc.
     (the default is random between 10000-20000)
   --tendermint-init | -t  initializes tendermint and then quits.
@@ -70,6 +71,10 @@ clean() (
 
 # when the script exits, run the clean function
 trap clean EXIT
+
+# use gsed if availabile
+SED="sed"
+which gsed && SED=gsed
 
 if [ "$#" -lt 2 ]; then
 	errcho "$USAGE"
@@ -148,7 +153,7 @@ fi
 
 # TEMP_DIR is used as a temp directory and s3 upload
 # allow specified RELEASE environment variable to override directory name.
-if [ ! -z "$RELEASE" ]; then
+if [ ! "$RELEASE" == "timestamp" ]; then
 	TEMP_DIR="$DIR/rel-$RELEASE"
 	SNAPSHOT_NAME=$RELEASE
 	LATEST=false
@@ -178,7 +183,6 @@ stamp() {
 }
 
 PC=0 # port count
-LH=127.0.0.1 # localhost
 IH=$(docker run busybox ip route | awk '/default/ { print $3 }') # internal host
 
 errcho "Config"
@@ -528,7 +532,6 @@ make_snapshot() {
 		cd "$CHAOS_NOMS"
 		tar czvf "$SNAPSHOT_DIR"/chaos-noms.tgz .
 	)
-
 	(
 		cd "$NDAU_NOMS"
 		tar czvf "$SNAPSHOT_DIR"/ndau-noms.tgz .
@@ -536,18 +539,23 @@ make_snapshot() {
 
 	# zip up the tendermint databases
 	(
-		cd "$CHAOS_TM"
-		tar czvf "$SNAPSHOT_DIR"/chaos-tm.tgz data/blockstore.db data/state.db
+		cd "$CHAOS_TM"/data
+		tar czvf "$SNAPSHOT_DIR"/chaos-tm.tgz ./blockstore.db ./state.db
 	)
-
 	(
-		cd "$NDAU_TM"
-		tar czvf "$SNAPSHOT_DIR"/ndau-tm.tgz data/blockstore.db data/state.db
+		cd "$NDAU_TM"/data
+		tar czvf "$SNAPSHOT_DIR"/ndau-tm.tgz ./blockstore.db ./state.db
 	)
 
 	# copy genesises
-	cp "$CHAOS_TM"/config/genesis.json "$SNAPSHOT_DIR"/chaos-genesis.json
-	cp "$NDAU_TM"/config/genesis.json "$SNAPSHOT_DIR"/ndau-genesis.json
+	(
+		cd "$CHAOS_TM"
+		tar czvf "$SNAPSHOT_DIR"/chaos-genesis.tgz "$CHAOS_TM"/config/genesis.json
+	)
+	(
+		cd "$NDAU_TM"
+		tar czvf "$SNAPSHOT_DIR"/ndau-genesis.tgz "$NDAU_TM"/config/genesis.json
+	)
 
 	# make latest
 	if $USE_LATEST; then
@@ -578,9 +586,6 @@ update_genesis_app_hash() {
 upload_snapshot() {
 	aws s3 cp "$SNAPSHOT_DIR"/latest.txt s3://ndau-snapshots/latest.txt
 
-	# upload svi variables
-	aws s3 cp "$SNAPSHOT_DIR"/svi-namespace s3://ndau-snapshots/svi-namespace
-
 	# upload tarballs
 	aws s3 cp "$SNAPSHOT_DIR"/ndau-noms.tgz s3://ndau-snapshots/"$SNAPSHOT_NAME"/ndau-noms.tgz
 	aws s3 cp "$SNAPSHOT_DIR"/chaos-noms.tgz s3://ndau-snapshots/"$SNAPSHOT_NAME"/chaos-noms.tgz
@@ -592,8 +597,8 @@ upload_snapshot() {
 	aws s3 cp "$SNAPSHOT_DIR"/chaos-hash s3://ndau-snapshots/"$SNAPSHOT_NAME"/chaos-hash
 
 	# upload hashes
-	aws s3 cp "$SNAPSHOT_DIR"/chaos-genesis.json s3://ndau-snapshots/"$SNAPSHOT_NAME"/chaos-genesis.json
-	aws s3 cp "$SNAPSHOT_DIR"/ndau-genesis.json s3://ndau-snapshots/"$SNAPSHOT_NAME"/ndau-genesis.json
+	aws s3 cp "$SNAPSHOT_DIR"/chaos-genesis.tgz s3://ndau-snapshots/"$SNAPSHOT_NAME"/chaos-genesis.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/ndau-genesis.tgz s3://ndau-snapshots/"$SNAPSHOT_NAME"/ndau-genesis.tgz
 
 }
 
@@ -610,11 +615,6 @@ mkdir -p "$CHAOS_REDIS" || true
 mkdir -p "$NDAU_REDIS" || true
 mkdir -p "$LOGS_DIR" || true
 mkdir -p "$SNAPSHOT_DIR" || true
-
-if $SNAPSHOT; then
-  	make_snapshot
-	exit 0
-fi
 
 if $GENESIS || $TENDERMINT_INIT; then
 	# init chaos's noms directory with genesis tool
@@ -679,14 +679,15 @@ if $GENESIS; then
 	# make ndaunode's config.toml from genesis.toml
 	make_ndau_config_toml
 
+	# use hash thing
+	install_special_accounts
+
+	#
+	update_genesis_app_hash
 
 fi
 
 # This will update chaosaddress to keep up with different dockerhost changes.
-
-# use gsed if availabile
-SED="sed"
-which gsed && SED=gsed
 
 if [ ! -f "$CFG_TOML" ]; then
 	touch "$CFG_TOML"
@@ -700,17 +701,14 @@ if [ ! -f "$CFG_TOML" ]; then
 	EOF
 fi
 
-# add new ChaosAddress lines (this may change due to docker's internal host changing)
-$SED -i '/ChaosAddress/d' "$CFG_TOML"
-echo -e "ChaosAddress = \"$CHAOS_LINK\"\n$(cat "$CFG_TOML")" > "$CFG_TOML"
-
-$SED -i '/ChaosAddress/d' "$CFG_TOML"
-echo -e "ChaosAddress = \"$CHAOS_LINK\"\n$(cat "$CFG_TOML")" > "$CFG_TOML"
-
-
-sleep 2
-
 if $RUN; then
+
+	# add new ChaosAddress lines (this may change due to docker's internal host changing)
+	$SED -i '/ChaosAddress/d' "$CFG_TOML"
+	echo -e "ChaosAddress = \"$CHAOS_LINK\"\n$(cat "$CFG_TOML")" > "$CFG_TOML"
+
+	$SED -i '/ChaosAddress/d' "$CFG_TOML"
+	echo -e "ChaosAddress = \"$CHAOS_LINK\"\n$(cat "$CFG_TOML")" > "$CFG_TOML"
 
 	# run ndaunode
 	run_ndaunode
@@ -727,30 +725,24 @@ if $RUN; then
 	run_chaos_tendermint
 
 	read -p "Nodegroup running. Press any key to continue..." -n1 -s
-	exit 0
 
 fi
 
-# use hash thing
-install_special_accounts
+if $SNAPSHOT; then
+	# get hashes
+	write_chaos_last_hash
+	write_ndau_last_hash
 
-#
-update_genesis_app_hash
-
-# get hashes
-write_chaos_last_hash
-write_ndau_last_hash
-
-# Get tarballs from directories
-make_snapshot
+	# Get tarballs from directories
+	make_snapshot
+fi
 
 if ! $UPLOAD_TO_S3; then
 	errcho "Not uploading to S3"
 	exit 0
 else
 	errcho "Uploading to S3"
+	upload_snapshot
 fi
-
-
 
 exit 0

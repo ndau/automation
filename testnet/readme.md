@@ -11,26 +11,19 @@ chaos/ndau nodes can be deployed with helm, using the helm charts provided in th
 
 The script `gen_node_groups.py` require python 3.x to execute. It sets up a multiple node test net in kubernetes.
 
-The script use kubectl and helm. kubectl must be configured to authenticate and set to use a cluster of your chosing, as all commands executed by these scripts will go through helm and kubectl.
+The script uses `docker`, `kubectl` and `helm`. kubectl must be configured to authenticate and set to use a cluster of your chosing, as all commands executed by these scripts will go through helm and kubectl. Docker is used to generate configuration files.
 
-Once that's taken care of, the default settings will adequatly set up a new test net:
-
-```
-NOMS_VERSION=latest TM_VERSION=0.0.3 CHAOS_VERSION=8bb3c3a NDAU_VERSION=13906e7 ./gen_node_groups.py 2 30004
-```
-
-The above script installs the # of node groups given by the number arg (in this case 2), `nodegroup0` and `nodegroup1`. By default it uses port `30000` as a base port and increments from there, unless you give it a different port to start with as the 2nd arg. That is, it will use `30000` for nodegroup0's chaos `p2p` port, then `30001` for nodegroup0's chaos `rpc` port, `30002` for nodegroup0's ndau `p2p` port, then `30003` for nodegroup0's ndau `rpc` port. nodegroup1 will get `30004` through `30007` respectively.
-
-
-You must specify container versions for Noms, Tendermint, chaosnode, and ndaunode. The ndau and chaos node versions should be specified by their git SHA values, while NOMS and Tendermint should be specified by current release value.
+The required settings are RELEASE, ELB_SUBDOMAIN, a node number, and a starting port number.
 
 ```
-NOMS_VERSION=fedcba0
-TM_VERSION=fedcba0
-CHAOS_VERSION=8bb3c3a
-NDAU_VERSION=13906e7
+RELEASE=test ELB_SUBDOMAIN=api.ndau.tech ./gen_node_groups.py 2 30004
 ```
 
+The above script installs the # of node groups given by the number arg (in this case 2), `test-0` and `test-1`. By default it uses port `30000` as a base port and increments from there, unless you give it a different port to start with as the 2nd arg. That is, it will use `30000` for test-0's chaos `p2p` port, then `30001` for test-0's chaos `rpc` port, `30002` for test-0's ndau `p2p` port, then `30003` for test-0's ndau `rpc` port. test-1 will get `30004` through `30007` respectively.
+
+The docker image tags are gathered automatically from the commands repo and ECR. You may specify image tags for Noms, Tendermint, chaosnode, ndaunode, or the commands repo. If you specify `COMMANDS_TAG`, then that gets applied to chaosnode, ndaunode, and ndauapi. Give their close relationship, ndauapi always uses ndaunode's tag.
+
+Although they are usually the same, noms and tendermint tags can be specified for ndaunode and chaosnode separately with `CHAOS_TM_TAG`, `NDAU_NOMS_TAG`, etc. See `gen_node_groups.py` for a complete list.
 
 ## Changing the install
 

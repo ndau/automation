@@ -88,6 +88,8 @@ spec:
         env:
         - name: TMHOME
           value: "/tendermint"
+        - name: CHAIN
+          value: "ndau"
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET

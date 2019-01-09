@@ -69,8 +69,12 @@ data:
       exit 1
     }
 
+    # TODO put this in the deploy utils image
     which curl || apk add --no-cache curl
 
+    if [ ! -d "$DATA_DIR" ]; then
+      mkdir -p "$DATA_DIR"
+    fi
 
     # download
     download() {
@@ -84,7 +88,7 @@ data:
         log "Using latest snapshot: $token"
       fi
       log "Clearing data directory and installing new one"
-      rm -rf $DATA_DIR/*
+      rm -rf "$DATA_DIR"/*
       curl https://s3.amazonaws.com/ndau-snapshots/$token/$SNAPSHOT_FILE | tar xzvf - -C "$DATA_DIR"
     }
 
@@ -198,6 +202,14 @@ data:
         fi
       fi
 
+      # check snapshot for genesis
+      DATA_DIR=$TM_CONFIG \
+      DATA_EXISTS_FILE=$TM_CONFIG/genesis.json \
+      FLAG_DIR=/tendermint \
+      SNAPSHOT_FILE=$CHAIN-genesis.tgz \
+      LOG_TAG=$CHAIN-tendermint-genesis \
+        /bin/sh /root/snapshot.sh
+
       # output app hash
       log "app hash: $app_hash"
 
@@ -211,3 +223,11 @@ data:
     else
       log "Volume already has configuration. Not intializing config."
     fi
+
+    # check snapshot
+    DATA_DIR=/tendermint/data \
+    DATA_EXISTS_FILE=/tendermint/data/blockstore.db/LOCK \
+    FLAG_DIR=/tendermint \
+    SNAPSHOT_FILE=$CHAIN-tm.tgz \
+    LOG_TAG=$CHAIN-tendermint \
+      /bin/sh /root/snapshot.sh

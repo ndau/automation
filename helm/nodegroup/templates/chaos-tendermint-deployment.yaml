@@ -87,6 +87,8 @@ spec:
         env:
         - name: TMHOME
           value: "/tendermint"
+        - name: CHAIN
+          value: "chaos"
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
