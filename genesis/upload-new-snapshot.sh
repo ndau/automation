@@ -49,8 +49,8 @@ if [ -z "$CHAOSNODE_TAG" ]; then
 fi
 
 # configy things
-CHAOS_NOMS=~/go/src/github.com/attic-labs/noms/cmd/noms/s3/data.chaos
-NDAU_NOMS=~/go/src/github.com/attic-labs/noms/cmd/noms/s3/data.ndau
+CHAOS_NOMS=~/.localnet/data/noms-chaos-0
+NDAU_NOMS=~/.localnet/data/noms-ndau-0
 
 
 # let's get started
