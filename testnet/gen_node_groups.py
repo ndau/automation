@@ -483,6 +483,11 @@ def main():
             --set ndaunode.chaosLink.enabled=true\
             --set ndaunode.chaosLink.address=\"{c.MASTER_IP}:{node.chaos["port"]["rpc"]}\"'
 
+        # options that point chaosnode to the ndau node's rpc port
+        ndauLinkOpts = f'\
+            --set chaosnode.ndauLink.enabled=true\
+            --set chaosnode.ndauLink.address=\"{c.MASTER_IP}:{node.ndau["port"]["rpc"]}\"'
+
         envSpecificHelmOpts = ''
 
         if c.IS_MINIKUBE:
@@ -504,7 +509,8 @@ def main():
             --set honeycomb.key="{c.HONEYCOMB_KEY}" \
             --set honeycomb.dataset="{c.HONEYCOMB_DATASET}" \
             {envSpecificHelmOpts} \
-            {chaosLinkOpts}'
+            {chaosLinkOpts} \
+            {ndauLinkOpts}'
 
         vprint(f'helm command: {helm_command}')
         ret = run_command(helm_command, isCritical = False)

@@ -30,6 +30,22 @@ spec:
         image: "{{ .Values.chaos.deployUtils.image.repository }}:{{ .Values.chaos.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.deployUtils.image.pullPolicy }}
         command: ["sh", "-c", "echo Starting redis wait loop; until nc -z -w 5 {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}; do echo waiting for {{ template "nodegroup.fullname" . }}-chaos-redis-service; sleep 5; done;"]
+      - name: chaosnode-config-ndau
+        image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
+        imagePullPolicy: {{ .Values.chaosnode.image.pullPolicy }}
+        args: [
+          "--set-ndaunode", "http://{{ .Values.chaosnode.ndauLink.address }}"
+        ]
+        env:
+        - name: HONEYCOMB_KEY
+          value: {{ .Values.honeycomb.key }}
+        - name: HONEYCOMB_DATASET
+          value: {{ .Values.honeycomb.dataset }}-chaos
+        - name: NDAUHOME
+          value: "/root/.ndau"
+        volumeMounts:
+        - mountPath: "/root/.ndau"
+          name: ndau-home-volume
       containers:
       - name: chaosnode
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
