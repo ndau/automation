@@ -140,8 +140,8 @@ var_print BASE_PORT
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 # Make sure we have the files we need to genesis
-if [ ! -f "$DIR"/genesis.toml ] || [ ! -f "$DIR"/assc.toml ]; then
-	errcho "Missing files $DIR/genesis.toml or $DIR/assc.toml"
+if [ ! -f "$DIR"/genesis.toml ] || [ ! -f "$DIR"/associated.toml ]; then
+	errcho "Missing files $DIR/genesis.toml or $DIR/associated.toml"
 	exit 1
 fi
 
@@ -257,7 +257,7 @@ ECR=578681496768.dkr.ecr.us-east-1.amazonaws.com
 NOMS_IMAGE=$ECR/noms:0.0.1; var_print NOMS_IMAGE
 CHAOS_IMAGE=$ECR/chaosnode:$CHAOSNODE_TAG; var_print CHAOS_IMAGE
 NDAU_IMAGE=$ECR/ndaunode:$NDAUNODE_TAG; var_print NDAU_IMAGE
-TENDERMINT_IMAGE=$ECR/tendermint:v0.25.0; var_print TENDERMINT_IMAGE
+TENDERMINT_IMAGE=$ECR/tendermint:v0.27.4; var_print TENDERMINT_IMAGE
 REDIS_IMAGE=redis:4.0.11-alpine3.8; var_print REDIS_IMAGE
 
 
@@ -399,8 +399,7 @@ init_chaos_tendermint() {
 		--name="$container_name" \
 		--mount src="$CHAOS_TM",target="$CHAOS_TM",type=bind \
 		$TENDERMINT_IMAGE \
-		--home "$CHAOS_TM" init
-	docker logs "$container_name" &> "$LOGS_DIR"/$basename &
+		--home "$CHAOS_TM" init &> "$LOGS_DIR"/$basename
 }
 
 init_ndau_tendermint() {
@@ -410,8 +409,7 @@ init_ndau_tendermint() {
 		--name="$container_name" \
 		--mount src="$NDAU_TM",target="$NDAU_TM",type=bind \
 		$TENDERMINT_IMAGE \
-		--home "$NDAU_TM" init
-	docker logs "$container_name" &> "$LOGS_DIR"/$basename &
+		--home "$NDAU_TM" init &> "$LOGS_DIR"/$basename
 }
 
 run_ndau_tendermint() {
@@ -468,7 +466,7 @@ run_chaos_tendermint() {
 }
 
 install_special_accounts() {
-	cp "$DIR"/assc.toml "$NDAU_HOME"
+	cp "$DIR"/associated.toml "$NDAU_HOME"
 	basename="ndaunode-accts"
 	container_name=$( stamp $basename )
 	verrcho "$container_name"
@@ -479,7 +477,7 @@ install_special_accounts() {
 		$NDAU_IMAGE \
 		-index $NDAU_REDIS_ADDR \
 		-spec http://$IH:$NDAU_NOMS_PORT  \
-		--update-chain-from "$NDAU_HOME"/assc.toml
+		--update-chain-from "$NDAU_HOME"/associated.toml
 	docker logs "$container_name" &> "$LOGS_DIR"/$basename &
 }
 
@@ -549,12 +547,12 @@ make_snapshot() {
 
 	# copy genesises
 	(
-		cd "$CHAOS_TM"
-		tar czvf "$SNAPSHOT_DIR"/chaos-genesis.tgz "$CHAOS_TM"/config/genesis.json
+		cd "$CHAOS_TM"/config
+		tar czvf "$SNAPSHOT_DIR"/chaos-genesis.tgz ./genesis.json
 	)
 	(
-		cd "$NDAU_TM"
-		tar czvf "$SNAPSHOT_DIR"/ndau-genesis.tgz "$NDAU_TM"/config/genesis.json
+		cd "$NDAU_TM"/config
+		tar czvf "$SNAPSHOT_DIR"/ndau-genesis.tgz ./genesis.json
 	)
 
 	# make latest
@@ -620,6 +618,7 @@ if $GENESIS || $TENDERMINT_INIT; then
 	# init chaos's noms directory with genesis tool
 	# this writes variables generated with the generate tool
 	# to chaos' noms directory
+	echo ""
 	genesis -g "$DIR"/genesis.toml -n "$CHAOS_NOMS"
 fi
 
@@ -679,10 +678,10 @@ if $GENESIS; then
 	# make ndaunode's config.toml from genesis.toml
 	make_ndau_config_toml
 
-	# use hash thing
+	# use hash thing.
 	install_special_accounts
 
-	#
+	# after genesis step, the app hash in genesis must be updated.
 	update_genesis_app_hash
 
 fi
