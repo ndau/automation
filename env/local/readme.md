@@ -72,6 +72,31 @@ kubetail $c_pod,$t_pod
 
 Sometimes the best thing to do is to blow away minikube and try again. `minikube delete`.
 
+## ECR configuration
+
+Minikube, in it's default configuration will not be able to pull images from ECR. In order to authenticate with ECR, you must configure and enable a minikube addon. The enable step below will be required about as often as the `docker login` command is required.
+
+The configure command bellow will require:
+
+  * AWS credentials (secret key and secret access key).
+  * A region. `us-east-1` will do.
+  * Our 12 digit aws account id.
+
+```
+minikube addons configure registry-creds
+minikube addons enable registry-creds
+```
+
+Once this is done, the `gen_node_groups.py` script will automatically detect the minikube environment and add the minikube specific setting, which enables `imagePullSecret`s in the helm charts. You should then be able to install like normal with the following command.
+
+```
+RELEASE=test-2 ELB_SUBDOMAIN=test ./testnet/gen_node_groups.py 1 30100
+```
+
+Please be sure to check that your current `kubectl` context is set to `minikube` by typing: `kubectl config current-context`. If it is not, this will set it, `kubectl config use-context minikube`
+
+~~~
+
 ## Integration testing
 
 To bring up a test net locally with minikube for integration testing.
@@ -162,3 +187,5 @@ To kill the cluster and remove all Kub nodes:
 % helm del --purge castor pollux
 ```
 John  the circle ci stuff for chaos is at https://github.com/oneiro-ndev/chaos/tree/master/.circleci There’s a config.yml that circleci looks at first, and local.sh will kick it off for you and try to download the circle-ci-cli if you don’t already have it. The dockerfile there is also a good example of how you can build the environment in a container and then run commands on it 🙂
+
+~~~
