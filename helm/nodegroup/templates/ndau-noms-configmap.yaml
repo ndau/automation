@@ -5,6 +5,132 @@ metadata:
   name: {{ template "nodegroup.fullname" . }}-ndau-noms-config
 apiVersion: v1
 data:
+
+  make-snapshot.sh: |
+
+    already_ran=false
+
+    # s3_upload takes the first argument as the full local file path and uploads it to s3
+    # to the path defined by the convention `/ndau-snapshots/$NEW_CODE/$s3_file`, where `$NEW_CODE`
+    # is the common random code shared across this release, and $s3_file is the name of
+    # the file in s3.
+    s3_upload() {
+
+      local local_file=$1
+      local s3_file=$2
+
+      # prepare headers and signature
+      the_date=$(date -R)
+      s3_path="/ndau-snapshots/$NEW_CODE/$s3_file"
+      content_type="application/octet-stream"
+      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
+      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+
+      # upload the manifest
+      curl -X PUT -T "$local_file" \
+        -H "Host: s3.amazonaws.com" \
+        -H "Date: $the_date" \
+        -H "Content-Type: $content_type" \
+        -H "Authorization: AWS $AWS_KEY:$signature" \
+        http://s3.amazonaws.com$s3_path
+
+    }
+
+    this_node=ndau
+    this_app=noms
+    this_service=$this_node-$this_app
+
+    # Keep this as chaos so everyone is using the same database
+    rhost={{ template "nodegroup.fullname" . }}-chaos-redis-service
+
+    # get redis readiness
+    if ! redis-cli -h $rhost PING; then
+      >&2 echo "Cannot contact redis"
+      exit 1
+    else
+      >&2 echo "Redis is ready."
+    fi
+
+    # snapshot runs when SIGTERM is sent to this process
+    snapshot() {
+
+      already_ran=true
+
+      # try to set snapping flag if not set. If set, get it.
+      # Everything expires after 120 seconds. If things get hung up, it's possible to restart.
+      snap_res=$(redis-cli -h $rhost SET "snapshot-$NEW_CODE-snapping" 1 EX 120 NX)
+      if [ "$snap_res" == "1" ]; then
+
+        >&2 echo "Beginning new snapshot process for all services."
+        snapping=1
+        redis-cli -h $rhost \
+          MSET \
+            snapshot-$NEW_CODE-ndau-tm 1 \
+            snapshot-$NEW_CODE-ndau-noms 1 \
+            snapshot-$NEW_CODE-chaos-tm 1 \
+            snapshot-$NEW_CODE-chaos-noms 1 \
+            EX 120
+      else
+        # could return either 1 or 0 on second run
+        snapping=$(redis-cli -h $rhost GET "snapshot-$NEW_CODE-snapping")
+        >&2 echo "Snapping already in progress: $snapping"
+      fi
+
+      # upload the database
+
+      # check to see if the snapshot is already there
+      tar_file=$this_service.tgz
+      s3_path="/ndau-snapshots/$NEW_CODE/${tar_file}"
+
+      if curl_response=$(curl --head -f http://s3.amazonaws.com$s3_path); then
+        >&2 echo "Snapshot $s3_path already exists. Will not upload."
+      else
+        >&2 echo "Uploading snapshot $s3_path."
+
+        (
+          cd /noms/data
+          tar cvzf /root/$tar_file *
+        )
+
+        # prepare headers and signature
+        the_date=$(date -R)
+        content_type="application/octet-stream"
+        signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
+        signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+
+        # upload tarball to s3
+        >&2 echo "Uploading snapshot $s3_path."
+        curl -X PUT -T "/root/$tar_file" \
+          -H "Host: s3.amazonaws.com" \
+          -H "Date: $the_date" \
+          -H "Content-Type: $content_type" \
+          -H "Authorization: AWS $AWS_KEY:$signature" \
+          http://s3.amazonaws.com$s3_path
+
+      fi
+
+      # do not check if all jobs are completed, this job goes first.
+
+    }
+
+    # trap kubernetes shutdown signal. After grace period it will send sigkill.
+    trap snapshot SIGTERM
+
+    # check redis and loop until this service has been told to snapshot
+    while [ "$res" != "1" ] && ! $already_ran; do
+      if $already_ran; then
+        >&2 echo "Caught SIGTERM, not waiting."
+        exit 1
+      fi
+      echo "."
+      sleep 10
+      res=$(timeout -t 5 redis-cli -h $rhost get "snapshot-$NEW_CODE-$this_service")
+    done
+
+    # don't try to snapshot if we snapshotted already with sigterm
+    $already_ran || snapshot
+
+
   noms-start.sh: |
     #!/bin/sh
 
@@ -17,6 +143,18 @@ data:
     LOG_TAG=ndau-noms \
       /bin/sh /root/snapshot.sh
 
-    noms serve /noms/data
+    noms serve /noms/data &
+
+    noms_pid=$!
+    delayed_shutdown() {
+      sleep 60 # sleep for 1 minute
+      kill $noms_pid
+    }
+
+    # loop forever for two reasons
+    # 1) main process stays open
+    # 2) trap will wait for a sigterm and run delayed_shutdown
+    trap delayed_shutdown SIGTERM
+    while true; do sleep 42; done
 
 {{ end }}

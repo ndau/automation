@@ -60,7 +60,7 @@ spec:
             chaos_address=http://${host}:${rpc_port}
             echo $chaos_address
 
-            until curl -v $chaos_address --connect-timeout 5; do
+            until curl -v $chaos_address; do
               echo waiting for $chaos_address
               sleep 5
             done
@@ -79,7 +79,7 @@ spec:
       - name: config
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["/bin/sh", "/root/init.sh"]
+        command: ["/bin/bash", "/root/init.sh"]
         env:
         - name: NDAUHOME
           value: "/root/.ndau"
@@ -96,11 +96,14 @@ spec:
       - name: ndaunode
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
-        args: [
-          "-spec", "http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }}",
-          "-addr", "0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }}",
-          "-index", "{{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }}"
-        ]
+        command:
+          - sh
+          - -c
+          - |-
+            ndaunode \
+            -spec http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} \
+            -addr 0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }} \
+            -index {{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }} || sleep 600
         ports:
         - containerPort: {{ .Values.ndaunode.port }}
         env:

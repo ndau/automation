@@ -17,9 +17,6 @@ data:
 
   init.sh: |
 
-    set -x
-    set -e
-
     CURL_RETRIES=10
     CURL_RETRY_DELAY=0
     CFG_DIR=$NDAUHOME/ndau
@@ -57,24 +54,22 @@ data:
       fi
 
       echo "replacing namespace token in $NDAU_CONFIG_TOML"
-      sed "s/NAMESPACE_TOKEN/$SVI_NAMESPACE/" -i "$NDAU_CONFIG_TOML"
+      sed -i "s~NAMESPACE_TOKEN~$SVI_NAMESPACE~" "$NDAU_CONFIG_TOML"
 
       echo "replacing chaos address"
 
       fullname="{{ template "nodegroup.fullname" . }}"
       RELEASE=$(echo ${fullname//-/_} | awk '{print toupper($0)}')
-      HOST_VAR=${RELEASE}_NODEGROUP_CHAOS_TENDERMINT_SERVICE_SERVICE_HOST
-      RPC_PORT_VAR=${RELEASE}_NODEGROUP_CHAOS_TENDERMINT_SERVICE_SERVICE_PORT_RPC
+      HOST_VAR=${RELEASE}_CHAOS_TENDERMINT_SERVICE_SERVICE_HOST
+      RPC_PORT_VAR=${RELEASE}_CHAOS_TENDERMINT_SERVICE_SERVICE_PORT_RPC
 
-      # shell script black magic (variable indirection)
+      # variable indirection
       host=${!HOST_VAR}
-      echo $host
       rpc_port=${!RPC_PORT_VAR}
-      echo $rpc_port
 
       chaos_address=http://${host}:${rpc_port}
 
-      sed "s/CHAOS_ADDRESS_TOKEN/$chaos_address/" -i "$NDAU_CONFIG_TOML"
+      sed -i "s~CHAOS_ADDRESS_TOKEN~$chaos_address~" "$NDAU_CONFIG_TOML"
 
       echo "$NDAU_CONFIG_TOML is now:"
       cat "$NDAU_CONFIG_TOML"

@@ -11,6 +11,7 @@ data:
   # Now instead of checking for the existence of a flag file, we can compare our release-token
   # to the saved release token in the flag file. *whew*
   release-token: {{ randAlphaNum 10 | b64enc | quote }}
+  new-snapshot-code:  {{ randAlphaNum 10 | b64enc | quote }}
   tm-home: "/tendermint"
   snapshot.sh: |
     #!/bin/sh
@@ -84,12 +85,18 @@ data:
         log "Using snapshot code: $SNAPSHOT_CODE"
         token=$SNAPSHOT_CODE
       else
-        token=$(curl https://s3.amazonaws.com/ndau-snapshots/latest.txt || err "Could not download latest.txt")
+        snapshot_list=$(curl http://ndau-snapshots.s3.amazonaws.com?prefix=by-height/${this_node})
+        log "Latest snapshot height: $snapshot_list"
+        latest_height_code=$(echo $snapshot_list | grep -oP '(?<=<Key>).*?(?=</Key>)' | sort | tail -n 1)
+        log "Latest snapshot height: $latest_snapshot_height"
+        token=$(curl https://s3.amazonaws.com/ndau-snapshots/by-height/${latest_height_code} || err "Could not download latest.txt")
         log "Using latest snapshot: $token"
       fi
       log "Clearing data directory and installing new one"
-      rm -rf "$DATA_DIR"/*
-      curl https://s3.amazonaws.com/ndau-snapshots/$token/$SNAPSHOT_FILE | tar xzvf - -C "$DATA_DIR"
+      [ ! $NO_CLEAR == "true" ] && rm -rf "$DATA_DIR"/*
+      download_url="https://s3.amazonaws.com/ndau-snapshots/$token/$SNAPSHOT_FILE"
+      log "Downloading from: $download_url"
+      curl $download_url | tar xzvf - -C "$DATA_DIR"
     }
 
     # marks the last time we were forced to download a snapshot
@@ -145,7 +152,7 @@ data:
     if [ ! -f "$DATA_EXISTS_FILE" ]; then
       download
     else
-      init_log "Data present, not downloading snapshot."
+      log "Data present, not downloading snapshot."
     fi
 
   tendermint-init.sh: |
@@ -175,6 +182,15 @@ data:
     # initialize if config does not already exist
     if [ ! -f "$TM_CONFIG/init-done" ]; then
 
+      # check snapshot for genesis
+      DATA_DIR=$TM_CONFIG \
+      DATA_EXISTS_FILE=$TM_CONFIG/genesis.json \
+      FLAG_DIR=/tendermint \
+      SNAPSHOT_FILE=$CHAIN-genesis.tgz \
+      NO_CLEAR=true \
+      LOG_TAG=$CHAIN-tendermint-genesis \
+        /bin/sh /root/snapshot.sh
+
       # copy all read only files from config map to real config directory
       if cp $RO_CONFIG/* $TM_CONFIG; then
         log "Read only files copied"
@@ -201,14 +217,6 @@ data:
           err "Could not update genesis with app hash."
         fi
       fi
-
-      # check snapshot for genesis
-      DATA_DIR=$TM_CONFIG \
-      DATA_EXISTS_FILE=$TM_CONFIG/genesis.json \
-      FLAG_DIR=/tendermint \
-      SNAPSHOT_FILE=$CHAIN-genesis.tgz \
-      LOG_TAG=$CHAIN-tendermint-genesis \
-        /bin/sh /root/snapshot.sh
 
       # output app hash
       log "app hash: $app_hash"

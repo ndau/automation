@@ -11,6 +11,293 @@ data:
 
   priv_validator.json: {{ b64dec .Values.ndau.privValidator | quote }}
 
+  make-snapshot.sh: |
+
+    already_ran=false
+
+    # s3_upload takes the first argument as the full local file path and uploads it to s3
+    # to the path defined by the convention `/ndau-snapshots/$NEW_CODE/$s3_file`, where `$NEW_CODE`
+    # is the common random code shared across this release, and $s3_file is the name of
+    # the file in s3.
+    s3_upload() {
+
+      local local_file=$1
+      local s3_file=$2
+
+      # prepare headers and signature
+      the_date=$(date -R)
+      s3_path="/ndau-snapshots/$NEW_CODE/$s3_file"
+      content_type="application/octet-stream"
+      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
+      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+
+      # upload the manifest
+      curl -X PUT -T "$local_file" \
+        -H "Host: s3.amazonaws.com" \
+        -H "Date: $the_date" \
+        -H "Content-Type: $content_type" \
+        -H "Authorization: AWS $AWS_KEY:$signature" \
+        http://s3.amazonaws.com$s3_path
+
+    }
+
+    this_node=ndau
+    this_app=tm
+    this_service=$this_node-$this_app
+
+    # Keep this as chaos so everyone is using the same database
+    rhost={{ template "nodegroup.fullname" . }}-chaos-redis-service
+
+    # get redis readiness
+    if ! redis-cli -h $rhost PING; then
+      >&2 echo "Cannot contact redis"
+      exit 1
+    else
+      >&2 echo "Redis is ready."
+    fi
+
+    # curl retry options
+    CURL_CONNECT_TIMEOUT=5  # each try waits X seconds
+    CURL_RETRY_MAX=50       # retry X many times
+    CURL_RETRY_TOTAL=1000   # arbitrary high number, it will timeout first.
+    CURL_RETRY_DELAY=5      # try every X seconds
+    CURL_TOTAL_TIMEOUT=60   # total seconds before it fails (60s=1m) This overrides everything.
+
+    # snapshot runs when SIGTERM is sent to this process
+    snapshot() {
+
+      already_ran=true
+
+      # get the manifest variables
+      status_response=$(curl --connect-timeout $CURL_CONNECT_TIMEOUT \
+            --retry-connrefused \
+            --max-time $CURL_RETRY_MAX \
+            --retry $CURL_RETRY_TOTAL \
+            --retry-delay $CURL_RETRY_DELAY \
+            --retry-max-time $CURL_TOTAL_TIMEOUT \
+            localhost:26657/status)
+      height=$(jq -r ".result.sync_info.latest_block_height" <<< $status_response)
+      app_hash=$(jq -r ".result.sync_info.latest_app_hash" <<< $status_response)
+
+      # try to set snapping flag if not set. If set, get it.
+      # Everything expires after 120 seconds. If things get hung up, it's possible to restart.
+      snap_res=$(redis-cli -h $rhost SET "snapshot-$NEW_CODE-snapping" 1 EX 120 NX)
+      >&2 echo "command: redis-cli -h $rhost SET snapshot-$NEW_CODE-snapping 1 EX 120 NX"
+      >&2 echo "This is what redis says: $snap_res"
+      if [ "$snap_res" == "OK" ]; then
+
+        # check to see if this hash was already uploaded
+        if ! curl -f http://s3.amazonaws.com/ndau-snapshots/hashes/${this_node}-${app_hash}; then
+          >&2 echo "Quitting. Snapshot for this app_hash ($app_hash) already uploaded."
+          exit 1
+        fi
+
+        >&2 echo "Beginning new snapshot process for all services."
+        snapping=1
+        redis-cli -h $rhost \
+          MSET \
+            snapshot-$NEW_CODE-ndau-tm 1 \
+            snapshot-$NEW_CODE-ndau-noms 1 \
+            snapshot-$NEW_CODE-chaos-tm 1 \
+            snapshot-$NEW_CODE-chaos-noms 1 \
+            EX 120
+      else
+        # could return either 1 or 0 on second run
+        snapping=$(redis-cli -h $rhost GET "snapshot-$NEW_CODE-snapping")
+        >&2 echo "Snapping already in progress: snapshot-$NEW_CODE-snapping = $snapping"
+      fi
+
+      # wait until noms snapshot is done
+      noms_snapshot_url=http://s3.amazonaws.com/ndau-snapshots/$NEW_CODE/${this_node}-noms.tgz
+      >&2 echo "Waiting for noms snapshot to appear at: $noms_snapshot_url."
+
+      # curl until the noms snapshot is up, or CURL_TOTAL_TIMEOUT passes
+      if curl --head --connect-timeout $CURL_CONNECT_TIMEOUT \
+          --retry-connrefused \
+          --max-time $CURL_RETRY_MAX \
+          --retry $CURL_RETRY_TOTAL \
+          --retry-delay $CURL_RETRY_DELAY \
+          --retry-max-time $CURL_TOTAL_TIMEOUT \
+          $noms_snapshot_url; then
+          >&2 echo "Done waiting. Detected noms snapshot."
+      else
+          >&2 echo "Aborting. Noms snapshot not detected."
+          exit 1
+      fi
+
+
+      # upload the tendermint databases
+
+      # check to see if the snapshot is already there
+      tar_file=$this_service.tgz
+      s3_path="/ndau-snapshots/$NEW_CODE/${tar_file}"
+
+      if curl_response=$(curl -f http://s3.amazonaws.com$s3_path); then
+        >&2 echo "Snapshot $s3_path already exists. Will not upload."
+      else
+        >&2 echo "Uploading snapshot $s3_path."
+
+        (
+          cd /tendermint/data
+          tar cvzf /root/$tar_file ./blockstore.db ./state.db
+        )
+
+        # prepare headers and signature
+        the_date=$(date -R)
+        content_type="application/octet-stream"
+        signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
+        signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+
+        # upload tarball to s3
+        >&2 echo "Uploading snapshot $s3_path."
+        curl -X PUT -T "/root/$tar_file" \
+          -H "Host: s3.amazonaws.com" \
+          -H "Date: $the_date" \
+          -H "Content-Type: $content_type" \
+          -H "Authorization: AWS $AWS_KEY:$signature" \
+          http://s3.amazonaws.com$s3_path
+
+      fi
+
+
+      # upload genesis
+
+      tar_file=${this_node}-genesis.tgz
+
+      # make the tar ball
+      (
+        cd /tendermint/config
+        tar cvzf /root/$tar_file ./genesis.json
+      )
+
+      # prepare headers and signature
+      the_date=$(date -R)
+      s3_path="/ndau-snapshots/$NEW_CODE/${tar_file}"
+      content_type="application/octet-stream"
+      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
+      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+
+      # upload tarball to s3
+      >&2 echo "Uploading genesis to $s3_path."
+      curl -X PUT -T "/root/$tar_file" \
+        -H "Host: s3.amazonaws.com" \
+        -H "Date: $the_date" \
+        -H "Content-Type: $content_type" \
+        -H "Authorization: AWS $AWS_KEY:$signature" \
+        http://s3.amazonaws.com$s3_path
+
+
+      # if everyone is done, then remove snapping key
+      if ! redis-cli -h $rhost MGET \
+        snapshot-$NEW_CODE-ndau-tm \
+        snapshot-$NEW_CODE-ndau-noms \
+        snapshot-$NEW_CODE-chaos-tm \
+        snapshot-$NEW_CODE-chaos-noms | grep 1; then
+
+        >&2 echo "No current snapshot jobs."
+
+        # we're all done
+        >&2 echo "Removing snapping flag."
+        redis-cli -h $rhost DEL snapshot-$NEW_CODE-snapping
+
+        # create a manifest file
+        jq --arg date "$(date)" \
+          --arg height "$height" \
+          --arg app_hash "$app_hash" \
+          ". | \
+          .[\"date\"]=\$date | \
+          .[\"height\"]=\$height | \
+          .[\"app_hash\"]=\$app_hash" \
+          <<< '{}' > /root/manifest.json
+        >&2 echo "Created manifest file: $(cat /root/manifest.json)"
+
+        # prepare headers and signature
+        the_date=$(date -R)
+        s3_path="/ndau-snapshots/$NEW_CODE/${this_node}-manifest.json"
+        content_type="application/octet-stream"
+        signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
+        signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+
+        # upload to s3
+        curl -X PUT -T "/root/manifest.json" \
+          -H "Host: s3.amazonaws.com" \
+          -H "Date: $the_date" \
+          -H "Content-Type: $content_type" \
+          -H "Authorization: AWS $AWS_KEY:$signature" \
+          http://s3.amazonaws.com$s3_path
+
+        # upload app_hash key
+
+        # prepare headers and signature
+        echo "$NEW_CODE" > /root/new_code
+        the_date=$(date -R)
+        s3_path="/ndau-snapshots/by-hash/${this_node}-${app_hash}"
+        content_type="application/octet-stream"
+        signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
+        signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+
+        # upload to s3
+        curl -X PUT -T "/root/new_code" \
+          -H "Host: s3.amazonaws.com" \
+          -H "Date: $the_date" \
+          -H "Content-Type: $content_type" \
+          -H "Authorization: AWS $AWS_KEY:$signature" \
+          http://s3.amazonaws.com$s3_path
+
+        # upload block height key
+
+        # prepare headers and signature
+        the_date=$(date -R)
+        s3_path="/ndau-snapshots/by-height/${this_node}-${height}"
+        content_type="application/octet-stream"
+        signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
+        signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+
+        # upload to s3
+        curl -X PUT -T "/root/new_code" \
+          -H "Host: s3.amazonaws.com" \
+          -H "Date: $the_date" \
+          -H "Content-Type: $content_type" \
+          -H "Authorization: AWS $AWS_KEY:$signature" \
+          http://s3.amazonaws.com$s3_path
+
+
+      else
+        >&2 echo "Other snapshot jobs detected."
+      fi
+
+    }
+
+    >&2 echo "Waiting to snapshot"
+
+    # trap kubernetes shutdown signal. After grace period it will send sigkill.
+    trap snapshot SIGTERM
+    echo "position 0"
+    # check redis and loop until this service has been told to snapshot
+    while [ "$res" != "1" ] && ! $already_ran; do
+      echo "position 1"
+      if $already_ran; then
+        >&2 echo "Caught SIGTERM, not waiting."
+        exit 1
+      fi
+      echo "position 2"
+      sleep 10
+      echo "position 3"
+      echo "command redis-cli -h $rhost get snapshot-$NEW_CODE-$this_service"
+      res=$(timeout -t 5 redis-cli -h $rhost get "snapshot-$NEW_CODE-$this_service")
+      echo "position 4"
+      echo "$res"
+    done
+
+    >&2 echo "Done waiting"
+
+
+    >&2 echo "Done waiting"
+
+    # don't try to snapshot if we snapshotted already with sigterm
+    $already_ran || snapshot
+
+
   config.toml: |
     # This is a TOML config file.
     # For more information, see https://github.com/toml-lang/toml
@@ -204,10 +491,34 @@ data:
     # Tendermint config
     /bin/sh /root/tendermint-init.sh
 
+    i=0
+    while ! nc -z {{ template "nodegroup.fullname" . }}-ndaunode-service {{ .Values.ndaunode.port }}; do
+      $i++
+      echo "try=$i ndaunode not ready"
+      sleep 1
+    done
+
     # start tendermint
     /bin/tendermint node \
       --moniker={{ .Values.ndau.tendermint.moniker }} \
       --p2p.private_peer_ids "$PRIVATE_PEER_IDS" \
-      --p2p.persistent_peers "$PERSISTENT_PEERS"
+      --p2p.persistent_peers "$PERSISTENT_PEERS" \
+      --log_level="*:debug" &
+
+    tendermint_pid=$!
+
+    delayed_shutdown() {
+      sleep 60 # sleep for 1 minute
+      kill $tendermint_pid
+    }
+
+    # do a delayed shutdown when the child process exits as well
+    trap delayed_shutdown CHLD
+
+    # loop forever for two reasons
+    # 1) main process stays open
+    # 2) trap will wait for a sigterm and run delayed_shutdown
+    trap delayed_shutdown SIGTERM
+    while true; do sleep 42; done
 
 {{ end }}

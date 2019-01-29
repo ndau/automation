@@ -15,6 +15,7 @@ import functools # for lru_cache on preflight calls
 from base64 import b64encode # for making json safe to send to helm through the command-line
 from datetime import datetime, timezone # to datestamp temporary docker volumes
 import platform # for dynamically running different builds of addy on different platforms.
+import re # regex for testing validiting when minikube returns an IP.
 
 madeVolume = False  # Flag for if volume was created or not. Used for cleanup.
 
@@ -162,6 +163,16 @@ class Conf:
         if self.SNAPSHOT_CODE == None:
             self.SNAPSHOT_CODE = ""
 
+        self.SNAPSHOT_ON_SHUTDOWN = os.environ.get('SNAPSHOT_ON_SHUTDOWN')
+        if self.SNAPSHOT_ON_SHUTDOWN == "true":
+            self.SNAPSHOT_ON_SHUTDOWN = True
+
+            self.AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+            self.AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+
+            if self.AWS_ACCESS_KEY_ID == None or self.AWS_SECRET_ACCESS_KEY == None:
+                abortClean(f'If SNAPSHOT_ON_SHUTDOWN is set to true, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY need to be set with a user that has s3 write permissions.')
+
         self.HONEYCOMB_KEY = os.environ.get('HONEYCOMB_KEY')
         self.HONEYCOMB_DATASET = os.environ.get('HONEYCOMB_DATASET')
         if self.HONEYCOMB_KEY == None or self.HONEYCOMB_DATASET == None:
@@ -188,6 +199,8 @@ class Conf:
             try:
                 ret = run_command("minikube ip")
                 self.MASTER_IP = ret.stdout.strip()
+                if re.match('[^0-9.]', self.MASTER_IP) != None:
+                    abortClean("IP Address from minikube contains more than numbers and dots: ${self.MASTER_IP}")
             except subprocess.CalledProcessError:
                 abortClean("Could not get minikube's IP address: ${ret.returncode}")
         else:
@@ -195,6 +208,8 @@ class Conf:
                 ret = run_command("kubectl get nodes -o json | \
                     jq -rj '.items[] | select(.metadata.labels[\"kubernetes.io/role\"]==\"master\") | .status.addresses[] | select(.type==\"ExternalIP\") .address'")
                 self.MASTER_IP = ret.stdout.strip()
+                if re.match('[^0-9.]', self.MASTER_IP) != None:
+                    abortClean("IP Address from kubectl contains more than numbers and dots: ${self.MASTER_IP}")
             except subprocess.CalledProcessError:
                 abortClean("Could not get master node's IP address: ${ret.returncode}")
 
@@ -490,13 +505,16 @@ def main():
             envSpecificHelmOpts = '\
             --set minikube=true '
         else:
-            envSpecificHelmOpts = ''#--tls'
+            envSpecificHelmOpts = '--tls'
 
         helm_command = f'helm install --name {node.name} {helmChartPath} \
             {chaos_args} \
             {ndau_args} \
-            --set ndau.deployUtils.image.tag="0.0.2" \
-            --set chaos.deployUtils.image.tag="0.0.2" \
+            --set snapshotOnShutdown="{c.SNAPSHOT_ON_SHUTDOWN}" \
+            --set aws.accessKeyID="{c.AWS_ACCESS_KEY_ID}" \
+            --set aws.secretAccessKey="{c.AWS_SECRET_ACCESS_KEY}" \
+            --set ndau.deployUtils.image.tag="0.0.4" \
+            --set chaos.deployUtils.image.tag="0.0.4" \
             --set ndauapi.ingress.enabled=true \
             --set-string ndauapi.ingress.host="{node.name}.{c.ELB_SUBDOMAIN}" \
             --set-string ndauapi.image.tag="{c.NDAUNODE_TAG}" \

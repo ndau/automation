@@ -10,6 +10,14 @@
 # minikube addons enable awsecr-creds
 minikube: false
 
+# For uploading snapshots
+snapshotOnShutdown: false
+
+# These credentials must be s3 snapshot bucket writable.
+aws:
+  accessKeyID: ""
+  secretAccessKey: ""
+
 ndaunode:
   image:
     repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/ndaunode
