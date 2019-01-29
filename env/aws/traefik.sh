@@ -104,6 +104,10 @@ OPTS+="--set rbac.enabled=true "
 # Tell it we're on AWS
 OPTS+="--set acme.dnsProvider.name=route53 "
 
+# Use these nodeports
+OPTS+="--set service.nodePorts.http=30500 "
+OPTS+="--set service.nodePorts.https=30501 "
+
 # AWS specific authorization and config
 OPTS+="--set acme.dnsProvider.route53.AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID "
 OPTS+="--set acme.dnsProvider.route53.AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY "
