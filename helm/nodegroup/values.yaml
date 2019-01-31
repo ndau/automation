@@ -138,7 +138,7 @@ ndau:
       tag: 0.0.1
       pullPolicy: IfNotPresent
 
-  # default configuration for tendermint's priv_validator.json file in base64
+  # default configuration for tendermint's priv_validator_key.json file in base64
   # This should be supplied in the commandline.
   # What ever value is supplied for app_hash here or the commandline gets overriden by the tendermint deployment init containers.
   privValidator: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQTU2RSIsInB1Yl9rZXkiOiB7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwibGFzdF9oZWlnaHQiOjAsImxhc3Rfcm91bmQiOjAsImxhc3Rfc3RlcCI6MCwibGFzdF9zaWduYXR1cmUiOm51bGwsInByaXZfa2V5IjogeyJ0eXBlIjoiZWQyNTUxOSIsImRhdGEiOiI0MzkzMUQ1Q0FBNUQ3QkRBODY4RkI1QTc5RjkyQTQ1QzRERTRDODYwMkI0NUIwQjM4QkQ3RTRBQ0FDNzYyNDVDRjE0Q0UyNzNBRjBCNTg4MDJERURGNEFFRENFOEI2MUUwNjAwODgyMUFFOUFBRTVEQURFNjcxMzYwNDI2Q0U3MCJ9fQo=
@@ -300,7 +300,7 @@ chaos:
       tag: 0.0.1
       pullPolicy: IfNotPresent
 
-  # default configuration for tendermint's priv_validator.json file in base64
+  # default configuration for tendermint's priv_validator_key.json file in base64
   # This should be supplied in the commandline.
   # What ever value is supplied for app_hash here or the commandline gets overriden by the tendermint deployment init containers.
   privValidator: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQTU2RSIsInB1Yl9rZXkiOiB7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwibGFzdF9oZWlnaHQiOjAsImxhc3Rfcm91bmQiOjAsImxhc3Rfc3RlcCI6MCwibGFzdF9zaWduYXR1cmUiOm51bGwsInByaXZfa2V5IjogeyJ0eXBlIjoiZWQyNTUxOSIsImRhdGEiOiI0MzkzMUQ1Q0FBNUQ3QkRBODY4RkI1QTc5RjkyQTQ1QzRERTRDODYwMkI0NUIwQjM4QkQ3RTRBQ0FDNzYyNDVDRjE0Q0UyNzNBRjBCNTg4MDJERURGNEFFRENFOEI2MUUwNjAwODgyMUFFOUFBRTVEQURFNjcxMzYwNDI2Q0U3MCJ9fQo=

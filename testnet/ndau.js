@@ -186,7 +186,7 @@ async function main () {
           console.error(`Getting ${node.name}'s priv validator`)
           return exec(`${dockerRun} \
             busybox \
-            cat /tendermint/config/priv_validator.json`, { env: process.env })
+            cat /tendermint/config/priv_validator_key.json`, { env: process.env })
         })
         .then((res) => {
           // remember priv validator
