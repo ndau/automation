@@ -55,13 +55,13 @@ class Conf:
         Command-line arguments:
         START_PORT          Port at which to start a sequence of ports.
         QUANTITY            Number of nodegroups to install.
+        GENESIS_TIME        Time before which no blocks will be issued.
+        CHAIN_ID            Human-friendly identifier for this blockchain
 
         Environment variables required
         ELB_SUBDOMAIN       Subdomain for ndauapi. (e.g. api.ndau.tech).
                             Each nodegroup's ndauapi will appear at
                             my-release-0.ndau.tech.
-        RELEASE             The helm release "base name". Each nodegroup's name will
-                            start with this name and be suffixed with a node number.
 
         Environment variables that map to image tags in ECR. Optional.
         Fetched automatically.
@@ -100,15 +100,18 @@ class Conf:
         #
         # Arguments
         #
+        self.QUANTITY = args.quantity
+        if self.QUANTITY < 1:
+            abortClean("quantity must be at least 1")
+        elif self.QUANTITY > 16:
+            abortClean("quantity should be lower than 16")
+
         self.START_PORT = args.start_port
         global ports
         ports = PortFactory(self.START_PORT)
-        self.QUANTITY = args.quantity
 
-        if self.QUANTITY < 1:
-            abortClean("quantity must be higher than 1")
-        elif self.QUANTITY > 16:
-            abortClean("quantity should be lower than 16")
+        self.GENESIS_TIME = args.genesis_time
+        self.CHAIN_ID = args.chain_id
 
         #
         # Environment variables
@@ -117,10 +120,6 @@ class Conf:
         self.ELB_SUBDOMAIN = os.environ.get("ELB_SUBDOMAIN")
         if self.ELB_SUBDOMAIN is None:
             abortClean(f"ELB_SUBDOMAIN env var not set.")
-
-        self.RELEASE = os.environ.get("RELEASE")
-        if self.RELEASE is None:
-            abortClean(f"RELEASE env var not set.")
 
         self.CHAOSNODE_TAG = os.environ.get("CHAOSNODE_TAG")
         if self.CHAOSNODE_TAG is None:
@@ -180,9 +179,7 @@ class Conf:
                     f"NDAU_TM_TAG env var empty and could not fetch version: {e}"
                 )
 
-        self.SNAPSHOT_CODE = os.environ.get("SNAPSHOT_CODE")
-        if self.SNAPSHOT_CODE is None:
-            self.SNAPSHOT_CODE = ""
+        self.SNAPSHOT_CODE = os.environ.get("SNAPSHOT_CODE", "")
 
         self.HONEYCOMB_KEY = os.environ.get("HONEYCOMB_KEY")
         self.HONEYCOMB_DATASET = os.environ.get("HONEYCOMB_DATASET")
@@ -372,10 +369,19 @@ def main():
         help="Starting port for each node's Tendermint RPC and P2P ports (e.g. 30000).",
     )
     parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help=("Directory in which to place generated scripts. " f"Default: flase"),
+        "-v", "--verbose", action="store_true", help="When set emit more."
+    )
+    parser.add_argument(
+        "--genesis-time",
+        type=iso8601,
+        default=datetime.now(),
+        help=(
+            "ISO-8601 datetime for genesis. "
+            "Tendermint will wait for this datetime before processing blocks."
+        ),
+    )
+    parser.add_argument(
+        "--chain-id", default="localnet", help="String identifying this blockchain."
     )
 
     args = parser.parse_args()
@@ -400,8 +406,7 @@ def main():
     except subprocess.CalledProcessError:
         abortClean("Couldn't create temporary docker volume.")
 
-    nodes = [Node(f"{c.RELEASE}-{i}") for i in range(c.QUANTITY)]
-
+    nodes = [Node(f"{c.CHAIN_ID}-{i}") for i in range(c.QUANTITY)]
     initNodegroup(nodes)
 
     steprint("Getting chaos's genesis.json")
@@ -418,7 +423,7 @@ def main():
     ).stdout
 
     vprint(f"chaos genesis.json: {ret}")
-    chaos_genesis = json.loads(ret)
+    chaos_genesis = conf_genesis_json(json.loads(ret), "chaos", nodes)
 
     steprint("Removing tendermint's config directory")
     run_command(
@@ -441,29 +446,7 @@ def main():
     ).stdout
 
     vprint(f"ndau's genesis.json: {ret}")
-    ndau_genesis = json.loads(ret)
-
-    # add our new nodes to genesis.json's validator list
-    chaos_genesis["validators"] = list(
-        map(
-            lambda node: {
-                "name": node.name,
-                "pub_key": node.chaos_priv["pub_key"],
-                "power": "10",
-            },
-            nodes,
-        )
-    )
-    ndau_genesis["validators"] = list(
-        map(
-            lambda node: {
-                "name": node.name,
-                "pub_key": node.ndau_priv["pub_key"],
-                "power": "10",
-            },
-            nodes,
-        )
-    )
+    ndau_genesis = conf_genesis_json(json.loads(ret), "ndau", nodes)
 
     vprint(f"chaos genesis.json: {chaos_genesis}")
     vprint(f"ndau genesis.json: {ndau_genesis}")
@@ -495,7 +478,8 @@ def main():
         # create a string of ndau peers in tendermint's formats
         def ndau_peer(peer):
             return (
-                f'{peer.ndau_priv["address"]}@{c.MASTER_IP}:{peer.ndau["port"]["p2p"]}'
+                f'{peer.ndau_priv["address"]}@{c.MASTER_IP}'
+                f':{peer.ndau["port"]["p2p"]}'
             )
 
         ndauPeers = ",".join(list(map(ndau_peer, otherNodes)))
@@ -571,9 +555,11 @@ def main():
         )
 
         # options that point chaosnode to the ndau node's rpc port
-        ndauLinkOpts = f'\
-            --set chaosnode.ndauLink.enabled=true\
-            --set chaosnode.ndauLink.address="{c.MASTER_IP}:{node.ndau["port"]["rpc"]}"'
+        ndauLinkOpts = (
+            "--set chaosnode.ndauLink.enabled=true "
+            "--set chaosnode.ndauLink.address="
+            f'"{c.MASTER_IP}:{node.ndau["port"]["rpc"]}"'
+        )
 
         envSpecificHelmOpts = ""
 
@@ -612,7 +598,6 @@ def main():
     steprint("All done.")
 
 
-@functools.lru_cache(4)
 def preflight(*cmds):
     """Ensures the environment has the necessary command-line tools."""
     missing = []
@@ -623,6 +608,7 @@ def preflight(*cmds):
         raise OSError(f'Missing the following command-line tools: {",".join(missing)}')
 
 
+@functools.lru_cache()
 def cmd_exists(x):
     """Return True if the given command exists in PATH."""
     return (
@@ -690,6 +676,18 @@ def makeTempVolume():
         madeVolume = True
     except subprocess.CalledProcessError:
         steprint(f"error creating temp volume: {ret.returncode}")
+
+
+def conf_genesis_json(gj, chain, nodes):
+    "Config genesis.json appropriately for an ndau chain"
+    gj["genesis_time"] = c.GENESIS_TIME.isoformat()
+    gj["chain_id"] = f"{c.CHAIN_ID}-{chain}"
+    gj["validators"] = [
+        {"name": node.name, "pub_key": node.chaos_priv["pub_key"], "power": "10"}
+        for node in nodes
+    ]
+
+    return gj
 
 
 def clean():
@@ -773,6 +771,13 @@ def warn_print(msg):
 
 def handle_sigint():
     abortClean("Installation cancelled.")
+
+
+def iso8601(s):
+    # this is a very strict parser, but it's useful in that it requires us to
+    # submit zulu time, which is the only time we're certain the reading code
+    # knows how to handle
+    return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
 
 
 # kick it off
