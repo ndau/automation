@@ -276,11 +276,11 @@ def initNodegroup(nodes):
         )
         vprint(f"tendermint init: {ret.stdout}")
 
-        steprint(f"Getting priv_validator.json")
+        steprint(f"Getting priv_validator_key.json")
         ret = run_command(
             f"{c.DOCKER_RUN} \
             busybox \
-            cat /tendermint/config/priv_validator.json"
+            cat /tendermint/config/priv_validator_key.json"
         )
         # JSG strip all output from above cat until the first brace,
         # when this is run on circle there is extraneous output generated
@@ -314,13 +314,13 @@ def initNodegroup(nodes):
         )
         vprint(f"tendermint init: {ret.stdout}")
 
-        steprint(f"Getting priv_validator.json")
+        steprint(f"Getting priv_validator_key.json")
         ret = run_command(
             f"{c.DOCKER_RUN} \
             busybox \
-            cat /tendermint/config/priv_validator.json"
+            cat /tendermint/config/priv_validator_key.json"
         )
-        vprint(f"priv_validator.json: {ret.stdout}")
+        vprint(f"priv_validator_key.json: {ret.stdout}")
         node.ndau_priv = json.loads(ret.stdout)
 
         steprint(f"Getting node_key.json")
