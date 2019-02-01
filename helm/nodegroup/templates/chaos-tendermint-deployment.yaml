@@ -55,7 +55,7 @@ spec:
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
-          value: {{ .Values.honeycomb.dataset }}-chaos
+          value: {{ .Values.honeycomb.dataset }}
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
@@ -129,7 +129,7 @@ spec:
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
-          value: {{ .Values.honeycomb.dataset }}-chaos
+          value: {{ .Values.honeycomb.dataset }}
         - name: UPDATE_PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:

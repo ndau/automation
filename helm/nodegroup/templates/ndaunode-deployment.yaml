@@ -110,7 +110,7 @@ spec:
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
-          value: {{ .Values.honeycomb.dataset }}-ndau
+          value: {{ .Values.honeycomb.dataset }}
         - name: NDAUHOME
           value: "/root/.ndau"
         volumeMounts:
