@@ -57,6 +57,7 @@ class Conf:
         QUANTITY            Number of nodegroups to install.
         GENESIS_TIME        Time before which no blocks will be issued.
         CHAIN_ID            Human-friendly identifier for this blockchain
+        DRY_RUN             Bool; true if we shouldn't actually deploy
 
         Environment variables required
         ELB_SUBDOMAIN       Subdomain for ndauapi. (e.g. api.ndau.tech).
@@ -112,6 +113,7 @@ class Conf:
 
         self.GENESIS_TIME = args.genesis_time
         self.CHAIN_ID = args.chain_id
+        self.DRY_RUN = args.dry_run
 
         #
         # Environment variables
@@ -383,6 +385,12 @@ def main():
     parser.add_argument(
         "--chain-id", default="localnet", help="String identifying this blockchain."
     )
+    parser.add_argument(
+        "-D",
+        "--dry-run",
+        action="store_true",
+        help="If set, do not actually deploy anything",
+    )
 
     args = parser.parse_args()
 
@@ -586,14 +594,16 @@ def main():
             {ndauLinkOpts}'
 
         vprint(f"helm command: {helm_command}")
-        ret = run_command(helm_command, isCritical=False)
-        if ret.returncode == 0:
-            steprint(f"{node.name} installed successfully")
-        else:
-            abortClean(
-                f"Installing {node.name} failed.\nstderr: {ret.stderr}\n"
-                f"stdout: {ret.stdout}"
-            )
+
+        if not c.DRY_RUN:
+            ret = run_command(helm_command, isCritical=False)
+            if ret.returncode == 0:
+                steprint(f"{node.name} installed successfully")
+            else:
+                abortClean(
+                    f"Installing {node.name} failed.\nstderr: {ret.stderr}\n"
+                    f"stdout: {ret.stdout}"
+                )
 
     steprint("All done.")
 
