@@ -41,8 +41,6 @@ spec:
           - bash
           - -c
           - |-
-            env
-            echo starting chaos tendermint wait loop
             fullname="{{ template "nodegroup.fullname" . }}"
             echo $fullname
             RELEASE=$(echo ${fullname//-/_} | awk '{print toupper($0)}')

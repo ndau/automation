@@ -50,6 +50,51 @@ spec:
               echo waiting for {{ template "nodegroup.fullname" . }}-chaos-redis-service
               sleep 5
             done
+
+      - name: chaos-address
+        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
+        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
+        command:
+          - bash
+          - -c
+          - |-
+            fullname="{{ template "nodegroup.fullname" . }}"
+            echo "$fullname: $fullname"
+            RELEASE=$(echo ${fullname//-/_} | awk '{print toupper($0)}')
+            echo "RELEASE: $RELEASE"
+            HOST_VAR=${RELEASE}_NDAU_TENDERMINT_SERVICE_SERVICE_HOST
+            echo "HOST_VAR: $HOST_VAR"
+            RPC_PORT_VAR=${RELEASE}_NDAU_TENDERMINT_SERVICE_SERVICE_PORT_RPC
+            echo "RPC_PORT_VAR: $RPC_PORT_VAR"
+
+            host=${!HOST_VAR}
+            echo "host: $host"
+            rpc_port=${!RPC_PORT_VAR}
+            echo "rpc_port: $rpc_port"
+
+            chaos_address=http://${host}:${rpc_port}
+            printf $chaos_address > /root/.ndau/chaos-address
+        volumeMounts:
+        - mountPath: "/root/.ndau"
+          name: ndau-home-volume
+
+
+      - name: chaosnode-config-ndau
+        image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
+        imagePullPolicy: {{ .Values.chaosnode.image.pullPolicy }}
+        args: [
+          "--set-ndaunode", "$(cat /root/.ndau/chaos-address)"
+        ]
+        env:
+        - name: HONEYCOMB_KEY
+          value: {{ .Values.honeycomb.key }}
+        - name: HONEYCOMB_DATASET
+          value: {{ .Values.honeycomb.dataset }}-chaos
+        - name: NDAUHOME
+          value: "/root/.ndau"
+        volumeMounts:
+        - mountPath: "/root/.ndau"
+          name: ndau-home-volume
       containers:
       - name: chaosnode
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"

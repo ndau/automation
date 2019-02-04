@@ -94,7 +94,7 @@ ndau:
     service:
       type: ClusterIP
     moniker: anonymous
-    createEmptyBlocksInterval: 300
+    createEmptyBlocksInterval: 10s
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
     updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
     resources:
@@ -210,6 +210,9 @@ chaosnode:
   port: 26658
   service:
     type: ClusterIP
+  ndauLink:
+    enabled: false
+    address: "" # http://host:port
   resources:
     requests:
       memory: 200Mi
@@ -253,7 +256,7 @@ chaos:
     service:
       type: ClusterIP
     moniker: anonymous
-    createEmptyBlocksInterval: 300
+    createEmptyBlocksInterval: 10s
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
     updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
     resources:
