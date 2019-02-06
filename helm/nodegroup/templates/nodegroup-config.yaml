@@ -157,6 +157,8 @@ data:
 
     TM_CONFIG=$TMHOME/config
     RO_CONFIG=/root/config-ro
+    TM_DATA=$TMHOME/data
+    RO_DATA=/root/data-ro
 
     # ensure directory for read-writeable config files
     if mkdir -p $TM_CONFIG; then
@@ -173,9 +175,16 @@ data:
 
       # copy all read only files from config map to real config directory
       if cp $RO_CONFIG/* $TM_CONFIG; then
-        log "Read only files copied"
+        log "Read only files copied to tendermint config"
       else
         err "Could not copy read-only files to tendermint config"
+      fi
+
+      # copy all read only files from data map to real data directory
+      if cp $RO_DATA/* $TM_DATA; then
+        log "Read only files copied to tendermint data"
+      else
+        err "Could not copy read-only files to tendermint data"
       fi
 
       # copy genesis and insert app hash
