@@ -84,7 +84,7 @@ ndau:
     service:
       type: ClusterIP
     moniker: anonymous
-    createEmptyBlocksInterval: 10s
+    createEmptyBlocksInterval: 300s
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
     updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
     resources:
@@ -246,7 +246,7 @@ chaos:
     service:
       type: ClusterIP
     moniker: anonymous
-    createEmptyBlocksInterval: 10s
+    createEmptyBlocksInterval: 300s
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
     updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
     resources:
