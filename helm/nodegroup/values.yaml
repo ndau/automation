@@ -94,7 +94,7 @@ ndau:
     service:
       type: ClusterIP
     moniker: anonymous
-    createEmptyBlocksInterval: 10s
+    createEmptyBlocksInterval: 300s
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
     updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
     resources:
@@ -123,7 +123,6 @@ ndau:
         memory: 4Gi
         cpu: 1
 
-
   redis:
     image:
       repository: redis
@@ -141,6 +140,7 @@ ndau:
       limits:
         memory: 4Gi
         cpu: 1
+
   # deployUtils is an small image with tools used for small tasks.
   deployUtils:
     image:
@@ -148,11 +148,11 @@ ndau:
       tag: 0.0.1
       pullPolicy: IfNotPresent
 
-  # default configuration for tendermint's priv_validator.json file in base64
+  # default configuration for tendermint's priv_validator_key.json file in base64
   # This should be supplied in the commandline.
   # What ever value is supplied for app_hash here or the commandline gets overriden by the tendermint deployment init containers.
-  privValidator: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQTU2RSIsInB1Yl9rZXkiOiB7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwibGFzdF9oZWlnaHQiOjAsImxhc3Rfcm91bmQiOjAsImxhc3Rfc3RlcCI6MCwibGFzdF9zaWduYXR1cmUiOm51bGwsInByaXZfa2V5IjogeyJ0eXBlIjoiZWQyNTUxOSIsImRhdGEiOiI0MzkzMUQ1Q0FBNUQ3QkRBODY4RkI1QTc5RjkyQTQ1QzRERTRDODYwMkI0NUIwQjM4QkQ3RTRBQ0FDNzYyNDVDRjE0Q0UyNzNBRjBCNTg4MDJERURGNEFFRENFOEI2MUUwNjAwODgyMUFFOUFBRTVEQURFNjcxMzYwNDI2Q0U3MCJ9fQo=
-  # The json below (minute whitespace) is base64 encoded above.
+  privValidatorKey: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQTU2RSIsInB1Yl9rZXkiOiB7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwibGFzdF9oZWlnaHQiOjAsImxhc3Rfcm91bmQiOjAsImxhc3Rfc3RlcCI6MCwibGFzdF9zaWduYXR1cmUiOm51bGwsInByaXZfa2V5IjogeyJ0eXBlIjoiZWQyNTUxOSIsImRhdGEiOiI0MzkzMUQ1Q0FBNUQ3QkRBODY4RkI1QTc5RjkyQTQ1QzRERTRDODYwMkI0NUIwQjM4QkQ3RTRBQ0FDNzYyNDVDRjE0Q0UyNzNBRjBCNTg4MDJERURGNEFFRENFOEI2MUUwNjAwODgyMUFFOUFBRTVEQURFNjcxMzYwNDI2Q0U3MCJ9fQo=
+  # The json below (minus whitespace) is base64 encoded above.
   #  {
   #    "address":"D0EA8F8997AFFC3393A015959B0CED47AFCCA56E",
   #    "pub_key": {
@@ -167,6 +167,14 @@ ndau:
   #      "type":"ed25519",
   #      "data":"43931D5CAA5D7BDA868FB5A79F92A45C4DE4C8602B45B0B38BD7E4ACAC76245CF14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
   #    }
+  #  }
+
+  privValidatorState: eyJoZWlnaHQiOiIwIiwicm91bmQiOiIwIiwic3RlcCI6MH0=
+  # The json below (minus whitespace) is base64 encoded above.
+  #  {
+  #    "height": "0",
+  #    "round": "0",
+  #    "step": 0
   #  }
 
   # default configuration for tendermint'e genesis.json file in base64
@@ -256,7 +264,7 @@ chaos:
     service:
       type: ClusterIP
     moniker: anonymous
-    createEmptyBlocksInterval: 10s
+    createEmptyBlocksInterval: 300s
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
     updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
     resources:
@@ -310,11 +318,11 @@ chaos:
       tag: 0.0.1
       pullPolicy: IfNotPresent
 
-  # default configuration for tendermint's priv_validator.json file in base64
+  # default configuration for tendermint's priv_validator_key.json file in base64
   # This should be supplied in the commandline.
   # What ever value is supplied for app_hash here or the commandline gets overriden by the tendermint deployment init containers.
-  privValidator: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQTU2RSIsInB1Yl9rZXkiOiB7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwibGFzdF9oZWlnaHQiOjAsImxhc3Rfcm91bmQiOjAsImxhc3Rfc3RlcCI6MCwibGFzdF9zaWduYXR1cmUiOm51bGwsInByaXZfa2V5IjogeyJ0eXBlIjoiZWQyNTUxOSIsImRhdGEiOiI0MzkzMUQ1Q0FBNUQ3QkRBODY4RkI1QTc5RjkyQTQ1QzRERTRDODYwMkI0NUIwQjM4QkQ3RTRBQ0FDNzYyNDVDRjE0Q0UyNzNBRjBCNTg4MDJERURGNEFFRENFOEI2MUUwNjAwODgyMUFFOUFBRTVEQURFNjcxMzYwNDI2Q0U3MCJ9fQo=
-  # The json below (minute whitespace) is base64 encoded above.
+  privValidatorKey: eyJhZGRyZXNzIjoiRDBFQThGODk5N0FGRkMzMzkzQTAxNTk1OUIwQ0VENDdBRkNDQTU2RSIsInB1Yl9rZXkiOiB7InR5cGUiOiJlZDI1NTE5IiwiZGF0YSI6IkYxNENFMjczQUYwQjU4ODAyREVERjRBRURDRThCNjFFMDYwMDg4MjFBRTlBQUU1REFERTY3MTM2MDQyNkNFNzAifSwibGFzdF9oZWlnaHQiOjAsImxhc3Rfcm91bmQiOjAsImxhc3Rfc3RlcCI6MCwibGFzdF9zaWduYXR1cmUiOm51bGwsInByaXZfa2V5IjogeyJ0eXBlIjoiZWQyNTUxOSIsImRhdGEiOiI0MzkzMUQ1Q0FBNUQ3QkRBODY4RkI1QTc5RjkyQTQ1QzRERTRDODYwMkI0NUIwQjM4QkQ3RTRBQ0FDNzYyNDVDRjE0Q0UyNzNBRjBCNTg4MDJERURGNEFFRENFOEI2MUUwNjAwODgyMUFFOUFBRTVEQURFNjcxMzYwNDI2Q0U3MCJ9fQo=
+  # The json below (minus whitespace) is base64 encoded above.
   #  {
   #    "address":"D0EA8F8997AFFC3393A015959B0CED47AFCCA56E",
   #    "pub_key": {
@@ -329,6 +337,14 @@ chaos:
   #      "type":"ed25519",
   #      "data":"43931D5CAA5D7BDA868FB5A79F92A45C4DE4C8602B45B0B38BD7E4ACAC76245CF14CE273AF0B58802DEDF4AEDCE8B61E06008821AE9AAE5DADE671360426CE70"
   #    }
+  #  }
+
+  privValidatorState: eyJoZWlnaHQiOiIwIiwicm91bmQiOiIwIiwic3RlcCI6MH0=
+  # The json below (minus whitespace) is base64 encoded above.
+  #  {
+  #    "height": "0",
+  #    "round": "0",
+  #    "step": 0
   #  }
 
   # default configuration for tendermint'e genesis.json file in base64

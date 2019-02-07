@@ -115,9 +115,12 @@ spec:
         - name: node-key-json
           mountPath: /root/config-ro/node_key.json
           subPath: node_key.json
-        - name: priv-validator-json
-          mountPath: /root/config-ro/priv_validator.json
-          subPath: priv_validator.json
+        - name: priv-validator-key-json
+          mountPath: /root/config-ro/priv_validator_key.json
+          subPath: priv_validator_key.json
+        - name: priv-validator-state-json
+          mountPath: /root/data-ro/priv_validator_state.json
+          subPath: priv_validator_state.json
         - name: config-toml
           mountPath: /root/config-ro/config.toml
           subPath: config.toml
@@ -172,12 +175,18 @@ spec:
             items:
             - key: genesis.json
               path: genesis.json
-        - name: priv-validator-json
+        - name: priv-validator-key-json
           configMap:
             name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
             items:
-            - key: priv_validator.json
-              path: priv_validator.json
+            - key: priv_validator_key.json
+              path: priv_validator_key.json
+        - name: priv-validator-state-json
+          configMap:
+            name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
+            items:
+            - key: priv_validator_state.json
+              path: priv_validator_state.json
         - name: node-key-json
           configMap:
             name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
