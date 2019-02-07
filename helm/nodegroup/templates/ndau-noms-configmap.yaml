@@ -43,13 +43,17 @@ data:
     # Keep this as chaos so everyone is using the same database
     rhost={{ template "nodegroup.fullname" . }}-chaos-redis-service
 
-    # get redis readiness
-    if ! redis-cli -h $rhost PING; then
-      >&2 echo "Cannot contact redis"
-      exit 1
-    else
-      >&2 echo "Redis is ready."
-    fi
+    # wait for redis
+    while true ; do
+      # get redis readiness
+      if ! redis-cli -h $rhost PING; then
+        >&2 echo "Cannot contact redis"
+        sleep 1
+      else
+        >&2 echo "Redis is ready."
+        break
+      fi
+    done
 
     # snapshot runs when SIGTERM is sent to this process
     snapshot() {
@@ -58,18 +62,16 @@ data:
 
       # try to set snapping flag if not set. If set, get it.
       # Everything expires after 120 seconds. If things get hung up, it's possible to restart.
-      snap_res=$(redis-cli -h $rhost SET "snapshot-$NEW_CODE-snapping" 1 EX 120 NX)
-      if [ "$snap_res" == "1" ]; then
+      snap_res=$(redis-cli -h $rhost SET snapshot-$NEW_CODE-snapping 1 EX 120 NX)
+      if [ "$snap_res" == "OK" ]; then
 
         >&2 echo "Beginning new snapshot process for all services."
         snapping=1
-        redis-cli -h $rhost \
-          MSET \
-            snapshot-$NEW_CODE-ndau-tm 1 \
-            snapshot-$NEW_CODE-ndau-noms 1 \
-            snapshot-$NEW_CODE-chaos-tm 1 \
-            snapshot-$NEW_CODE-chaos-noms 1 \
-            EX 120
+        redis-cli -h $rhost SET snapshot-$NEW_CODE-ndau-tm 1 EX 120
+        redis-cli -h $rhost SET snapshot-$NEW_CODE-ndau-noms 1 EX 120
+        redis-cli -h $rhost SET snapshot-$NEW_CODE-chaos-tm 1 EX 120
+        redis-cli -h $rhost SET snapshot-$NEW_CODE-chaos-noms 1 EX 120
+
       else
         # could return either 1 or 0 on second run
         snapping=$(redis-cli -h $rhost GET "snapshot-$NEW_CODE-snapping")
@@ -108,6 +110,8 @@ data:
           http://s3.amazonaws.com$s3_path
 
       fi
+
+      redis-cli -h $rhost DEL snapshot-$NEW_CODE-ndau-noms
 
       # do not check if all jobs are completed, this job goes first.
 

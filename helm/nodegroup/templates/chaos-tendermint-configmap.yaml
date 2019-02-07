@@ -48,13 +48,17 @@ data:
     # Keep this as chaos so everyone is using the same database
     rhost={{ template "nodegroup.fullname" . }}-chaos-redis-service
 
-    # get redis readiness
-    if ! redis-cli -h $rhost PING; then
-      >&2 echo "Cannot contact redis"
-      exit 1
-    else
-      >&2 echo "Redis is ready."
-    fi
+    # wait for redis
+    while true ; do
+      # get redis readiness
+      if ! redis-cli -h $rhost PING; then
+        >&2 echo "Cannot contact redis"
+        sleep 1
+      else
+        >&2 echo "Redis is ready."
+        break
+      fi
+    done
 
     # curl retry options
     CURL_CONNECT_TIMEOUT=5  # each try waits X seconds
@@ -94,13 +98,11 @@ data:
 
         >&2 echo "Beginning new snapshot process for all services."
         snapping=1
-        redis-cli -h $rhost \
-          MSET \
-            snapshot-$NEW_CODE-ndau-tm 1 \
-            snapshot-$NEW_CODE-ndau-noms 1 \
-            snapshot-$NEW_CODE-chaos-tm 1 \
-            snapshot-$NEW_CODE-chaos-noms 1 \
-            EX 120
+        redis-cli -h $rhost SET snapshot-$NEW_CODE-ndau-tm 1 EX 120
+        redis-cli -h $rhost SET snapshot-$NEW_CODE-ndau-noms 1 EX 120
+        redis-cli -h $rhost SET snapshot-$NEW_CODE-chaos-tm 1 EX 120
+        redis-cli -h $rhost SET snapshot-$NEW_CODE-chaos-noms 1 EX 120
+
       else
         # could return either 1 or 0 on second run
         snapping=$(redis-cli -h $rhost GET "snapshot-$NEW_CODE-snapping")
@@ -186,6 +188,7 @@ data:
         -H "Authorization: AWS $AWS_KEY:$signature" \
         http://s3.amazonaws.com$s3_path
 
+      redis-cli -h $rhost DEL "snapshot-$NEW_CODE-chaos-tendermint"
 
       # if everyone is done, then remove snapping key
       if ! redis-cli -h $rhost MGET \

@@ -85,12 +85,20 @@ data:
         log "Using snapshot code: $SNAPSHOT_CODE"
         token=$SNAPSHOT_CODE
       else
-        snapshot_list=$(curl http://ndau-snapshots.s3.amazonaws.com?prefix=by-height/${this_node})
-        log "Latest snapshot height: $snapshot_list"
+        snapshot_list_url=http://ndau-snapshots.s3.amazonaws.com?prefix=by-height/${this_node}
+        if snapshot_list=$(curl $snapshot_list_url); then
+          log "Latest snapshot height: $snapshot_list"
+        else
+          err "Cannot get snapshot list from s3 $snapshot_list_url"
+        fi
         latest_height_code=$(echo $snapshot_list | grep -oP '(?<=<Key>).*?(?=</Key>)' | sort | tail -n 1)
         log "Latest snapshot height: $latest_snapshot_height"
-        token=$(curl https://s3.amazonaws.com/ndau-snapshots/by-height/${latest_height_code} || err "Could not download latest.txt")
-        log "Using latest snapshot: $token"
+        latest_height_url=https://s3.amazonaws.com/ndau-snapshots/by-height/${latest_height_code}
+        if token=$(curl $latest_height_url); then
+          log "Using latest snapshot: $token"
+        else
+          err "Could not find latest height URL: $latest_height_url"
+        fi
       fi
       log "Clearing data directory and installing new one"
       [ ! $NO_CLEAR == "true" ] && rm -rf "$DATA_DIR"/*
