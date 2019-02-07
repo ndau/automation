@@ -243,10 +243,10 @@ def initNodegroup(nodes):
           init')
         vprint(f'tendermint init: {ret.stdout}')
 
-        steprint(f"Getting priv_validator.json")
+        steprint(f"Getting priv_validator_key.json")
         ret = run_command(f'{c.DOCKER_RUN} \
             busybox \
-            cat /tendermint/config/priv_validator.json')
+            cat /tendermint/config/priv_validator_key.json')
         # JSG strip all output from above cat until the first brace,
         # when this is run on circle there is extraneous output generated
         # by the first load of busybox image
@@ -273,11 +273,11 @@ def initNodegroup(nodes):
           init')
         vprint(f'tendermint init: {ret.stdout}')
 
-        steprint(f"Getting priv_validator.json")
+        steprint(f"Getting priv_validator_key.json")
         ret = run_command(f'{c.DOCKER_RUN} \
             busybox \
-            cat /tendermint/config/priv_validator.json')
-        vprint(f'priv_validator.json: {ret.stdout}')
+            cat /tendermint/config/priv_validator_key.json')
+        vprint(f'priv_validator_key.json: {ret.stdout}')
         node.ndau_priv = json.loads(ret.stdout)
 
         steprint(f"Getting node_key.json")
@@ -426,7 +426,7 @@ def main():
             'chaos': {
                 'genesis': jsonB64(chaos_genesis),
                 'nodeKey': jsonB64(node.chaos_nodeKey),
-                'privValidator': jsonB64(node.chaos_priv),
+                'privValidatorKey': jsonB64(node.chaos_priv),
                 'noms': {
                     'snapshotCode': c.SNAPSHOT_CODE,
                     'image': {
@@ -456,7 +456,7 @@ def main():
             'ndaunode': {'image': {'tag': c.NDAUNODE_TAG}},
             'ndau': {
                 'genesis': jsonB64(ndau_genesis),
-                'privValidator': jsonB64(node.ndau_priv),
+                'privValidatorKey': jsonB64(node.ndau_priv),
                 'nodeKey': jsonB64(node.ndau_nodeKey),
                 'noms': {
                     'snapshotCode': c.SNAPSHOT_CODE,

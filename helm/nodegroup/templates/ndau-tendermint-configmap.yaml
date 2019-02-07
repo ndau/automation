@@ -9,7 +9,9 @@ data:
 
   node_key.json: {{ b64dec .Values.ndau.nodeKey | quote }}
 
-  priv_validator.json: {{ b64dec .Values.ndau.privValidator | quote }}
+  priv_validator_key.json: {{ b64dec .Values.ndau.privValidatorKey | quote }}
+
+  priv_validator_state.json: {{ b64dec .Values.ndau.privValidatorState | quote }}
 
   config.toml: |
     # This is a TOML config file.
@@ -47,7 +49,10 @@ data:
     genesis_file = "config/genesis.json"
 
     # Path to the JSON file containing the private key to use as a validator in the consensus protocol
-    priv_validator_file = "config/priv_validator.json"
+    priv_validator_key_file = "config/priv_validator_key.json"
+
+    # Path to the JSON file containing the last sign state of a validator
+    priv_validator_state_file = "data/priv_validator_state.json"
 
     # TCP or UNIX socket address for Tendermint to listen on for
     # connections from an external PrivValidator process
@@ -126,7 +131,6 @@ data:
     seeds = ""
 
     # Comma separated list of nodes to keep persistent connections to
-    # Do not add private peers to this list if you don't want them advertised
     persistent_peers = ""
 
     # UPNP port forwarding
@@ -180,7 +184,6 @@ data:
     [mempool]
 
     recheck = true
-    #    recheck_empty = true  # JSG this was from TM v0.25.0
     broadcast = true
     wal_dir = ""
 
@@ -206,9 +209,9 @@ data:
     # Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
     skip_timeout_commit = false
 
-    # EmptyBlocks mode and possible interval between empty blocks in seconds
+    # EmptyBlocks mode and possible interval between empty blocks
     # create_empty_blocks = true
-    create_empty_blocks_interval = "{{ .Values.chaos.tendermint.createEmptyBlocksInterval }}"
+    create_empty_blocks_interval = "{{ .Values.ndau.tendermint.createEmptyBlocksInterval }}"
 
     # Reactor sleep duration parameters
     peer_gossip_sleep_duration = "100ms"
