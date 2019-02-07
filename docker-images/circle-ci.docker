@@ -3,7 +3,7 @@
 
 FROM golang:1.11-alpine3.8
 
-LABEL org.opencontainers.image.version=0.0.9
+LABEL org.opencontainers.image.version=0.0.10
 
 # start by installing fundamental utilities
 # openssh-client is required for git
@@ -33,7 +33,7 @@ RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s
     mv ./kubectl /usr/local/bin/kubectl
 
 # download and install helm
-RUN curl https://storage.googleapis.com/kubernetes-helm/helm-v2.9.1-linux-amd64.tar.gz > helm.tgz &&\
+RUN curl https://storage.googleapis.com/kubernetes-helm/helm-v2.12.3-linux-amd64.tar.gz > helm.tgz &&\
     tar -zxvf helm.tgz &&\
     mv linux-amd64/helm /usr/local/bin/helm &&\
     helm init --client-only
