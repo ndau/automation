@@ -426,7 +426,7 @@ def main():
             'chaos': {
                 'genesis': jsonB64(chaos_genesis),
                 'nodeKey': jsonB64(node.chaos_nodeKey),
-                'privValidator': jsonB64(node.chaos_priv),
+                'privValidatorKey': jsonB64(node.chaos_priv),
                 'noms': {
                     'snapshotCode': c.SNAPSHOT_CODE,
                     'image': {
@@ -456,7 +456,7 @@ def main():
             'ndaunode': {'image': {'tag': c.NDAUNODE_TAG}},
             'ndau': {
                 'genesis': jsonB64(ndau_genesis),
-                'privValidator': jsonB64(node.ndau_priv),
+                'privValidatorKey': jsonB64(node.ndau_priv),
                 'nodeKey': jsonB64(node.ndau_nodeKey),
                 'noms': {
                     'snapshotCode': c.SNAPSHOT_CODE,

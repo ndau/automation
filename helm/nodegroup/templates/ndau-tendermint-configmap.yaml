@@ -9,7 +9,7 @@ data:
 
   node_key.json: {{ b64dec .Values.ndau.nodeKey | quote }}
 
-  priv_validator_key.json: {{ b64dec .Values.ndau.privValidator | quote }}
+  priv_validator_key.json: {{ b64dec .Values.ndau.privValidatorKey | quote }}
 
   priv_validator_state.json: {{ b64dec .Values.ndau.privValidatorState | quote }}
 
