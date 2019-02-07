@@ -11,6 +11,8 @@ data:
 
   priv_validator_key.json: {{ b64dec .Values.ndau.privValidator | quote }}
 
+  priv_validator_state.json: {{ b64dec .Values.ndau.privValidatorState | quote }}
+
   config.toml: |
     # This is a TOML config file.
     # For more information, see https://github.com/toml-lang/toml
