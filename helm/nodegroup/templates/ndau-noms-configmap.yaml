@@ -8,6 +8,10 @@ data:
 
   make-snapshot.sh: |
 
+    errcho() {
+      >&2 echo $@
+    }
+
     already_ran=false
 
     # s3_upload takes the first argument as the full local file path and uploads it to s3
@@ -44,13 +48,14 @@ data:
     rhost={{ template "nodegroup.fullname" . }}-chaos-redis-service
 
     # wait for redis
+    errcho "pinging redis"
     while true ; do
       # get redis readiness
       if ! redis-cli -h $rhost PING; then
-        >&2 echo "Cannot contact redis"
+        errcho "Waiting for redis to pong."
         sleep 1
       else
-        >&2 echo "Redis is ready."
+        errcho "Redis is ready."
         break
       fi
     done
@@ -65,7 +70,7 @@ data:
       snap_res=$(redis-cli -h $rhost SET snapshot-$NEW_CODE-snapping 1 EX 120 NX)
       if [ "$snap_res" == "OK" ]; then
 
-        >&2 echo "Beginning new snapshot process for all services."
+        errcho "Beginning new snapshot process for all services."
         snapping=1
         redis-cli -h $rhost SET snapshot-$NEW_CODE-ndau-tm 1 EX 120
         redis-cli -h $rhost SET snapshot-$NEW_CODE-ndau-noms 1 EX 120
@@ -75,7 +80,7 @@ data:
       else
         # could return either 1 or 0 on second run
         snapping=$(redis-cli -h $rhost GET "snapshot-$NEW_CODE-snapping")
-        >&2 echo "Snapping already in progress: $snapping"
+        errcho "Snapping already in progress: $snapping"
       fi
 
       # upload the database
@@ -85,9 +90,9 @@ data:
       s3_path="/ndau-snapshots/$NEW_CODE/${tar_file}"
 
       if curl_response=$(curl --head -f http://s3.amazonaws.com$s3_path); then
-        >&2 echo "Snapshot $s3_path already exists. Will not upload."
+        errcho "Snapshot $s3_path already exists. Will not upload."
       else
-        >&2 echo "Uploading snapshot $s3_path."
+        errcho "Uploading snapshot $s3_path."
 
         (
           cd /noms/data
@@ -101,7 +106,7 @@ data:
         signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
 
         # upload tarball to s3
-        >&2 echo "Uploading snapshot $s3_path."
+        errcho "Uploading snapshot $s3_path."
         curl -X PUT -T "/root/$tar_file" \
           -H "Host: s3.amazonaws.com" \
           -H "Date: $the_date" \
@@ -123,13 +128,15 @@ data:
     # check redis and loop until this service has been told to snapshot
     while [ "$res" != "1" ] && ! $already_ran; do
       if $already_ran; then
-        >&2 echo "Caught SIGTERM, not waiting."
+        errcho "Caught SIGTERM, not waiting."
         exit 1
       fi
-      echo "."
+      printf "."
       sleep 10
       res=$(timeout -t 5 redis-cli -h $rhost get "snapshot-$NEW_CODE-$this_service")
     done
+
+    errcho "Done waiting. This value for key snapshot-$NEW_CODE-$this_service: $res"
 
     # don't try to snapshot if we snapshotted already with sigterm
     $already_ran || snapshot

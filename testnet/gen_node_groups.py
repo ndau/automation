@@ -163,12 +163,11 @@ class Conf:
         if self.SNAPSHOT_CODE == None:
             self.SNAPSHOT_CODE = ""
 
+        self.AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+        self.AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+
         self.SNAPSHOT_ON_SHUTDOWN = os.environ.get('SNAPSHOT_ON_SHUTDOWN')
         if self.SNAPSHOT_ON_SHUTDOWN == "true":
-            self.SNAPSHOT_ON_SHUTDOWN = True
-
-            self.AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-            self.AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 
             if self.AWS_ACCESS_KEY_ID == None or self.AWS_SECRET_ACCESS_KEY == None:
                 abortClean(f'If SNAPSHOT_ON_SHUTDOWN is set to true, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY need to be set with a user that has s3 write permissions.')
@@ -510,7 +509,7 @@ def main():
         helm_command = f'helm install --name {node.name} {helmChartPath} \
             {chaos_args} \
             {ndau_args} \
-            --set snapshotOnShutdown="{c.SNAPSHOT_ON_SHUTDOWN}" \
+            --set snapshotOnShutdown={c.SNAPSHOT_ON_SHUTDOWN} \
             --set aws.accessKeyID="{c.AWS_ACCESS_KEY_ID}" \
             --set aws.secretAccessKey="{c.AWS_SECRET_ACCESS_KEY}" \
             --set ndau.deployUtils.image.tag="0.0.4" \

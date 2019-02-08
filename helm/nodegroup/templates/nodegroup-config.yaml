@@ -73,6 +73,9 @@ data:
     # TODO put this in the deploy utils image
     which curl || apk add --no-cache curl
 
+    # TODO put this in the deploy utils image
+    which perl || apk add --no-cache perl
+
     if [ ! -d "$DATA_DIR" ]; then
       mkdir -p "$DATA_DIR"
     fi
@@ -87,13 +90,14 @@ data:
       else
         snapshot_list_url=http://ndau-snapshots.s3.amazonaws.com?prefix=by-height/${this_node}
         if snapshot_list=$(curl $snapshot_list_url); then
-          log "Latest snapshot height: $snapshot_list"
+          log "Latest snapshot list: $snapshot_list"
         else
           err "Cannot get snapshot list from s3 $snapshot_list_url"
         fi
-        latest_height_code=$(echo $snapshot_list | grep -oP '(?<=<Key>).*?(?=</Key>)' | sort | tail -n 1)
+
+        latest_height_code=$(echo $snapshot_list | perl -nle'print $& while m{(?<=<Key>).*?(?=</Key>)}g' | grep "$this_node" | sort | tail -n 1)
         log "Latest snapshot height: $latest_snapshot_height"
-        latest_height_url=https://s3.amazonaws.com/ndau-snapshots/by-height/${latest_height_code}
+        latest_height_url=https://s3.amazonaws.com/ndau-snapshots/${latest_height_code}
         if token=$(curl $latest_height_url); then
           log "Using latest snapshot: $token"
         else

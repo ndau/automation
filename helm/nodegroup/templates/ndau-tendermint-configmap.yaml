@@ -15,6 +15,10 @@ data:
 
   make-snapshot.sh: |
 
+    errcho() {
+      >&2 echo $@
+    }
+
     already_ran=false
 
     # s3_upload takes the first argument as the full local file path and uploads it to s3
@@ -51,13 +55,14 @@ data:
     rhost={{ template "nodegroup.fullname" . }}-chaos-redis-service
 
     # wait for redis
+    errcho "Pinging redis"
     while true ; do
       # get redis readiness
       if ! redis-cli -h $rhost PING; then
-        >&2 echo "Cannot contact redis"
+        errcho "Waiting for redis to pong."
         sleep 1
       else
-        >&2 echo "Redis is ready."
+        errcho "Redis is ready."
         break
       fi
     done
@@ -82,23 +87,24 @@ data:
             --retry-delay $CURL_RETRY_DELAY \
             --retry-max-time $CURL_TOTAL_TIMEOUT \
             localhost:26657/status)
+      errcho "Tendermint status response: $status_response"
       height=$(jq -r ".result.sync_info.latest_block_height" <<< $status_response)
+      errcho "height: $height"
       app_hash=$(jq -r ".result.sync_info.latest_app_hash" <<< $status_response)
+      errcho "app_hash: $app_hash"
 
       # try to set snapping flag if not set. If set, get it.
       # Everything expires after 120 seconds. If things get hung up, it's possible to restart.
       snap_res=$(redis-cli -h $rhost SET "snapshot-$NEW_CODE-snapping" 1 EX 120 NX)
-      >&2 echo "command: redis-cli -h $rhost SET snapshot-$NEW_CODE-snapping 1 EX 120 NX"
-      >&2 echo "This is what redis says: $snap_res"
+      errcho "snap_res: $snap_res"
       if [ "$snap_res" == "OK" ]; then
-
         # check to see if this hash was already uploaded
         if ! curl -f http://s3.amazonaws.com/ndau-snapshots/hashes/${this_node}-${app_hash}; then
-          >&2 echo "Quitting. Snapshot for this app_hash ($app_hash) already uploaded."
+          errcho "Quitting. Snapshot for this app_hash ($app_hash) already uploaded."
           exit 1
         fi
 
-        >&2 echo "Beginning new snapshot process for all services."
+        errcho "Beginning new snapshot process for all services."
         snapping=1
         redis-cli -h $rhost SET snapshot-$NEW_CODE-ndau-tm 1 EX 120
         redis-cli -h $rhost SET snapshot-$NEW_CODE-ndau-noms 1 EX 120
@@ -108,12 +114,12 @@ data:
       else
         # could return either 1 or 0 on second run
         snapping=$(redis-cli -h $rhost GET "snapshot-$NEW_CODE-snapping")
-        >&2 echo "Snapping already in progress: snapshot-$NEW_CODE-snapping = $snapping"
+        errcho "Snapping already in progress: snapshot-$NEW_CODE-snapping = $snapping"
       fi
 
       # wait until noms snapshot is done
       noms_snapshot_url=http://s3.amazonaws.com/ndau-snapshots/$NEW_CODE/${this_node}-noms.tgz
-      >&2 echo "Waiting for noms snapshot to appear at: $noms_snapshot_url."
+      errcho "Waiting for noms snapshot to appear at: $noms_snapshot_url."
 
       # curl until the noms snapshot is up, or CURL_TOTAL_TIMEOUT passes
       if curl --head --connect-timeout $CURL_CONNECT_TIMEOUT \
@@ -123,9 +129,9 @@ data:
           --retry-delay $CURL_RETRY_DELAY \
           --retry-max-time $CURL_TOTAL_TIMEOUT \
           $noms_snapshot_url; then
-          >&2 echo "Done waiting. Detected noms snapshot."
+          errcho "Done waiting. Detected noms snapshot."
       else
-          >&2 echo "Aborting. Noms snapshot not detected."
+          errcho "Aborting. Noms snapshot not detected."
           exit 1
       fi
 
@@ -137,9 +143,9 @@ data:
       s3_path="/ndau-snapshots/$NEW_CODE/${tar_file}"
 
       if curl_response=$(curl -f http://s3.amazonaws.com$s3_path); then
-        >&2 echo "Snapshot $s3_path already exists. Will not upload."
+        errcho "Snapshot $s3_path already exists. Will not upload."
       else
-        >&2 echo "Uploading snapshot $s3_path."
+        errcho "Uploading snapshot $s3_path."
 
         (
           cd /tendermint/data
@@ -153,7 +159,7 @@ data:
         signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
 
         # upload tarball to s3
-        >&2 echo "Uploading snapshot $s3_path."
+        errcho "Uploading snapshot $s3_path."
         curl -X PUT -T "/root/$tar_file" \
           -H "Host: s3.amazonaws.com" \
           -H "Date: $the_date" \
@@ -182,7 +188,7 @@ data:
       signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
 
       # upload tarball to s3
-      >&2 echo "Uploading genesis to $s3_path."
+      errcho "Uploading genesis to $s3_path."
       curl -X PUT -T "/root/$tar_file" \
         -H "Host: s3.amazonaws.com" \
         -H "Date: $the_date" \
@@ -190,7 +196,8 @@ data:
         -H "Authorization: AWS $AWS_KEY:$signature" \
         http://s3.amazonaws.com$s3_path
 
-      redis-cli -h $rhost DEL "snapshot-$NEW_CODE-ndau-tendermint"
+      # remove service flag
+      redis-cli -h $rhost DEL "snapshot-$NEW_CODE-$this_service"
 
       # if everyone is done, then remove snapping key
       if ! redis-cli -h $rhost MGET \
@@ -199,105 +206,96 @@ data:
         snapshot-$NEW_CODE-chaos-tm \
         snapshot-$NEW_CODE-chaos-noms | grep 1; then
 
-        >&2 echo "No current snapshot jobs."
+        errcho "No current snapshot jobs."
 
         # we're all done
-        >&2 echo "Removing snapping flag."
+        errcho "Removing snapping flag."
         redis-cli -h $rhost DEL snapshot-$NEW_CODE-snapping
 
-        # create a manifest file
-        jq --arg date "$(date)" \
-          --arg height "$height" \
-          --arg app_hash "$app_hash" \
-          ". | \
-          .[\"date\"]=\$date | \
-          .[\"height\"]=\$height | \
-          .[\"app_hash\"]=\$app_hash" \
-          <<< '{}' > /root/manifest.json
-        >&2 echo "Created manifest file: $(cat /root/manifest.json)"
-
-        # prepare headers and signature
-        the_date=$(date -R)
-        s3_path="/ndau-snapshots/$NEW_CODE/${this_node}-manifest.json"
-        content_type="application/octet-stream"
-        signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
-        signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
-
-        # upload to s3
-        curl -X PUT -T "/root/manifest.json" \
-          -H "Host: s3.amazonaws.com" \
-          -H "Date: $the_date" \
-          -H "Content-Type: $content_type" \
-          -H "Authorization: AWS $AWS_KEY:$signature" \
-          http://s3.amazonaws.com$s3_path
-
-        # upload app_hash key
-
-        # prepare headers and signature
-        echo "$NEW_CODE" > /root/new_code
-        the_date=$(date -R)
-        s3_path="/ndau-snapshots/by-hash/${this_node}-${app_hash}"
-        content_type="application/octet-stream"
-        signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
-        signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
-
-        # upload to s3
-        curl -X PUT -T "/root/new_code" \
-          -H "Host: s3.amazonaws.com" \
-          -H "Date: $the_date" \
-          -H "Content-Type: $content_type" \
-          -H "Authorization: AWS $AWS_KEY:$signature" \
-          http://s3.amazonaws.com$s3_path
-
-        # upload block height key
-
-        # prepare headers and signature
-        the_date=$(date -R)
-        s3_path="/ndau-snapshots/by-height/${this_node}-${height}"
-        content_type="application/octet-stream"
-        signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
-        signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
-
-        # upload to s3
-        curl -X PUT -T "/root/new_code" \
-          -H "Host: s3.amazonaws.com" \
-          -H "Date: $the_date" \
-          -H "Content-Type: $content_type" \
-          -H "Authorization: AWS $AWS_KEY:$signature" \
-          http://s3.amazonaws.com$s3_path
-
-
       else
-        >&2 echo "Other snapshot jobs detected."
+        errcho "Other snapshot jobs still in progress."
       fi
+
+      # create a manifest file
+      jq --arg date "$(date)" \
+        --arg height "$height" \
+        --arg app_hash "$app_hash" \
+        ". | \
+        .[\"date\"]=\$date | \
+        .[\"height\"]=\$height | \
+        .[\"app_hash\"]=\$app_hash" \
+        <<< '{}' > /root/manifest.json
+      errcho "Created manifest file: $(cat /root/manifest.json)"
+
+      # prepare headers and signature
+      the_date=$(date -R)
+      s3_path="/ndau-snapshots/$NEW_CODE/${this_node}-manifest.json"
+      content_type="application/octet-stream"
+      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
+      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+
+      # upload to s3
+      curl -X PUT -T "/root/manifest.json" \
+        -H "Host: s3.amazonaws.com" \
+        -H "Date: $the_date" \
+        -H "Content-Type: $content_type" \
+        -H "Authorization: AWS $AWS_KEY:$signature" \
+        http://s3.amazonaws.com$s3_path
+
+      # upload app_hash key
+
+      # prepare headers and signature
+      echo "$NEW_CODE" > /root/new_code
+      the_date=$(date -R)
+      s3_path="/ndau-snapshots/by-hash/${this_node}-${app_hash}"
+      content_type="application/octet-stream"
+      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
+      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+
+      # upload to s3
+      curl -X PUT -T "/root/new_code" \
+        -H "Host: s3.amazonaws.com" \
+        -H "Date: $the_date" \
+        -H "Content-Type: $content_type" \
+        -H "Authorization: AWS $AWS_KEY:$signature" \
+        http://s3.amazonaws.com$s3_path
+
+      # upload block height key
+
+      # prepare headers and signature
+      the_date=$(date -R)
+      s3_path="/ndau-snapshots/by-height/${this_node}-${height}"
+      content_type="application/octet-stream"
+      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
+      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+
+      # upload to s3
+      curl -X PUT -T "/root/new_code" \
+        -H "Host: s3.amazonaws.com" \
+        -H "Date: $the_date" \
+        -H "Content-Type: $content_type" \
+        -H "Authorization: AWS $AWS_KEY:$signature" \
+        http://s3.amazonaws.com$s3_path
 
     }
 
-    >&2 echo "Waiting to snapshot"
+    errcho "Waiting to snapshot"
 
     # trap kubernetes shutdown signal. After grace period it will send sigkill.
     trap snapshot SIGTERM
-    echo "position 0"
+
     # check redis and loop until this service has been told to snapshot
     while [ "$res" != "1" ] && ! $already_ran; do
-      echo "position 1"
       if $already_ran; then
-        >&2 echo "Caught SIGTERM, not waiting."
+        errcho "Caught SIGTERM, not waiting."
         exit 1
       fi
-      echo "position 2"
+      printf "."
       sleep 10
-      echo "position 3"
-      echo "command redis-cli -h $rhost get snapshot-$NEW_CODE-$this_service"
       res=$(timeout -t 5 redis-cli -h $rhost get "snapshot-$NEW_CODE-$this_service")
-      echo "position 4"
-      echo "$res"
     done
 
-    >&2 echo "Done waiting"
-
-
-    >&2 echo "Done waiting"
+    errcho "Done waiting. This value for key snapshot-$NEW_CODE-$this_service: $res"
 
     # don't try to snapshot if we snapshotted already with sigterm
     $already_ran || snapshot
