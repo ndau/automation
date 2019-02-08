@@ -6,27 +6,23 @@ metadata:
 apiVersion: v1
 data:
   config.toml: |
-
-    {{ if .Values.ndaunode.chaosLink.enabled }}
-    ChaosAddress = {{ .Values.ndaunode.chaosLink.address | quote }}
-    UseMock = "" # This needs to be empty if I use the chaos address
-    {{ else }}
-    ChaosAddress = ""
-    UseMock = "/root/.ndau/ndau/mock-chaos.msgp" # This needs to be empty if I use the chaos address
-    {{ end }}
+    ChaosAddress = "CHAOS_ADDRESS_TOKEN"
+    UseMock = "" # This needs to be empty
 
     ChaosTimeout = 500 # seconds
 
     [SystemVariableIndirect]
-      Key = "KEY_TOKEN"
+      Key = "c3Zp"
       Namespace = "NAMESPACE_TOKEN"
 
-  mock-chaos.msgp: gapOYW1lc3BhY2VzkoKpTmFtZXNwYWNlxAZzeXN0ZW2kRGF0YZKSxAXEA29uZcQRsHN5c3RlbSB2YWx1ZSBvbmWSxAXEA3R3b8QRsHN5c3RlbSB2YWx1ZSB0d2+CqU5hbWVzcGFjZcQgm+f2euwJnj00cy/A+vLkhvYm+Hs6k0z1VY/6qhC9DSKkRGF0YZOSxAXEA29uZcQMq2JwYyB2YWwgb25lksQFxANiYXLEBKNiYXqSxAXEA3N2acT/g6Nmb2+Dp0N1cnJlbnSSxCCb5/Z67AmePTRzL8D68uSG9ib4ezqTTPVVj/qqEL0NIsQDYmFypkZ1dHVyZZLEIJvn9nrsCZ49NHMvwPry5Ib2Jvh7OpNM9VWP+qoQvQ0ixANiYXKoQ2hhbmdlT24Ao29uZYOnQ3VycmVudJLEIJvn9nrsCZ49NHMvwPry5Ib2Jvh7OpNM9VWP+qoQvQ0ixANvbmWmRnV0dXJlksQGc3lzdGVtxANvbmWoQ2hhbmdlT27NA+ijdHdvg6dDdXJyZW50ksQGc3lzdGVtxAN0d2+mRnV0dXJlksQGc3lzdGVtxAN0d2+oQ2hhbmdlT24A
   init.sh: |
 
-    set -x
-
+    CURL_RETRIES=10
+    CURL_RETRY_DELAY=0
     CFG_DIR=$NDAUHOME/ndau
+    NDAU_CONFIG_TOML="$CFG_DIR"/config.toml
+    NAMESPACE_FILE="$CFG_DIR"/svi-namespace
+    NAMESPACE_URL=https://s3.amazonaws.com/ndau-snapshots/svi-namespace
 
     # Copy readonly config files to real config files
     if [ ! -d "$CFG_DIR" ]; then
@@ -36,41 +32,49 @@ data:
       echo "Not creating ndau config directory. $CFG_DIR"
     fi
 
-    if [ ! -f "$CFG_DIR"/config.toml ]; then
+    if [ ! -f "$NDAU_CONFIG_TOML" ]; then
 
-      echo "Copying config.toml"
-      cp /root/config-ro/config.toml "$CFG_DIR"/config.toml
-
-      echo "Downloading and restoring snapshot."
-
-      if [ ! -z "$SNAPSHOT_CODE" ]; then
-        echo "Using snapshot code: $SNAPSHOT_CODE"
-        token=$SNAPSHOT_CODE
-      else
-        token=$(curl https://s3.amazonaws.com/ndau-snapshots/latest.txt || echo "Could not download latest.txt")
-        echo "Using latest snapshot: $token"
-      fi
+      echo "copying config.toml"
+      cp /root/config-ro/config.toml "$NDAU_CONFIG_TOML"
 
       echo "getting new svi-namespace"
-      SVI_NAMESPACE=$(curl https://s3.amazonaws.com/ndau-snapshots/svi-namespace)
-      SVI_KEY=$(curl https://s3.amazonaws.com/ndau-snapshots/svi-key)
-      sed "s%NAMESPACE_TOKEN%$SVI_NAMESPACE%" -i "$CFG_DIR"/config.toml
-      sed "s%KEY_TOKEN%$SVI_KEY%" -i "$CFG_DIR"/config.toml
+      NAMESPACE_URL=https://s3.amazonaws.com/ndau-snapshots/svi-namespace
+      if curl "$NAMESPACE_URL" -o "$NAMESPACE_FILE" --retry $CURL_RETRIES --retry-delay 0; then
+        SVI_NAMESPACE=$(cat "$NAMESPACE_FILE")
+        echo "Fetched namsepace: $SVI_NAMESPACE"
+      else
+        echo "could not get namespace from $NAMESPACE_URL"
+        if [ -f "$NAMESPACE_FILE" ]; then
+          SVI_NAMESPACE=$(cat "$NAMESPACE_FILE")
+          echo "Using previously fetched namsepace: $SVI_NAMESPACE"
+        else
+          echo "No previously fetched namsepace at: "$NAMESPACE_FILE""
+          exit 1
+        fi
+      fi
 
-      echo config.toml is now
-      cat "$CFG_DIR"/config.toml
+      echo "replacing namespace token in $NDAU_CONFIG_TOML"
+      sed -i "s~NAMESPACE_TOKEN~$SVI_NAMESPACE~" "$NDAU_CONFIG_TOML"
+
+      echo "replacing chaos address"
+
+      fullname="{{ template "nodegroup.fullname" . }}"
+      RELEASE=$(echo ${fullname//-/_} | awk '{print toupper($0)}')
+      HOST_VAR=${RELEASE}_CHAOS_TENDERMINT_SERVICE_SERVICE_HOST
+      RPC_PORT_VAR=${RELEASE}_CHAOS_TENDERMINT_SERVICE_SERVICE_PORT_RPC
+
+      # variable indirection
+      host=${!HOST_VAR}
+      rpc_port=${!RPC_PORT_VAR}
+
+      chaos_address=http://${host}:${rpc_port}
+
+      sed -i "s~CHAOS_ADDRESS_TOKEN~$chaos_address~" "$NDAU_CONFIG_TOML"
+
+      echo "$NDAU_CONFIG_TOML is now:"
+      cat "$NDAU_CONFIG_TOML"
     else
       echo "config.toml already exists. Will not update."
-    fi
-
-    # write messagepack if not there
-    if [ ! -f "$CFG_DIR"/mock-chaos.msgp ]; then
-      echo "writing messagepack file"
-      cat /root/config-ro/mock-chaos.msgp | base64 -d > "$CFG_DIR"/mock-chaos.msgp
-      echo "This should be the same base64 reencoded"
-      cat "$CFG_DIR"/mock-chaos.msgp | base64
-    else
-      echo "not writing messagepack file"
     fi
 
     # Show what files are there

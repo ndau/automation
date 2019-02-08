@@ -50,6 +50,9 @@ sudo sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/enabled'
 sudo sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/defrag'
 ```
 
+# Troubleshooting KOPS
+
+For some reason when upgrading there can be a tendency for KOPS to forget which image to use for a given node's operating system.
 
 ## Traefik
 

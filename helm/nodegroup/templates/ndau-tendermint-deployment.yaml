@@ -21,12 +21,28 @@ spec:
         app: {{ template "nodegroup.name" . }}-ndau-tendermint
         release: {{ .Release.Name }}
     spec:
+      {{ if .Values.minikube }}
+      imagePullSecrets:
+      - name: awsecr-cred
+      {{ end }}
       initContainers:
       # Uses chaosnode image to get the app hash and saves it
       - name: noms-wait
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
         command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} --connect-timeout 5; do echo waiting for {{ template "nodegroup.fullname" . }}-ndau-noms-service; sleep 5; done;"]
+      - name: redis-wait
+        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
+        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
+        command: # TODO normalize sh commands so they look like this
+          - sh
+          - -c
+          - |-
+            echo starting redis wait loop
+            until nc -z -w 5 {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}; do
+              echo waiting for {{ template "nodegroup.fullname" . }}-ndau-redis-service
+              sleep 5
+            done
       - name: hash
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
@@ -43,7 +59,32 @@ spec:
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
+      terminationGracePeriodSeconds: 60 # increase grace period from 30 seconds to a minute for snapshot creating.
       containers:
+      {{ if .Values.snapshotOnShutdown }}
+      - name: s3
+        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
+        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
+        command: ["/bin/bash"]
+        args: ["/root/make-snapshot.sh"]
+        env:
+        - name: AWS_KEY
+          value: {{ .Values.aws.accessKeyID }}
+        - name: AWS_SECRET
+          value: {{ .Values.aws.secretAccessKey }}
+        - name: NEW_CODE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+              key: new-snapshot-code
+        volumeMounts:
+        # shares the tendermint data volume with this sidecar container.
+        - mountPath: /tendermint
+          name: tendermint-home-volume
+        - name: make-snapshot-sh
+          mountPath: /root/make-snapshot.sh
+          subPath: make-snapshot.sh
+      {{ end }}
       - name: tendermint
         image: "{{ .Values.ndau.tendermint.image.repository }}:{{ .Values.ndau.tendermint.image.tag }}"
         command: ["/bin/sh"]
@@ -87,6 +128,8 @@ spec:
         env:
         - name: TMHOME
           value: "/tendermint"
+        - name: CHAIN
+          value: "ndau"
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
@@ -153,6 +196,12 @@ spec:
               path: node_key.json
 
         # Scripts
+        - name: make-snapshot-sh
+          configMap:
+            name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-config
+            items:
+            - key: make-snapshot.sh
+              path: make-snapshot.sh
         - name: snapshot-sh
           configMap:
             name: {{ template "nodegroup.fullname" . }}-nodegroup-config

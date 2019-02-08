@@ -21,7 +21,36 @@ spec:
         app: {{ template "nodegroup.name" . }}-chaos-noms
         release: {{ .Release.Name }}
     spec:
+      {{ if .Values.minikube }}
+      imagePullSecrets:
+      - name: awsecr-cred
+      {{ end }}
+      terminationGracePeriodSeconds: 120 # 2 minutes. Increase grace period from default 30 seconds for snapshot creation.
       containers:
+      {{ if .Values.snapshotOnShutdown }}
+      - name: s3
+        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
+        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
+        command: ["/bin/bash"]
+        args: ["/root/make-snapshot.sh"]
+        env:
+        - name: AWS_KEY
+          value: {{ .Values.aws.accessKeyID }}
+        - name: AWS_SECRET
+          value: {{ .Values.aws.secretAccessKey }}
+        - name: NEW_CODE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+              key: new-snapshot-code
+        volumeMounts:
+        # shares the noms data volume with this sidecar container.
+        - name: noms-volume
+          mountPath: /noms
+        - name: make-snapshot-sh
+          mountPath: /root/make-snapshot.sh
+          subPath: make-snapshot.sh
+      {{ end }}
       - name: noms
         image: "{{ .Values.chaos.noms.image.repository }}:{{ .Values.chaos.noms.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.noms.image.pullPolicy }}
@@ -65,6 +94,12 @@ spec:
           items:
           - key: snapshot.sh
             path: snapshot.sh
+      - name: make-snapshot-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-chaos-noms-config
+          items:
+          - key: make-snapshot.sh
+            path: make-snapshot.sh
       resources:
         requests:
           memory: {{ .Values.chaos.noms.resources.requests.memory }}

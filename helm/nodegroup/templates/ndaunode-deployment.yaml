@@ -25,21 +25,59 @@ spec:
       - name: noms-wait
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} --connect-timeout 5; do echo waiting for {{ template "nodegroup.fullname" . }}-ndau-noms-service; sleep 5; done;"]
-      {{ if .Values.ndaunode.chaosLink.enabled }}
+        command:
+          - sh
+          - -c
+          - |-
+            echo starting noms wait loop
+            until curl -v {{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} --connect-timeout 5; do
+              echo waiting for {{ template "nodegroup.fullname" . }}-ndau-noms-service
+              sleep 5
+            done
       - name: chaos-wait
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ .Values.ndaunode.chaosLink.address }} --connect-timeout 5; do echo {{ .Values.ndaunode.chaosLink.address }}; sleep 5; done;"]
-      {{ end }}
+        command:
+          - bash
+          - -c
+          - |-
+            fullname="{{ template "nodegroup.fullname" . }}"
+            echo $fullname
+            RELEASE=$(echo ${fullname//-/_} | awk '{print toupper($0)}')
+            echo $RELEASE
+            HOST_VAR=${RELEASE}_CHAOS_TENDERMINT_SERVICE_SERVICE_HOST
+            echo $HOST_VAR
+            RPC_PORT_VAR=${RELEASE}_CHAOS_TENDERMINT_SERVICE_SERVICE_PORT_RPC
+            echo $RPC_PORT_VAR
+
+            host=${!HOST_VAR}
+            echo $host
+            rpc_port=${!RPC_PORT_VAR}
+            echo $rpc_port
+
+            chaos_address=http://${host}:${rpc_port}
+            echo $chaos_address
+
+            until curl -v $chaos_address; do
+              echo waiting for $chaos_address
+              sleep 5
+            done
       - name: redis-wait
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["sh", "-c", "echo starting redis wait loop; until nc -z -w 5 {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}; do echo waiting for {{ template "nodegroup.fullname" . }}-ndau-redis-service; sleep 5; done;"]
+        command:
+          - sh
+          - -c
+          - |-
+            echo starting redis wait loop
+            until nc -z -w 5 {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}; do
+              echo waiting for {{ template "nodegroup.fullname" . }}-ndau-redis-service
+              sleep 5
+            done
       - name: config
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["/bin/sh", "/root/init.sh"]
+        command: ["/bin/bash", "/root/init.sh"]
         env:
         - name: NDAUHOME
           value: "/root/.ndau"
@@ -50,20 +88,20 @@ spec:
         - name: config-toml
           mountPath: /root/config-ro/config.toml
           subPath: config.toml
-        - name: mock-chaos-msgp
-          mountPath: /root/config-ro/mock-chaos.msgp
-          subPath: mock-chaos.msgp
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
       containers:
       - name: ndaunode
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
-        args: [
-          "-spec", "http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }}",
-          "-addr", "0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }}",
-          "-index", "{{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }}"
-        ]
+        command:
+          - sh
+          - -c
+          - |-
+            ndaunode \
+            -spec http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} \
+            -addr 0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }} \
+            -index {{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }} || sleep 600
         ports:
         - containerPort: {{ .Values.ndaunode.port }}
         env:
@@ -99,11 +137,5 @@ spec:
           items:
           - key: init.sh
             path: init.sh
-      - name: mock-chaos-msgp
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-ndau-config
-          items:
-          - key: mock-chaos.msgp
-            path: mock-chaos.msgp
 
 {{ end }}

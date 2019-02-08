@@ -15,6 +15,7 @@ import functools # for lru_cache on preflight calls
 from base64 import b64encode # for making json safe to send to helm through the command-line
 from datetime import datetime, timezone # to datestamp temporary docker volumes
 import platform # for dynamically running different builds of addy on different platforms.
+import re # regex for testing validiting when minikube returns an IP.
 
 madeVolume = False  # Flag for if volume was created or not. Used for cleanup.
 
@@ -53,6 +54,7 @@ class Conf:
                             start with this name and be suffixed with a node number.
 
         Environment variables that map to image tags in ECR. Optional. Fetched automatically.
+        COMMANDS_TAG        if this is set, it overrides the CHAOSNODE_TAG, and NDAUNODE_TAG.
         CHAOSNODE_TAG       chaosnode ABCI app.
         NDAUNODE_TAG        ndaunode ABCI app.
         CHAOS_NOMS_TAG      chaosnode's nomsdb.
@@ -107,20 +109,25 @@ class Conf:
         if self.RELEASE == None:
             abortClean(f'RELEASE env var not set.')
 
+        # let commands tag override chaosnode and ndaunode tags
+        self.COMMANDS_TAG = os.environ.get('COMMANDS_TAG')
         self.CHAOSNODE_TAG = os.environ.get('CHAOSNODE_TAG')
-        if self.CHAOSNODE_TAG == None:
-            try:
-                self.CHAOSNODE_TAG = fetch_master_sha('git@github.com:oneiro-ndev/chaos')
-            except OSError as e:
-                abortClean(f'CHAOSNODE_TAG env var empty and could not fetch version: {e}')
-
-
         self.NDAUNODE_TAG = os.environ.get('NDAUNODE_TAG')
-        if self.NDAUNODE_TAG == None:
+
+        if self.COMMANDS_TAG == None:
             try:
-                self.NDAUNODE_TAG = fetch_master_sha('git@github.com:oneiro-ndev/ndau')
+                self.COMMANDS_TAG = fetch_master_sha('https://github.com/oneiro-ndev/commands')
+                if self.CHAOSNODE_TAG == None:
+                    self.CHAOSNODE_TAG = self.COMMANDS_TAG
+                if self.NDAUNODE_TAG == None:
+                    self.NDAUNODE_TAG = self.COMMANDS_TAG
             except OSError as e:
-                abortClean(f'NDAUNODE_TAG env var empty and could not fetch version: {e}')
+                abortClean(f'COMMANDS_TAG env var empty and could not fetch version: {e}')
+        else:
+            if self.CHAOSNODE_TAG == None:
+                self.CHAOSNODE_TAG = self.COMMANDS_TAG
+            if self.NDAUNODE_TAG == None:
+                self.NDAUNODE_TAG = self.COMMANDS_TAG
 
         # chaos noms and tendermint
         self.CHAOS_NOMS_TAG = os.environ.get('CHAOS_NOMS_TAG')
@@ -156,6 +163,15 @@ class Conf:
         if self.SNAPSHOT_CODE == None:
             self.SNAPSHOT_CODE = ""
 
+        self.AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+        self.AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+
+        self.SNAPSHOT_ON_SHUTDOWN = os.environ.get('SNAPSHOT_ON_SHUTDOWN')
+        if self.SNAPSHOT_ON_SHUTDOWN == "true":
+
+            if self.AWS_ACCESS_KEY_ID == None or self.AWS_SECRET_ACCESS_KEY == None:
+                abortClean(f'If SNAPSHOT_ON_SHUTDOWN is set to true, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY need to be set with a user that has s3 write permissions.')
+
         self.HONEYCOMB_KEY = os.environ.get('HONEYCOMB_KEY')
         self.HONEYCOMB_DATASET = os.environ.get('HONEYCOMB_DATASET')
         if self.HONEYCOMB_KEY == None or self.HONEYCOMB_DATASET == None:
@@ -182,6 +198,8 @@ class Conf:
             try:
                 ret = run_command("minikube ip")
                 self.MASTER_IP = ret.stdout.strip()
+                if re.match('[^0-9.]', self.MASTER_IP) != None:
+                    abortClean("IP Address from minikube contains more than numbers and dots: ${self.MASTER_IP}")
             except subprocess.CalledProcessError:
                 abortClean("Could not get minikube's IP address: ${ret.returncode}")
         else:
@@ -189,11 +207,13 @@ class Conf:
                 ret = run_command("kubectl get nodes -o json | \
                     jq -rj '.items[] | select(.metadata.labels[\"kubernetes.io/role\"]==\"master\") | .status.addresses[] | select(.type==\"ExternalIP\") .address'")
                 self.MASTER_IP = ret.stdout.strip()
+                if re.match('[^0-9.]', self.MASTER_IP) != None:
+                    abortClean("IP Address from kubectl contains more than numbers and dots: ${self.MASTER_IP}")
             except subprocess.CalledProcessError:
                 abortClean("Could not get master node's IP address: ${ret.returncode}")
 
-        # add ECR string to image names, or not
-        self.ECR = '' if self.IS_MINIKUBE else '578681496768.dkr.ecr.us-east-1.amazonaws.com/'
+        # the ECR string gets added to image names
+        self.ECR = '578681496768.dkr.ecr.us-east-1.amazonaws.com/'
 
         #
         # Genuine constants
@@ -478,39 +498,28 @@ def main():
         steprint(f'{node.name} ndau P2P port: {node.ndau["port"]["p2p"]}')
         steprint(f'{node.name} ndau RPC port: {node.ndau["port"]["rpc"]}')
 
-        # options that point ndaunode to the chaos node's rpc port
-        chaosLinkOpts = f'\
-            --set ndaunode.chaosLink.enabled=true\
-            --set ndaunode.chaosLink.address=\"{c.MASTER_IP}:{node.chaos["port"]["rpc"]}\"'
-
-        # options that point chaosnode to the ndau node's rpc port
-        ndauLinkOpts = f'\
-            --set chaosnode.ndauLink.enabled=true\
-            --set chaosnode.ndauLink.address=\"{c.MASTER_IP}:{node.ndau["port"]["rpc"]}\"'
-
         envSpecificHelmOpts = ''
 
         if c.IS_MINIKUBE:
             envSpecificHelmOpts = '\
-            --set chaosnode.image.repository="chaos"\
-            --set tendermint.image.repository="tendermint"\
-            --set noms.image.repository="noms"\
-            --set deployUtils.image.repository="deploy-utils"\
-            --set deployUtils.image.tag="latest"'
+            --set minikube=true '
         else:
             envSpecificHelmOpts = '--tls'
 
         helm_command = f'helm install --name {node.name} {helmChartPath} \
             {chaos_args} \
             {ndau_args} \
+            --set snapshotOnShutdown={c.SNAPSHOT_ON_SHUTDOWN} \
+            --set aws.accessKeyID="{c.AWS_ACCESS_KEY_ID}" \
+            --set aws.secretAccessKey="{c.AWS_SECRET_ACCESS_KEY}" \
+            --set ndau.deployUtils.image.tag="0.0.4" \
+            --set chaos.deployUtils.image.tag="0.0.4" \
             --set ndauapi.ingress.enabled=true \
             --set-string ndauapi.ingress.host="{node.name}.{c.ELB_SUBDOMAIN}" \
             --set-string ndauapi.image.tag="{c.NDAUNODE_TAG}" \
             --set honeycomb.key="{c.HONEYCOMB_KEY}" \
             --set honeycomb.dataset="{c.HONEYCOMB_DATASET}" \
-            {envSpecificHelmOpts} \
-            {chaosLinkOpts} \
-            {ndauLinkOpts}'
+            {envSpecificHelmOpts}'
 
         vprint(f'helm command: {helm_command}')
         ret = run_command(helm_command, isCritical = False)

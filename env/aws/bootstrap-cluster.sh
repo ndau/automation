@@ -20,6 +20,10 @@ usage() {
     errcho "CLUSTER_NAME=dev CLUSTER_SUBDOMAIN=cluster.ndau.tech REGION=us-east-1 AZ=us-east-1b ./bootstrap-cluster.sh"
 }
 
+if [ -f "$HOME"/.ssh/kops-rsa.pub ]; then
+	errcho "Please make sure the ssh key you wish to use for kops is located at $HOME/.ssh/kops-rsa.pub"
+fi
+
 missing_env_vars=()
 if [ -z "$CLUSTER_NAME" ]; then
     missing_env_vars+=('CLUSTER_NAME')
@@ -64,19 +68,21 @@ export KOPS_STATE_STORE=s3://"$BUCKET"
 kops create cluster \
   --zones "$AZ" \
   --name "$NAME" \
-  --ssh-public-key $HOME/.ssh/kops-rsa.pub
+  --ssh-public-key "$HOME"/.ssh/kops-rsa.pub
 
 # update instance group `nodes` with kope-ig-nodes.json
-kops get ig nodes --name "$NAME" --state s3://"$BUCKET" -o json > kops-nodes.json
-kops get ig master-"$AZ" --name "$NAME" --state s3://"$BUCKET" -o json > kops-master.json
-jq -s '.[0] * .[1]' kops-nodes.json nodes-spec.json > nodes-merged.json
-jq -s '.[0] * .[1]' kops-master.json master-spec.json > master-merged.json
-kops replace -f nodes-merged.json --state s3://"$BUCKET"
-kops replace -f master-merged.json --state s3://"$BUCKET"
+kops get ig nodes --name "$NAME" --state s3://"$BUCKET" -o json > current-nodes.json
+kops get ig master-"$AZ" --name "$NAME" --state s3://"$BUCKET" -o json > current-master.json
+jq -s '.[0] * .[1]' current-nodes.json ig-nodes-spec.json > merged-nodes.json
+jq -s '.[0] * .[1]' current-master.json ig-master-spec.json > merged-master.json
+kops replace -f merged-nodes.json --state s3://"$BUCKET"
+kops replace -f merged-master.json --state s3://"$BUCKET"
 
-rm nodes-merged.json
-rm master-merged.json
+rm current-master.json
+rm current-nodes.json
 
+rm merged-nodes.json
+rm merged-master.json
 
 # bring up the cluster
 kops update cluster --name "$NAME" --yes

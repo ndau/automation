@@ -1,1 +1,5 @@
 traefik-keys.sh
+current-master.json
+current-nodes.json
+merged-master.json
+merged-nodes.json

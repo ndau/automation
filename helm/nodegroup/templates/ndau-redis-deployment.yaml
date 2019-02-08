@@ -21,12 +21,32 @@ spec:
         app: {{ template "nodegroup.name" . }}-ndau-redis
         release: {{ .Release.Name }}
     spec:
+      {{ if .Values.minikube }}
+      imagePullSecrets:
+      - name: awsecr-cred
+      {{ end }}
+      terminationGracePeriodSeconds: 120 # 2 minutes. Increase grace period from default 30 seconds for snapshot creation.
       containers:
       - name: redis
         image: "{{ .Values.ndau.redis.image.repository }}:{{ .Values.ndau.redis.image.tag }}"
-        command: ["redis-server"]
-        args: ["--dir", "/redis", "--save", "60", "1", "--tcp-backlog", "128", "--port", "{{ .Values.ndau.redis.port }}"]
         imagePullPolicy: {{ .Values.ndau.redis.image.pullPolicy }}
+        command:
+          - sh
+          - -c
+          - |-
+            redis-server \
+              --dir /redis \
+              --save 60 1 \
+              --tcp-backlog 128 \
+              --port {{ .Values.ndau.redis.port }} &
+            redis_pid=$!
+            delayed_shutdown() {
+              sleep 110 # sleep for almost 2 minutes
+              kill $redis_pid
+            }
+            trap delayed_shutdown SIGTERM
+
+            while true; do sleep 42; done
         env:
         - name: NDAUHOME
           value: /redis

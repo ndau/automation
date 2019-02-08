@@ -3,3 +3,4 @@ appVersion: "1.0"
 description: A helm chart for a node group
 name: nodegroup
 version: 0.0.1
+icon: https://blockchainpolicycouncil.files.wordpress.com/2018/12/ndau-icon-black.png
