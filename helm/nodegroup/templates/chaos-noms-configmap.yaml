@@ -8,7 +8,7 @@ data:
   make-snapshot.sh: |
 
     errcho() {
-      errcho $@
+      >&2 echo $@
     }
 
     already_ran=false
