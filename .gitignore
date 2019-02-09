@@ -14,3 +14,6 @@ env/aws/cname-update.json
 
 # temp files for uploading snapshots
 genesis/tmp-*
+
+# editor config
+.vscode
