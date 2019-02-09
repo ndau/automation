@@ -59,7 +59,7 @@ spec:
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
-      terminationGracePeriodSeconds: 60 # increase grace period from 30 seconds to a minute for snapshot creating.
+      terminationGracePeriodSeconds: 120 # increase grace period from 30 seconds to a minute for snapshot creating.
       containers:
       {{ if .Values.snapshotOnShutdown }}
       - name: s3

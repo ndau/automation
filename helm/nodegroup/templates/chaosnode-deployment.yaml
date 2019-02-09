@@ -21,6 +21,7 @@ spec:
         app: {{ template "nodegroup.name" . }}-chaosnode
         release: {{ .Release.Name }}
     spec:
+      terminationGracePeriodSeconds: 120 # 2 minutes. Increase grace period from default 30 seconds for snapshot creation.
       {{ if .Values.minikube }}
       imagePullSecrets:
       - name: awsecr-cred
