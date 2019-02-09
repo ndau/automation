@@ -412,8 +412,27 @@ def main():
 
     helmChartPath = os.path.join(c.SCRIPT_DIR, '../', 'helm', 'nodegroup')
 
+    network_dir = os.path.join(c.SCRIPT_DIR, f'network-{c.RELEASE}')
+
+    if os.path.exists(network_dir):
+        for i in range(0, 32):
+            candidate_dir = f'{network_dir}-{i}'
+            if not os.path.exists(candidate_dir):
+                network_dir = candidate_dir
+                break
+
+    try:
+        os.mkdir(network_dir)
+    except OSError:
+        abortClean(f'Couldn\'t create directory: {network_dir}')
+    else:
+        vprint(f'Created directory: {network_dir}')
+
+    up_cmd = "#!/bin/bash\n\n"
+    down_cmd = "#!/bin/bash\n\n"
+
     # install a node group
-    for node in nodes:
+    for idx, node in enumerate(nodes):
         steprint(f'\nInstalling node group: {node.name}')
 
         # excludes self
@@ -522,11 +541,30 @@ def main():
             {envSpecificHelmOpts}'
 
         vprint(f'helm command: {helm_command}')
-        ret = run_command(helm_command, isCritical = False)
-        if ret.returncode == 0:
-            steprint(f'{node.name} installed successfully')
-        else:
-            abortClean(f'Installing {node.name} failed.\nstderr: {ret.stderr}\nstdout: {ret.stdout}')
+
+        f_name = f"node-{idx}.sh"
+        down_cmd += f"helm del {node.name} --purge --tls\n"
+        up_cmd += f"./{f_name}.sh\n"
+        f = open(os.path.join(network_dir, f_name), "w")
+        f.write(f"#!/bin/bash\n{helm_command}")
+        f.close()
+
+    # save the up.sh script
+    f = open(os.path.join(network_dir, "up.sh"), "w")
+    f.write(up_cmd)
+    f.close()
+
+    # save the down.sh script
+    f = open(os.path.join(network_dir, "down.sh"), "w")
+    f.write(down_cmd)
+    f.close()
+
+    # zip it up
+    try:
+        ret = run_command(f'cd {network_dir}; tar czf all.tgz * ')
+        steprint(f'Created tar ball: {c.TMP_VOL}')
+    except subprocess.CalledProcessError:
+        steprint(f'Error creating tar ball: {ret.returncode}')
 
     steprint('All done.')
 
