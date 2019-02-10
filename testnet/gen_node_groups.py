@@ -12,7 +12,7 @@ import signal  # to handle cleaning after sigint, ctrl+c
 import sys  # to print to stderr
 import functools  # for lru_cache on preflight calls
 from datetime import datetime, timezone  # to datestamp temporary docker volumes
-import re # regex for testing validiting when minikube returns an IP.
+import re  # regex for testing validiting when minikube returns an IP.
 
 # for making json safe to send to helm through the command-line
 from base64 import b64encode
@@ -40,7 +40,7 @@ class PortFactory:
     def validate(port):
         if not (port > 1024 and port < 65535):
             abortClean(
-                "port ({port}) must be within the user or dynamic/private range. "
+                f"port ({port}) must be within the user or dynamic/private range. "
                 "(1024-65535)"
             )
         if port < 30000 or port > 32767:
@@ -63,7 +63,7 @@ class Conf:
         RELEASE             The helm release "base name". Each nodegroup's name will
                             start with this name and be suffixed with a node number.
         ELB_SUBDOMAIN       Subdomain for ndauapi. (e.g. api.ndau.tech).
-                            Each nodegroup's ndauapi will appear at my-release-0.ndau.tech.
+                            Each nodegroup's ndauapi will appear at RELEASE-0.api.ndau.tech.
 
         Environment variables that map to image tags in ECR. Optional.
         Fetched automatically.
@@ -123,28 +123,28 @@ class Conf:
         if self.ELB_SUBDOMAIN is None:
             abortClean(f"ELB_SUBDOMAIN env var not set.")
 
-        self.RELEASE = os.environ.get('RELEASE')
+        self.RELEASE = os.environ.get("RELEASE")
         if self.RELEASE is None:
-            abortClean(f'RELEASE env var not set.')
+            abortClean(f"RELEASE env var not set.")
 
         # let commands tag override chaosnode and ndaunode tags
-        self.COMMANDS_TAG = os.environ.get('COMMANDS_TAG')
-        self.CHAOSNODE_TAG = os.environ.get('CHAOSNODE_TAG')
-        self.NDAUNODE_TAG = os.environ.get('NDAUNODE_TAG')
+        self.COMMANDS_TAG = os.environ.get("COMMANDS_TAG")
+        self.CHAOSNODE_TAG = os.environ.get("CHAOSNODE_TAG")
+        self.NDAUNODE_TAG = os.environ.get("NDAUNODE_TAG")
 
         if self.COMMANDS_TAG is None:
             try:
                 self.COMMANDS_TAG = fetch_master_sha(
-                    'https://github.com/oneiro-ndev/commands'
-                    )
+                    "https://github.com/oneiro-ndev/commands"
+                )
                 if self.CHAOSNODE_TAG is None:
                     self.CHAOSNODE_TAG = self.COMMANDS_TAG
                 if self.NDAUNODE_TAG is None:
                     self.NDAUNODE_TAG = self.COMMANDS_TAG
             except OSError as e:
                 abortClean(
-                    f'COMMANDS_TAG env var empty and could not fetch version: {e}'
-                    )
+                    f"COMMANDS_TAG env var empty and could not fetch version: {e}"
+                )
         else:
             if self.CHAOSNODE_TAG is None:
                 self.CHAOSNODE_TAG = self.COMMANDS_TAG
@@ -189,28 +189,28 @@ class Conf:
                     f"NDAU_TM_TAG env var empty and could not fetch version: {e}"
                 )
 
-        self.SNAPSHOT_CODE = os.environ.get('SNAPSHOT_CODE')
+        self.SNAPSHOT_CODE = os.environ.get("SNAPSHOT_CODE")
         if self.SNAPSHOT_CODE is None:
             self.SNAPSHOT_CODE = ""
 
-        self.AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-        self.AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+        self.AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
+        self.AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 
-        self.SNAPSHOT_ON_SHUTDOWN = os.environ.get('SNAPSHOT_ON_SHUTDOWN')
-        if self.SNAPSHOT_ON_SHUTDOWN is "true":
+        self.SNAPSHOT_ON_SHUTDOWN = os.environ.get("SNAPSHOT_ON_SHUTDOWN")
+        if self.SNAPSHOT_ON_SHUTDOWN == "true":
 
             if self.AWS_ACCESS_KEY_ID is None or self.AWS_SECRET_ACCESS_KEY is None:
                 abortClean(
                     "If SNAPSHOT_ON_SHUTDOWN is set to true, AWS_ACCESS_KEY_ID and "
-                    "AWS_SECRET_ACCESS_KEY need to be set with a user that has s3 write "
-                    "permissions."
+                    "AWS_SECRET_ACCESS_KEY need to be set to an account that has "
+                    "s3 write permissions on the snapshot bucket."
                 )
 
-        self.HONEYCOMB_KEY = os.environ.get('HONEYCOMB_KEY')
-        self.HONEYCOMB_DATASET = os.environ.get('HONEYCOMB_DATASET')
+        self.HONEYCOMB_KEY = os.environ.get("HONEYCOMB_KEY")
+        self.HONEYCOMB_DATASET = os.environ.get("HONEYCOMB_DATASET")
         if self.HONEYCOMB_KEY is None or self.HONEYCOMB_DATASET is None:
-            self.HONEYCOMB_KEY = ''
-            self.HONEYCOMB_DATASET = ''
+            self.HONEYCOMB_KEY = ""
+            self.HONEYCOMB_DATASET = ""
             warn_print(
                 "Logs will be written to stdout/stderr without env vars HONEYCOMB_KEY "
                 "and HONEYCOMB_DATASET."
@@ -227,7 +227,7 @@ class Conf:
 
         # get kubectl context
         context = run_command("kubectl config current-context").stdout.strip()
-        self.IS_MINIKUBE = context is "minikube"
+        self.IS_MINIKUBE = context == "minikube"
 
         # get IP address of the kubernete's cluster's master node
         self.MASTER_IP = ""
@@ -235,8 +235,11 @@ class Conf:
             try:
                 ret = run_command("minikube ip")
                 self.MASTER_IP = ret.stdout.strip()
-                if re.match('[^0-9.]', self.MASTER_IP) != None:
-                    abortClean("IP Address from minikube contains more than numbers and dots: ${self.MASTER_IP}")
+                if re.match("[^0-9.]", self.MASTER_IP) is not None:
+                    abortClean(
+                        f"IP Address from minikube contains more "
+                        f"than numbers and dots: ${self.MASTER_IP}"
+                    )
             except subprocess.CalledProcessError:
                 abortClean("Could not get minikube's IP address: ${ret.returncode}")
         else:
@@ -249,8 +252,11 @@ class Conf:
                         select(.type=="ExternalIP") .address\''
                 )
                 self.MASTER_IP = ret.stdout.strip()
-                if re.match('[^0-9.]', self.MASTER_IP) != None:
-                    abortClean("IP Address from kubectl contains more than numbers and dots: ${self.MASTER_IP}")
+                if re.match("[^0-9.]", self.MASTER_IP) is not None:
+                    abortClean(
+                        f"IP Address from kubectl contains more "
+                        f"than numbers and dots: ${self.MASTER_IP}"
+                    )
             except subprocess.CalledProcessError:
                 abortClean("Could not get master node's IP address: ${ret.returncode}")
 
@@ -272,9 +278,7 @@ class Conf:
         self.DOCKER_RUN = f"docker run --rm --mount src={self.TMP_VOL},dst=/tendermint "
 
         # dump all our config variables in verbose mode
-        pp = pprint.PrettyPrinter(indent=4, stream=sys.stderr)
-        vprint("Configuration")
-        pp.pprint(self.__dict__)
+        vpprint("Configuration", self.__dict__)
 
 
 class Node:
@@ -296,18 +300,14 @@ def initNodegroup(nodes):
 
         steprint(f"Initializing chaosnode's tendermint")
         ret = run_command(
-            f"{c.DOCKER_RUN} \
-          -e TMHOME=/tendermint \
-          {c.ECR}tendermint:{c.CHAOS_TM_TAG} \
-          init"
+            f"{c.DOCKER_RUN} -e TMHOME=/tendermint "
+            f"{c.ECR}tendermint:{c.CHAOS_TM_TAG} init"
         )
         vprint(f"tendermint init: {ret.stdout}")
 
         steprint(f"Getting priv_validator_key.json")
         ret = run_command(
-            f"{c.DOCKER_RUN} \
-            busybox \
-            cat /tendermint/config/priv_validator_key.json"
+            f"{c.DOCKER_RUN} busybox cat /tendermint/config/priv_validator_key.json"
         )
         # JSG strip all output from above cat until the first brace,
         # when this is run on circle there is extraneous output generated
@@ -318,53 +318,37 @@ def initNodegroup(nodes):
 
         steprint(f"Getting node_key.json")
         ret = run_command(
-            f"{c.DOCKER_RUN} \
-            busybox \
-            cat /tendermint/config/node_key.json"
+            f"{c.DOCKER_RUN} busybox cat /tendermint/config/node_key.json"
         )
         vprint(f"node_key.json: {ret.stdout}")
         node.chaos_nodeKey = json.loads(ret.stdout)
 
         steprint("Removing tendermint's config directory")
-        run_command(
-            f"{c.DOCKER_RUN} \
-            busybox \
-            rm -rf /tendermint/config"
-        )
+        run_command(f"{c.DOCKER_RUN} busybox rm -rf /tendermint/config")
 
         steprint(f"Initializing ndaunode's tendermint")
         ret = run_command(
-            f"{c.DOCKER_RUN} \
-          -e TMHOME=/tendermint \
-          {c.ECR}tendermint:{c.NDAU_TM_TAG} \
-          init"
+            f"{c.DOCKER_RUN} -e TMHOME=/tendermint "
+            f"{c.ECR}tendermint:{c.NDAU_TM_TAG} init"
         )
         vprint(f"tendermint init: {ret.stdout}")
 
         steprint(f"Getting priv_validator_key.json")
         ret = run_command(
-            f"{c.DOCKER_RUN} \
-            busybox \
-            cat /tendermint/config/priv_validator_key.json"
+            f"{c.DOCKER_RUN} busybox cat /tendermint/config/priv_validator_key.json"
         )
         vprint(f"priv_validator_key.json: {ret.stdout}")
         node.ndau_priv = json.loads(ret.stdout)
 
         steprint(f"Getting node_key.json")
         ret = run_command(
-            f"{c.DOCKER_RUN} \
-            busybox \
-            cat /tendermint/config/node_key.json"
+            f"{c.DOCKER_RUN} busybox cat /tendermint/config/node_key.json"
         )
         vprint(f"node_key.json: {ret.stdout}")
         node.ndau_nodeKey = json.loads(ret.stdout)
 
         steprint("Removing tendermint's config directory")
-        run_command(
-            f"{c.DOCKER_RUN} \
-            busybox \
-            rm -rf /tendermint/config"
-        )
+        run_command(f"{c.DOCKER_RUN} busybox rm -rf /tendermint/config")
 
     # This uses addy to generate addresses from each node's priv_key
     for node in nodes:
@@ -443,38 +427,25 @@ def main():
 
     steprint("Getting chaos's genesis.json")
     run_command(
-        f"{c.DOCKER_RUN} \
-        -e TMHOME=/tendermint \
-        {c.ECR}tendermint:{c.CHAOS_TM_TAG} \
-        init"
+        f"{c.DOCKER_RUN} -e TMHOME=/tendermint "
+        f"{c.ECR}tendermint:{c.CHAOS_TM_TAG} init"
     )
     ret = run_command(
-        f"{c.DOCKER_RUN} \
-        busybox \
-        cat /tendermint/config/genesis.json"
+        f"{c.DOCKER_RUN} busybox cat /tendermint/config/genesis.json"
     ).stdout
 
     vprint(f"chaos genesis.json: {ret}")
     chaos_genesis = conf_genesis_json(json.loads(ret), "chaos", nodes)
 
     steprint("Removing tendermint's config directory")
-    run_command(
-        f"{c.DOCKER_RUN} \
-        busybox \
-        rm -rf /tendermint/config"
-    )
+    run_command(f"{c.DOCKER_RUN} busybox rm -rf /tendermint/config")
 
     steprint("Getting ndau's genesis.json")
     run_command(
-        f"{c.DOCKER_RUN} \
-        -e TMHOME=/tendermint \
-        {c.ECR}tendermint:{c.NDAU_TM_TAG} \
-        init"
+        f"{c.DOCKER_RUN} -e TMHOME=/tendermint {c.ECR}tendermint:{c.NDAU_TM_TAG} init"
     )
     ret = run_command(
-        f"{c.DOCKER_RUN} \
-        busybox \
-        cat /tendermint/config/genesis.json"
+        f"{c.DOCKER_RUN} busybox cat /tendermint/config/genesis.json"
     ).stdout
 
     vprint(f"ndau's genesis.json: {ret}")
@@ -499,7 +470,8 @@ def main():
     else:
         vprint(f"Created directory: {network_dir}")
 
-    up_cmd = "#!/bin/bash\n\nif [ -z \"$HELM_CHART_PATH\" ]; then >&2 echo HELM_CHART_PATH required; exit 1; fi\n\n"
+    up_cmd = """#!/bin/bash\n\nif [ -z "$HELM_CHART_PATH" ]; """
+    """then >&2 echo HELM_CHART_PATH required; exit 1; fi\n\n"""
     down_cmd = "#!/bin/bash\n\n"
 
     # install a node group
@@ -536,7 +508,6 @@ def main():
             list(map(lambda peer: peer.ndau_priv["address"], otherNodes))
         )
 
-
         vprint(f"ndau peers: {ndauPeers}")
         vprint(f"ndau peer ids: {ndauPeerIds}")
 
@@ -555,9 +526,7 @@ def main():
                         "moniker": node.name,
                         "persistentPeers": b64(chaosPeers),
                         "privatePeerIds": b64(chaosPeerIds),
-                        "image": {
-                            "tag": c.CHAOS_TM_TAG,
-                        },
+                        "image": {"tag": c.CHAOS_TM_TAG},
                         "tendermint": {
                             "moniker": node.name,
                             "persistentPeers": b64(chaosPeers),
@@ -570,7 +539,7 @@ def main():
                             },
                         },
                     },
-                }
+                },
             }
         )
 
@@ -608,11 +577,12 @@ def main():
         envSpecificHelmOpts = ""
 
         if c.IS_MINIKUBE:
-            envSpecificHelmOpts = '\
-            --set minikube=true '
+            envSpecificHelmOpts = "--set minikube=true "
         else:
             envSpecificHelmOpts = "--tls"
 
+        # This big line-continuation is ugly but the alternative of
+        # concatenated fstrings is worse.
         helm_command = f'helm install --name {node.name} $HELM_CHART_PATH \
             {chaos_args} \
             {ndau_args} \
@@ -628,7 +598,7 @@ def main():
             --set honeycomb.dataset="{c.HONEYCOMB_DATASET}" \
             {envSpecificHelmOpts}'
 
-        vprint(f'helm command: {helm_command}')
+        vprint(f"helm command: {helm_command}")
 
         f_name = f"node-{idx}.sh"
         down_cmd += f"helm del {node.name} --purge --tls\n"
@@ -655,11 +625,10 @@ def main():
 
     # zip it up
     try:
-        ret = run_command(f'cd {network_dir}; tar czf all.tgz * ')
-        steprint(f'Created tar ball: {network_dir}/all.tgz')
+        ret = run_command(f"cd {network_dir}; tar czf all.tgz * ")
+        steprint(f"Created tar ball: {network_dir}/all.tgz")
     except subprocess.CalledProcessError:
-        steprint(f'Error creating tar ball: {ret.returncode}')
-
+        steprint(f"Error creating tar ball: {ret.returncode}")
 
     steprint("All done.")
 
@@ -680,7 +649,8 @@ def cmd_exists(x):
     return (
         subprocess.run(
             ["which", x], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        ).returncode == 0
+        ).returncode
+        == 0
     )
 
 
@@ -827,6 +797,14 @@ def vprint(msg):
     """Prints when the verboseFlag is set to true"""
     if verboseFlag:
         steprint(msg)
+
+
+def vpprint(hdr, obj):
+    """Pretty-prints when the verboseFlag is set to true"""
+    if verboseFlag:
+        pp = pprint.PrettyPrinter(indent=4, stream=sys.stderr)
+        steprint("Configuration")
+        pp.pprint(obj)
 
 
 def warn_print(msg):
