@@ -19,6 +19,7 @@ lint_bash: &lint_bash
       - run:
           name: Check Scripts
           command: |
+            export SHELLCHECK_OPTS="-e SC2164 -e SC2162 -e SC2059"
             find . -type f -name '*.sh' | grep -v vendor | while read file; do
               cd $(dirname $file);
               shellcheck $(basename $file) --external-sources;

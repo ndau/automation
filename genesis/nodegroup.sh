@@ -64,7 +64,7 @@ clean() (
 	# kill all the containers that we dealt with
 	for one_container in "${CONTAINER_NAMES[@]}"; do
 		verrcho "killing $one_container"
-		docker kill $one_container 2> /dev/null
+		docker kill "$one_container" 2> /dev/null
 	done
 
 )
@@ -74,7 +74,7 @@ trap clean EXIT
 
 # use gsed if availabile
 SED="sed"
-which gsed && SED=gsed
+command -v gsed && SED=gsed
 
 if [ "$#" -lt 2 ]; then
 	errcho "$USAGE"
@@ -146,8 +146,8 @@ if [ ! -f "$DIR"/genesis.toml ] || [ ! -f "$DIR"/associated.toml ]; then
 fi
 
 # make sure we have the genesis tools for genesis
-if ! which genesis; then
-	errcho "Please `go install` the genesis tool first."
+if ! command -v genesis; then
+	errcho "Please 'go install' the genesis tool first."
 	exit 1
 fi
 
@@ -225,7 +225,7 @@ var_print TEMP_DIR
 var_print BASE_PORT
 
 # use commands tag for CHAOSNODE_TAG and NDAUNODE_TAG if it's there
-if [ ! -z "$COMMANDS_TAG" ]; then
+if [ -n "$COMMANDS_TAG" ]; then
 	NDAUNODE_TAG=$COMMANDS_TAG
 	CHAOSNODE_TAG=$COMMANDS_TAG
 fi
@@ -276,10 +276,10 @@ run_ndaunode() {
 		-w "$NDAU_HOME" \
 		-p $NDAU_ABCI_PORT:$NDAU_ABCI_PORT \
 		--mount src="$NDAU_HOME",target="$NDAU_HOME",type=bind \
-		$NDAU_IMAGE \
-			-index $NDAU_REDIS_ADDR \
+		"$NDAU_IMAGE" \
+			-index "$NDAU_REDIS_ADDR" \
 			-addr 0.0.0.0:$NDAU_ABCI_PORT \
-			-spec http://$IH:$NDAU_NOMS_PORT
+			-spec http://"$IH:$NDAU_NOMS_PORT"
 	docker logs -f "$container_name" &> "$LOGS_DIR"/$basename &
 }
 
@@ -293,11 +293,11 @@ run_chaosnode() {
 		-e NDAUHOME="$NDAU_HOME" \
 		-w "$NDAU_HOME" \
 		--mount src="$NDAU_HOME",target="$NDAU_HOME",type=bind \
-		-p $CHAOS_ABCI_PORT:$CHAOS_ABCI_PORT \
-		$CHAOS_IMAGE \
-			-index $CHAOS_REDIS_ADDR \
-			-addr 0.0.0.0:$CHAOS_ABCI_PORT \
-			-spec http://$IH:$CHAOS_NOMS_PORT
+		-p "$CHAOS_ABCI_PORT:$CHAOS_ABCI_PORT" \
+		"$CHAOS_IMAGE" \
+			-index "$CHAOS_REDIS_ADDR" \
+			-addr 0.0.0.0:"$CHAOS_ABCI_PORT" \
+			-spec http://"$IH:$CHAOS_NOMS_PORT"
 	docker logs -f "$container_name" &> "$LOGS_DIR"/$basename &
 }
 
@@ -308,10 +308,10 @@ run_chaos_redis() {
 	verrcho "$container_name"
 	docker run -d \
 		--name="$container_name" \
-		--mount src="$CHAOS_REDIS",target="/data",type=bind \
-		-p $CHAOS_REDIS_PORT:$CHAOS_REDIS_PORT \
-		$REDIS_IMAGE \
-		--port $CHAOS_REDIS_PORT
+		--mount src="$CHAOS_REDIS",type=bind,target=/data \
+		-p "$CHAOS_REDIS_PORT:$CHAOS_REDIS_PORT" \
+		"$REDIS_IMAGE" \
+		--port "$CHAOS_REDIS_PORT"
 	docker logs -f "$container_name" &> "$LOGS_DIR"/$basename &
 }
 
@@ -352,7 +352,7 @@ run_ndau_redis() {
 	verrcho "$container_name"
 	docker run -d \
 		--name="$container_name" \
-		--mount src="$NDAU_REDIS",target="/data",type=bind \
+		--mount src="$NDAU_REDIS",type=bind,target=/data \
 		-p $NDAU_REDIS_PORT:$NDAU_REDIS_PORT \
 		$REDIS_IMAGE \
 		--port $NDAU_REDIS_PORT
@@ -368,12 +368,12 @@ get_chaos_hash() {
 	docker run \
 		--name="$container_name" \
 		--mount src="$CHAOS_NOMS",target="$CHAOS_NOMS",type=bind \
-		$CHAOS_IMAGE \
+		"$CHAOS_IMAGE" \
 		-echo-hash \
-		--spec http://$IH:$CHAOS_NOMS_PORT \
-		-index $CHAOS_REDIS_ADDR >&1
+		--spec http://"$IH:$CHAOS_NOMS_PORT" \
+		-index "$CHAOS_REDIS_ADDR" >&1
 	docker logs "$container_name" &> "$LOGS_DIR"/$basename &
-	docker rm $(docker ps -aq --filter name=$container_name) &> /dev/null
+	docker rm "$(docker ps -aq --filter name="$container_name")" &> /dev/null
 }
 
 get_ndau_hash() {
@@ -383,12 +383,12 @@ get_ndau_hash() {
 	docker run \
 		--name="$container_name" \
 		--mount src="$NDAU_NOMS",target="$NDAU_NOMS",type=bind \
-		$NDAU_IMAGE \
+		"$NDAU_IMAGE" \
 		-echo-hash \
-		--spec http://$IH:$NDAU_NOMS_PORT \
-		-index $NDAU_REDIS_ADDR >&1 | tr -d '\n'
+		--spec http://"$IH:$NDAU_NOMS_PORT" \
+		-index "$NDAU_REDIS_ADDR" >&1 | tr -d '\n'
 	docker logs "$container_name" &> "$LOGS_DIR"/$basename &
-	docker rm $(docker ps -aq --filter name=$container_name)  &> /dev/null
+	docker rm "$(docker ps -aq --filter name="$container_name")"  &> /dev/null
 }
 
 init_chaos_tendermint() {
@@ -425,7 +425,7 @@ run_ndau_tendermint() {
 		$TENDERMINT_IMAGE \
 		node \
 		--home "$NDAU_TM" \
-		--proxy_app tcp://$IH:$NDAU_ABCI_PORT \
+		--proxy_app tcp://"$IH:$NDAU_ABCI_PORT" \
 		--p2p.laddr $NDAU_TM_P2P_LADDR \
 		--rpc.laddr $NDAU_TM_RPC_LADDR
 	docker logs -f "$container_name" &> "$LOGS_DIR"/$basename &
@@ -440,9 +440,9 @@ make_ndau_config_toml() {
 		-e NDAUHOME="$NDAU_HOME" \
 		-w "$NDAU_HOME" \
 		--mount src="$NDAU_HOME",target="$NDAU_HOME",type=bind \
-		$NDAU_IMAGE \
-			-index $NDAU_REDIS_ADDR \
-			-spec http://$IH:$NDAU_NOMS_PORT  \
+		"$NDAU_IMAGE" \
+			-index "$NDAU_REDIS_ADDR" \
+			-spec http://"$IH:$NDAU_NOMS_PORT"  \
 			--update-conf-from "$NDAU_HOME"/genesis.toml
 	docker logs "$container_name" &> "$LOGS_DIR"/$basename &
 }
@@ -459,7 +459,7 @@ run_chaos_tendermint() {
 		--mount src="$CHAOS_TM",target="$CHAOS_TM",type=bind \
 		$TENDERMINT_IMAGE \
 		node --home "$CHAOS_TM" \
-		--proxy_app tcp://$IH:$CHAOS_ABCI_PORT \
+		--proxy_app tcp://"$IH:$CHAOS_ABCI_PORT" \
 		--p2p.laddr $CHAOS_TM_P2P_LADDR \
 		--rpc.laddr $CHAOS_TM_RPC_LADDR
 	docker logs -f "$container_name" &> "$LOGS_DIR"/$basename &
@@ -474,9 +474,9 @@ install_special_accounts() {
 		--name="$container_name" \
 		-e NDAUHOME="$NDAU_HOME" \
 		--mount src="$NDAU_HOME",target="$NDAU_HOME",type=bind \
-		$NDAU_IMAGE \
-		-index $NDAU_REDIS_ADDR \
-		-spec http://$IH:$NDAU_NOMS_PORT  \
+		"$NDAU_IMAGE" \
+		-index "$NDAU_REDIS_ADDR" \
+		-spec http://"$IH:$NDAU_NOMS_PORT"  \
 		--update-chain-from "$NDAU_HOME"/associated.toml
 	docker logs "$container_name" &> "$LOGS_DIR"/$basename &
 }
@@ -489,10 +489,10 @@ write_chaos_last_hash() {
 		--name="$container_name" \
 		-e NDAUHOME="$NDAU_HOME" \
 		--mount src="$CHAOS_NOMS",target="$CHAOS_NOMS",type=bind \
-		$CHAOS_IMAGE \
+		"$CHAOS_IMAGE" \
 		-index $CHAOS_REDIS_PORT \
 		-echo-hash \
-		--spec http://$IH:$CHAOS_NOMS_PORT > "$TEMP_DIR"/chaos-hash
+		--spec http://"$IH:$CHAOS_NOMS_PORT" > "$TEMP_DIR"/chaos-hash
 	docker logs "$container_name" &> "$LOGS_DIR"/$basename &
 }
 
@@ -504,10 +504,10 @@ write_ndau_last_hash() {
 		--name="$container_name" \
 		-e NDAUHOME="$NDAU_HOME" \
 		--mount src="$NDAU_NOMS",target="$NDAU_NOMS",type=bind \
-		$NDAU_IMAGE \
-		-index $NDAU_REDIS_ADDR \
+		"$NDAU_IMAGE" \
+		-index "$NDAU_REDIS_ADDR" \
 		-echo-hash \
-		--spec http://$IH:$NDAU_NOMS_PORT  > "$TEMP_DIR"/ndau-hash
+		--spec http://"$IH:$NDAU_NOMS_PORT"  > "$TEMP_DIR"/ndau-hash
 	docker logs "$container_name" &> "$LOGS_DIR"/$basename &
 }
 
