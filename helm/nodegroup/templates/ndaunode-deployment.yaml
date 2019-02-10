@@ -21,6 +21,7 @@ spec:
         app: {{ template "nodegroup.name" . }}-ndaunode
         release: {{ .Release.Name }}
     spec:
+      terminationGracePeriodSeconds: 120 # 2 minutes. Increase grace period from default 30 seconds for snapshot creation.
       initContainers:
       - name: noms-wait
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
