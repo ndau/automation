@@ -127,7 +127,7 @@ spec:
         env:
         - name: TMHOME
           value: "/tendermint"
-        - name: CHAIN
+        - name: CHAIN # for downloading snapshots
           value: "chaos"
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}

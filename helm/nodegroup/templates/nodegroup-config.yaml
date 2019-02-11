@@ -91,17 +91,20 @@ data:
         snapshot_list_url=http://ndau-snapshots.s3.amazonaws.com?prefix=by-height/${this_node}
         if snapshot_list=$(curl $snapshot_list_url); then
           log "Latest snapshot list: $snapshot_list"
-        else
-          err "Cannot get snapshot list from s3 $snapshot_list_url"
-        fi
 
-        latest_height_code=$(echo $snapshot_list | perl -nle'print $& while m{(?<=<Key>).*?(?=</Key>)}g' | grep "$this_node" | sort | tail -n 1)
-        log "Latest snapshot height: $latest_snapshot_height"
-        latest_height_url=https://s3.amazonaws.com/ndau-snapshots/${latest_height_code}
-        if token=$(curl $latest_height_url); then
-          log "Using latest snapshot: $token"
+          latest_height_code=$(echo $snapshot_list | perl -nle'print $& while m{(?<=<Key>).*?(?=</Key>)}g' | grep "$this_node" | sort | tail -n 1)
+          log "Latest snapshot height: $latest_snapshot_height"
+          latest_height_url=https://s3.amazonaws.com/ndau-snapshots/${latest_height_code}
+          if token=$(curl $latest_height_url); then
+            log "Using latest snapshot: $token"
+          else
+            log "Could not find latest height URL: $latest_height_url. Defaulting with genesis."
+            token=genesis
+          fi
         else
-          err "Could not find latest height URL: $latest_height_url"
+          log "Cannot get snapshot list from s3 $snapshot_list_url. Defaulting with genesis."
+          token=genesis
+
         fi
       fi
       log "Clearing data directory and installing new one"
@@ -209,6 +212,7 @@ data:
       FLAG_DIR=/tendermint \
       SNAPSHOT_FILE=$CHAIN-genesis.tgz \
       NO_CLEAR=true \
+      this_node=$CHAIN \
       LOG_TAG=$CHAIN-tendermint-genesis \
         /bin/sh /root/snapshot.sh
 
@@ -265,5 +269,6 @@ data:
     DATA_EXISTS_FILE=/tendermint/data/blockstore.db/LOCK \
     FLAG_DIR=/tendermint \
     SNAPSHOT_FILE=$CHAIN-tm.tgz \
+    this_node=$CHAIN \
     LOG_TAG=$CHAIN-tendermint \
       /bin/sh /root/snapshot.sh
