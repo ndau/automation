@@ -471,7 +471,9 @@ def main():
         vprint(f"Created directory: {network_dir}")
 
     up_cmd = """#!/bin/bash\n\nif [ -z "$HELM_CHART_PATH" ]; then
-        >&2 echo HELM_CHART_PATH required; exit 1; fi\n\n"""
+        >&2 echo HELM_CHART_PATH required; exit 1; fi\n\n
+        DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+        """
     down_cmd = "#!/bin/bash\n\n"
 
     # install a node group
@@ -596,7 +598,7 @@ def main():
 
         f_name = f"node-{idx}.sh"
         down_cmd += f"helm del {node.name} --purge --tls\n"
-        up_cmd += f"./{f_name}\n"
+        up_cmd += f"$DIR/{f_name}\n"
         f_path = os.path.join(network_dir, f_name)
         f = open(f_path, "w")
         f.write(f"#!/bin/bash\n{helm_command}")
