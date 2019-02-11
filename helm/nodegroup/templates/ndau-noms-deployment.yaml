@@ -60,6 +60,8 @@ spec:
           value: {{ .Values.ndau.noms.snapshotCode }}
         - name: DOWNLOAD_SNAPSHOT
           value: {{ .Values.ndau.noms.downloadSnapshot }}
+        - name: CHAIN
+          value: "ndau"
         - name: RELEASE_TOKEN
           valueFrom:
             configMapKeyRef:

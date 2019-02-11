@@ -151,6 +151,7 @@ data:
     DATA_EXISTS_FILE=/noms/data/manifest \
     FLAG_DIR=/noms \
     SNAPSHOT_FILE=ndau-noms.tgz \
+    this_node=$CHAIN \
     LOG_TAG=ndau-noms \
       /bin/sh /root/snapshot.sh
 
