@@ -470,8 +470,8 @@ def main():
     else:
         vprint(f"Created directory: {network_dir}")
 
-    up_cmd = """#!/bin/bash\n\nif [ -z "$HELM_CHART_PATH" ]; """
-    """then >&2 echo HELM_CHART_PATH required; exit 1; fi\n\n"""
+    up_cmd = """#!/bin/bash\n\nif [ -z "$HELM_CHART_PATH" ]; then
+        >&2 echo HELM_CHART_PATH required; exit 1; fi\n\n"""
     down_cmd = "#!/bin/bash\n\n"
 
     # install a node group
@@ -513,30 +513,24 @@ def main():
 
         chaos_args = make_args(
             {
-                "chaosnode": {"image": {"tag": c.CHAOSNODE_TAG}},
+                "chaosnode": {"image": {"tag": "$CHAOSNODE_TAG"}},
                 "chaos": {
                     "genesis": jsonB64(chaos_genesis),
                     "nodeKey": jsonB64(node.chaos_nodeKey),
                     "privValidator": jsonB64(node.chaos_priv),
                     "noms": {
                         "snapshotCode": c.SNAPSHOT_CODE,
-                        "image": {"tag": c.CHAOS_NOMS_TAG},
+                        "image": {"tag": "$CHAOS_NOMS_TAG"},
                     },
                     "tendermint": {
                         "moniker": node.name,
                         "persistentPeers": b64(chaosPeers),
                         "privatePeerIds": b64(chaosPeerIds),
-                        "image": {"tag": c.CHAOS_TM_TAG},
-                        "tendermint": {
-                            "moniker": node.name,
-                            "persistentPeers": b64(chaosPeers),
-                            "privatePeerIds": b64(chaosPeerIds),
-                            "image": {"tag": c.CHAOS_TM_TAG},
-                            "nodePorts": {
-                                "enabled": "true",
-                                "p2p": node.chaos["port"]["p2p"],
-                                "rpc": node.chaos["port"]["rpc"],
-                            },
+                        "image": {"tag": "$CHAOS_TM_TAG"},
+                        "nodePorts": {
+                            "enabled": "true",
+                            "p2p": node.chaos["port"]["p2p"],
+                            "rpc": node.chaos["port"]["rpc"],
                         },
                     },
                 },
@@ -548,17 +542,17 @@ def main():
 
         ndau_args = make_args(
             {
-                "ndaunode": {"image": {"tag": c.NDAUNODE_TAG}},
+                "ndaunode": {"image": {"tag": "$NDAUNODE_TAG"}},
                 "ndau": {
                     "genesis": jsonB64(ndau_genesis),
                     "privValidator": jsonB64(node.ndau_priv),
                     "nodeKey": jsonB64(node.ndau_nodeKey),
                     "noms": {
                         "snapshotCode": c.SNAPSHOT_CODE,
-                        "image": {"tag": c.NDAU_NOMS_TAG},
+                        "image": {"tag": "$NDAU_NOMS_TAG"},
                     },
                     "tendermint": {
-                        "image": {"tag": c.NDAU_TM_TAG},
+                        "image": {"tag": "$NDAU_TM_TAG"},
                         "moniker": node.name,
                         "persistentPeers": b64(ndauPeers),
                         "privatePeerIds": b64(ndauPeerIds),
@@ -587,15 +581,15 @@ def main():
             {chaos_args} \
             {ndau_args} \
             --set snapshotOnShutdown={c.SNAPSHOT_ON_SHUTDOWN} \
-            --set aws.accessKeyID="{c.AWS_ACCESS_KEY_ID}" \
-            --set aws.secretAccessKey="{c.AWS_SECRET_ACCESS_KEY}" \
+            --set aws.accessKeyID="$AWS_ACCESS_KEY_ID" \
+            --set aws.secretAccessKey="$AWS_SECRET_ACCESS_KEY" \
             --set ndau.deployUtils.image.tag="0.0.4" \
             --set chaos.deployUtils.image.tag="0.0.4" \
             --set ndauapi.ingress.enabled=true \
             --set-string ndauapi.ingress.host="{node.name}.{c.ELB_SUBDOMAIN}" \
-            --set-string ndauapi.image.tag="{c.NDAUNODE_TAG}" \
-            --set honeycomb.key="{c.HONEYCOMB_KEY}" \
-            --set honeycomb.dataset="{c.HONEYCOMB_DATASET}" \
+            --set-string ndauapi.image.tag="$NDAUNODE_TAG" \
+            --set honeycomb.key="$HONEYCOMB_KEY" \
+            --set honeycomb.dataset="$HONEYCOMB_DATASET" \
             {envSpecificHelmOpts}'
 
         vprint(f"helm command: {helm_command}")
@@ -625,8 +619,8 @@ def main():
 
     # zip it up
     try:
-        ret = run_command(f"cd {network_dir}; tar czf all.tgz * ")
-        steprint(f"Created tar ball: {network_dir}/all.tgz")
+        ret = run_command(f"cd {network_dir}; tar czf {c.RELEASE}.tgz * ")
+        steprint(f"Created tar ball: {network_dir}/{c.RELEASE}.tgz")
     except subprocess.CalledProcessError:
         steprint(f"Error creating tar ball: {ret.returncode}")
 
