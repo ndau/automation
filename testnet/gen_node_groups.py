@@ -597,7 +597,7 @@ def main():
         vprint(f"helm command: {helm_command}")
 
         f_name = f"node-{idx}.sh"
-        down_cmd += f"helm del {node.name} --purge --tls\n"
+        down_cmd += f"helm del {node.name} --purge --tls || echo Could not delete {node.name}. Not found.\n"
         up_cmd += f"$DIR/{f_name}\n"
         f_path = os.path.join(network_dir, f_name)
         f = open(f_path, "w")
