@@ -36,10 +36,6 @@ spec:
           value: http://{{ template "nodegroup.fullname" . }}-ndau-tendermint-service:{{ .Values.ndau.tendermint.ports.rpc }}
         - name: NDAUAPI_CHAOS_RPC_URL
           value: http://{{ template "nodegroup.fullname" . }}-chaos-tendermint-service:{{ .Values.chaos.tendermint.ports.rpc }}
-        - name: HONEYCOMB_KEY
-          value: {{ .Values.honeycomb.key }}
-        - name: HONEYCOMB_DATASET
-          value: {{ .Values.honeycomb.dataset }}-ndauapi
         ports:
         - containerPort: {{ .Values.ndauapi.port }}
       resources:
