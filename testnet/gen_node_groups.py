@@ -711,7 +711,7 @@ def makeTempVolume():
 
 def conf_genesis_json(gj, chain, nodes):
     "Config genesis.json"
-    gj["genesis_time"] = c.GENESIS_TIME.isoformat()
+    gj["genesis_time"] = f"{c.GENESIS_TIME.isoformat()}Z"
     gj["chain_id"] = chain
     gj["validators"] = [
         {"name": node.name, "pub_key": node.chaos_priv["pub_key"], "power": "10"}
