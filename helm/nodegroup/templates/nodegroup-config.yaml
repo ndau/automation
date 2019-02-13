@@ -95,16 +95,18 @@ data:
           latest_height_code=$(echo $snapshot_list | perl -nle'print $& while m{(?<=<Key>).*?(?=</Key>)}g' | grep "$this_node" | sort | tail -n 1)
           log "Latest snapshot height: $latest_snapshot_height"
           latest_height_url=https://s3.amazonaws.com/ndau-snapshots/${latest_height_code}
-          if token=$(curl $latest_height_url); then
+          if [ -z "$latest_height_code" ]; then
+            log "No latest height code found. Defaulting to genesis."
+            token=genesis
+          elif token=$(curl $latest_height_url); then
             log "Using latest snapshot: $token"
           else
-            log "Could not find latest height URL: $latest_height_url. Defaulting with genesis."
+            log "Could not find latest height URL: $latest_height_url. Defaulting to genesis."
             token=genesis
           fi
         else
-          log "Cannot get snapshot list from s3 $snapshot_list_url. Defaulting with genesis."
+          log "Cannot get snapshot list from s3 $snapshot_list_url. Defaulting to genesis."
           token=genesis
-
         fi
       fi
       log "Clearing data directory and installing new one"
