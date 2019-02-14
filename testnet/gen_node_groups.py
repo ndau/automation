@@ -350,23 +350,6 @@ def initNodegroup(nodes):
         steprint("Removing tendermint's config directory")
         run_command(f"{c.DOCKER_RUN} busybox rm -rf /tendermint/config")
 
-    # This uses addy to generate addresses from each node's priv_key
-    for node in nodes:
-        # chaos
-        privKey = node.chaos_nodeKey["priv_key"]["value"]
-        ret = run_command(f'echo "{privKey}" | {c.ADDY_CMD}')
-        node.chaos_priv["address"] = ret.stdout
-        vprint(f"chaos node_key.priv_key: {privKey}")
-        vprint(f"node.chaos_priv: {node.chaos_priv}")
-
-        # ndau
-        privKey = node.ndau_nodeKey["priv_key"]["value"]
-        ret = run_command(f'echo "{privKey}" | {c.ADDY_CMD}')
-        node.ndau_priv["address"] = ret.stdout
-        vprint(f"ndau node_key.priv_key: {privKey}")
-        vprint(f"node.ndau_priv: {node.ndau_priv}")
-
-
 def main():
 
     import argparse
@@ -711,12 +694,19 @@ def makeTempVolume():
 
 def conf_genesis_json(gj, chain, nodes):
     "Config genesis.json"
-    gj["genesis_time"] = f"{c.GENESIS_TIME.isoformat()}Z"
+    gj["genesis_time"] = c.GENESIS_TIME.isoformat().replace("+00:00", "") + "Z"
     gj["chain_id"] = chain
-    gj["validators"] = [
-        {"name": node.name, "pub_key": node.chaos_priv["pub_key"], "power": "10"}
-        for node in nodes
-    ]
+    if chain == "chaos":
+        gj["validators"] = [
+            {"name": node.name, "address": node.chaos_priv["address"], "pub_key": node.chaos_priv["pub_key"], "power": "10"}
+            for node in nodes
+        ]
+    else:
+        gj["validators"] = [
+            {"name": node.name, "address": node.ndau_priv["address"], "pub_key": node.ndau_priv["pub_key"], "power": "10"}
+            for node in nodes
+        ]
+
 
     return gj
 

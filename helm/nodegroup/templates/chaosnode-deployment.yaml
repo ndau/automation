@@ -83,8 +83,10 @@ spec:
       - name: chaosnode-config-ndau
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
         imagePullPolicy: {{ .Values.chaosnode.image.pullPolicy }}
+        command: ["/bin/sh"]
         args: [
-          "--set-ndaunode", "$(cat /root/.ndau/chaos-address)"
+          "-c",
+          "chaosnode --set-ndaunode $(cat /root/.ndau/chaos-address)"
         ]
         env:
         - name: HONEYCOMB_KEY
