@@ -57,7 +57,6 @@ class Conf:
         START_PORT          Port at which to start a sequence of ports.
         QUANTITY            Number of nodegroups to install.
         GENESIS_TIME        Time before which no blocks will be issued.
-        DRY_RUN             Bool; true if we shouldn't actually deploy
 
         Environment variables required
         RELEASE             The helm release "base name". Each nodegroup's name will
@@ -113,7 +112,6 @@ class Conf:
         ports = PortFactory(self.START_PORT)
 
         self.GENESIS_TIME = args.genesis_time
-        self.DRY_RUN = args.dry_run
 
         #
         # Environment variables
@@ -368,6 +366,7 @@ def main():
         "-v", "--verbose", action="store_true", help="When set emit more."
     )
     parser.add_argument(
+        "-g",
         "--genesis-time",
         type=iso8601,
         default=datetime.now(),
@@ -375,12 +374,6 @@ def main():
             "ISO-8601 datetime for genesis. "
             "Tendermint will wait for this datetime before processing blocks."
         ),
-    )
-    parser.add_argument(
-        "-D",
-        "--dry-run",
-        action="store_true",
-        help="If set, do not actually deploy anything",
     )
 
     args = parser.parse_args()
@@ -565,6 +558,7 @@ def main():
         helm_command = f'helm install --name {node.name} $HELM_CHART_PATH \
             {chaos_args} \
             {ndau_args} \
+            --set networkName="$NETWORK_NAME" \
             --set snapshotOnShutdown={c.SNAPSHOT_ON_SHUTDOWN} \
             --set aws.accessKeyID="$AWS_ACCESS_KEY_ID" \
             --set aws.secretAccessKey="$AWS_SECRET_ACCESS_KEY" \
