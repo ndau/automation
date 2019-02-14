@@ -22,7 +22,7 @@ data:
     already_ran=false
 
     # s3_upload takes the first argument as the full local file path and uploads it to s3
-    # to the path defined by the convention `/ndau-snapshots/$NEW_CODE/$s3_file`, where `$NEW_CODE`
+    # to the path defined by the convention `/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/$s3_file`, where `$NEW_CODE`
     # is the common random code shared across this release, and $s3_file is the name of
     # the file in s3.
     s3_upload() {
@@ -32,7 +32,7 @@ data:
 
       # prepare headers and signature
       the_date=$(date -R)
-      s3_path="/ndau-snapshots/$NEW_CODE/$s3_file"
+      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/$s3_file"
       content_type="application/octet-stream"
       signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
       signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
@@ -99,7 +99,7 @@ data:
       if [ "$snap_res" == "OK" ]; then
 
         # check to see if this hash was already uploaded
-        if ! curl -f http://s3.amazonaws.com/ndau-snapshots/hashes/${this_node}-${app_hash}; then
+        if ! curl -f http://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/hashes/${this_node}-${app_hash}; then
           errcho "Quitting. Snapshot for this app_hash ($app_hash) already uploaded."
           exit 1
         fi
@@ -118,7 +118,7 @@ data:
       fi
 
       # wait until noms snapshot is done
-      noms_snapshot_url=http://s3.amazonaws.com/ndau-snapshots/$NEW_CODE/${this_node}-noms.tgz
+      noms_snapshot_url=http://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/${this_node}-noms.tgz
       errcho "Waiting for noms snapshot to appear at: $noms_snapshot_url."
 
       # curl until the noms snapshot is up, or CURL_TOTAL_TIMEOUT passes
@@ -140,7 +140,7 @@ data:
 
       # check to see if the snapshot is already there
       tar_file=$this_service.tgz
-      s3_path="/ndau-snapshots/$NEW_CODE/${tar_file}"
+      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/${tar_file}"
 
       if curl_response=$(curl -f http://s3.amazonaws.com$s3_path); then
         errcho "Snapshot $s3_path already exists. Will not upload."
@@ -182,7 +182,7 @@ data:
 
       # prepare headers and signature
       the_date=$(date -R)
-      s3_path="/ndau-snapshots/$NEW_CODE/${tar_file}"
+      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/${tar_file}"
       content_type="application/octet-stream"
       signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
       signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
@@ -229,7 +229,7 @@ data:
 
       # prepare headers and signature
       the_date=$(date -R)
-      s3_path="/ndau-snapshots/$NEW_CODE/${this_node}-manifest.json"
+      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/${this_node}-manifest.json"
       content_type="application/octet-stream"
       signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
       signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
@@ -248,7 +248,7 @@ data:
       # prepare headers and signature
       echo "$NEW_CODE" > /root/new_code
       the_date=$(date -R)
-      s3_path="/ndau-snapshots/by-hash/${this_node}-${app_hash}"
+      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/by-hash/${this_node}-${app_hash}"
       content_type="application/octet-stream"
       signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
       signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
@@ -266,7 +266,7 @@ data:
 
       # prepare headers and signature
       the_date=$(date -R)
-      s3_path="/ndau-snapshots/by-height/${this_node}-${height}"
+      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/by-height/${this_node}-${height}"
       content_type="application/octet-stream"
       signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
       signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)

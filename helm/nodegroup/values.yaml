@@ -5,6 +5,10 @@
 # not merged, they are overrides. For this reason the `--set`
 # flag provides the dot notation for changing a single property.
 
+
+networkName: "devnet"
+
+
 # This controls imagePullSecrets for ECR and must be configured with
 # minikube addons configure awsecr-creds
 # minikube addons enable awsecr-creds
@@ -17,6 +21,7 @@ snapshotOnShutdown: false
 aws:
   accessKeyID: ""
   secretAccessKey: ""
+  snapshotBucket: "ndau-snapshots"
 
 ndaunode:
   image:
