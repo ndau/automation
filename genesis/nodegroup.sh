@@ -163,6 +163,16 @@ else
 	LATEST=SNAPSHOT_NAME
 fi
 
+if [ -z "$SNAPSHOT_BUCKET" ]; then
+	SNAPSHOT_BUCKET="ndau-snapshots"
+fi
+
+if $UPLOAD_TO_S3 && [ -z "$NETWORK_NAME" ]; then
+	errcho "Env var NETWORK_NAME, not set."
+	exit 1
+fi
+
+
 # If genesising, check if the temp directory already exists
 if [ -d "$TEMP_DIR" ] && $GENESIS; then
 	errcho "Cannot genesis into already existing $TEMP_DIR, did you mean to use -g?"
@@ -223,6 +233,8 @@ CFG_TOML=$NDAU_HOME/ndau/config.toml; var_print CFG_TOML
 
 var_print TEMP_DIR
 var_print BASE_PORT
+var_print SNAPSHOT_BUCKET
+var_print NETWORK_NAME
 
 # use commands tag for CHAOSNODE_TAG and NDAUNODE_TAG if it's there
 if [ -n "$COMMANDS_TAG" ]; then
@@ -582,21 +594,21 @@ update_genesis_app_hash() {
 }
 
 upload_snapshot() {
-	aws s3 cp "$SNAPSHOT_DIR"/latest.txt s3://ndau-snapshots/latest.txt
+	aws s3 cp "$SNAPSHOT_DIR"/latest.txt s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/latest.txt
 
 	# upload tarballs
-	aws s3 cp "$SNAPSHOT_DIR"/ndau-noms.tgz s3://ndau-snapshots/"$SNAPSHOT_NAME"/ndau-noms.tgz
-	aws s3 cp "$SNAPSHOT_DIR"/chaos-noms.tgz s3://ndau-snapshots/"$SNAPSHOT_NAME"/chaos-noms.tgz
-	aws s3 cp "$SNAPSHOT_DIR"/ndau-tm.tgz s3://ndau-snapshots/"$SNAPSHOT_NAME"/ndau-tm.tgz
-	aws s3 cp "$SNAPSHOT_DIR"/chaos-tm.tgz s3://ndau-snapshots/"$SNAPSHOT_NAME"/chaos-tm.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/ndau-noms.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/ndau-noms.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/chaos-noms.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/chaos-noms.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/ndau-tm.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/ndau-tm.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/chaos-tm.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/chaos-tm.tgz
 
 	# upload hashes
-	aws s3 cp "$SNAPSHOT_DIR"/ndau-hash s3://ndau-snapshots/"$SNAPSHOT_NAME"/ndau-hash
-	aws s3 cp "$SNAPSHOT_DIR"/chaos-hash s3://ndau-snapshots/"$SNAPSHOT_NAME"/chaos-hash
+	aws s3 cp "$SNAPSHOT_DIR"/ndau-hash s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/ndau-hash
+	aws s3 cp "$SNAPSHOT_DIR"/chaos-hash s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/chaos-hash
 
 	# upload hashes
-	aws s3 cp "$SNAPSHOT_DIR"/chaos-genesis.tgz s3://ndau-snapshots/"$SNAPSHOT_NAME"/chaos-genesis.tgz
-	aws s3 cp "$SNAPSHOT_DIR"/ndau-genesis.tgz s3://ndau-snapshots/"$SNAPSHOT_NAME"/ndau-genesis.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/chaos-genesis.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/chaos-genesis.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/ndau-genesis.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/ndau-genesis.tgz
 
 }
 
