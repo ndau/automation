@@ -698,12 +698,12 @@ def conf_genesis_json(gj, chain, nodes):
     gj["chain_id"] = chain
     if chain == "chaos":
         gj["validators"] = [
-            {"address": node.chaos_priv["address"], "pub_key": node.chaos_priv["pub_key"], "power": "10"}
+            {"name": node.name, "address": node.chaos_priv["address"], "pub_key": node.chaos_priv["pub_key"], "power": "10"}
             for node in nodes
         ]
     else:
         gj["validators"] = [
-            {"address": node.ndau_priv["address"], "pub_key": node.ndau_priv["pub_key"], "power": "10"}
+            {"name": node.name, "address": node.ndau_priv["address"], "pub_key": node.ndau_priv["pub_key"], "power": "10"}
             for node in nodes
         ]
 
