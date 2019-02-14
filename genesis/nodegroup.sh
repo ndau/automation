@@ -594,21 +594,21 @@ update_genesis_app_hash() {
 }
 
 upload_snapshot() {
-	aws s3 cp "$SNAPSHOT_DIR"/latest.txt s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/latest.txt
+	aws s3 cp "$SNAPSHOT_DIR"/latest.txt s3://"$SNAPSHOT_BUCKET"/"$NETWORK_NAME"/latest.txt
 
 	# upload tarballs
-	aws s3 cp "$SNAPSHOT_DIR"/ndau-noms.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/ndau-noms.tgz
-	aws s3 cp "$SNAPSHOT_DIR"/chaos-noms.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/chaos-noms.tgz
-	aws s3 cp "$SNAPSHOT_DIR"/ndau-tm.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/ndau-tm.tgz
-	aws s3 cp "$SNAPSHOT_DIR"/chaos-tm.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/chaos-tm.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/ndau-noms.tgz s3://"$SNAPSHOT_BUCKET"/"$NETWORK_NAME"/"$SNAPSHOT_NAME"/ndau-noms.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/chaos-noms.tgz s3://"$SNAPSHOT_BUCKET"/"$NETWORK_NAME"/"$SNAPSHOT_NAME"/chaos-noms.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/ndau-tm.tgz s3://"$SNAPSHOT_BUCKET"/"$NETWORK_NAME"/"$SNAPSHOT_NAME"/ndau-tm.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/chaos-tm.tgz s3://"$SNAPSHOT_BUCKET"/"$NETWORK_NAME"/"$SNAPSHOT_NAME"/chaos-tm.tgz
 
 	# upload hashes
-	aws s3 cp "$SNAPSHOT_DIR"/ndau-hash s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/ndau-hash
-	aws s3 cp "$SNAPSHOT_DIR"/chaos-hash s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/chaos-hash
+	aws s3 cp "$SNAPSHOT_DIR"/ndau-hash s3://"$SNAPSHOT_BUCKET"/"$NETWORK_NAME"/"$SNAPSHOT_NAME"/ndau-hash
+	aws s3 cp "$SNAPSHOT_DIR"/chaos-hash s3://"$SNAPSHOT_BUCKET"/"$NETWORK_NAME"/"$SNAPSHOT_NAME"/chaos-hash
 
 	# upload hashes
-	aws s3 cp "$SNAPSHOT_DIR"/chaos-genesis.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/chaos-genesis.tgz
-	aws s3 cp "$SNAPSHOT_DIR"/ndau-genesis.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$SNAPSHOT_NAME"/ndau-genesis.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/chaos-genesis.tgz s3://"$SNAPSHOT_BUCKET"/"$NETWORK_NAME"/"$SNAPSHOT_NAME"/chaos-genesis.tgz
+	aws s3 cp "$SNAPSHOT_DIR"/ndau-genesis.tgz s3://"$SNAPSHOT_BUCKET"/"$NETWORK_NAME"/"$SNAPSHOT_NAME"/ndau-genesis.tgz
 
 }
 
