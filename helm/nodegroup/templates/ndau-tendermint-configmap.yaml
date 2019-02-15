@@ -98,9 +98,9 @@ data:
       snap_res=$(redis-cli -h $rhost SET "snapshot-$NEW_CODE-snapping" 1 EX 120 NX)
       errcho "snap_res: $snap_res"
       if [ "$snap_res" == "OK" ]; then
-        # check to see if this hash was already uploaded
-        if ! curl -f http://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/hashes/${this_node}-${app_hash}; then
-          errcho "Quitting. Snapshot for this app_hash ($app_hash) already uploaded."
+        # check to see if this height was already uploaded
+        if curl -f http://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/by-height/${this_node}-${height}; then
+          errcho "Quitting. Snapshot for this height ($height) already uploaded."
           exit 1
         fi
 
