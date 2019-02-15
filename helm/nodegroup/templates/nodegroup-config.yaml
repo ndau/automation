@@ -94,7 +94,7 @@ data:
 
           latest_height_code=$(echo $snapshot_list | perl -nle'print $& while m{(?<=<Key>).*?(?=</Key>)}g' | grep "$this_node" | sort | tail -n 1)
           log "Latest snapshot height: $latest_snapshot_height"
-          latest_height_url=https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/${latest_height_code}
+          latest_height_url=https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/${latest_height_code}
           if [ -z "$latest_height_code" ]; then
             log "No latest height code found. Defaulting to genesis."
             token=genesis
