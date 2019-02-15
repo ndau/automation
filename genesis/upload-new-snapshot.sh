@@ -81,12 +81,12 @@ mkdir -p "$TEMP_DIR"
 
 # update latest timestamp
 printf "%s" "$DATE" > "$TEMP_DIR"/latest.txt
-aws s3 cp "$TEMP_DIR"/latest.txt s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/latest.txt
+aws s3 cp "$TEMP_DIR/latest.txt" "s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/latest.txt"
 
 
 # upload tarballs
-aws s3 cp "$TEMP_DIR"/ndau-noms.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$DATE"/ndau-noms.tgz
-aws s3 cp "$TEMP_DIR"/chaos-noms.tgz s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/"$DATE"/chaos-noms.tgz
+aws s3 cp "$TEMP_DIR/ndau-noms.tgz" "s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/$DATE/ndau-noms.tgz"
+aws s3 cp "$TEMP_DIR/chaos-noms.tgz" "s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/$DATE/chaos-noms.tgz"
 
 rm -rf "$TEMP_DIR"
 exit 0
