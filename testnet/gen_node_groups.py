@@ -203,6 +203,8 @@ class Conf:
                     "AWS_SECRET_ACCESS_KEY need to be set to an account that has "
                     "s3 write permissions on the snapshot bucket."
                 )
+        else:
+            self.SNAPSHOT_ON_SHUTDOWN == "false"
 
         self.HONEYCOMB_KEY = os.environ.get("HONEYCOMB_KEY")
         self.HONEYCOMB_DATASET = os.environ.get("HONEYCOMB_DATASET")
