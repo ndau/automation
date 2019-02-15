@@ -243,25 +243,6 @@ data:
         http://s3.amazonaws.com$s3_path
 
 
-      # upload app_hash key
-
-      # prepare headers and signature
-      echo "$NEW_CODE" > /root/new_code
-      the_date=$(date -R)
-      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/by-hash/${this_node}-${app_hash}"
-      content_type="application/octet-stream"
-      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
-      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
-
-      # upload to s3
-      curl -X PUT -T "/root/new_code" \
-        -H "Host: s3.amazonaws.com" \
-        -H "Date: $the_date" \
-        -H "Content-Type: $content_type" \
-        -H "Authorization: AWS $AWS_KEY:$signature" \
-        http://s3.amazonaws.com$s3_path
-
-
       # upload block height key
 
       # prepare headers and signature
