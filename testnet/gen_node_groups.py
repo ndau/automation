@@ -261,9 +261,7 @@ class Conf:
                 abortClean("Could not get master node's IP address: ${ret.returncode}")
 
         # add ECR string to image names, or not
-        self.ECR = (
-            "" if self.IS_MINIKUBE else "578681496768.dkr.ecr.us-east-1.amazonaws.com/"
-        )
+        self.ECR = "578681496768.dkr.ecr.us-east-1.amazonaws.com/"
 
         #
         # Genuine constants
