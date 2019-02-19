@@ -5,6 +5,7 @@ set -e
 set -x
 
 # used for temp directory and s3 upload
+
 DATE=$(date '+%Y-%m-%dT%H-%M-%SZ')
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 TEMP_DIR="$DIR/tmp-$DATE"
@@ -22,6 +23,15 @@ errcho() {
 verrcho() {
  if $VERBOSE; then errcho "$@"; fi
 }
+
+if [ -z "$SNAPSHOT_BUCKET" ]; then
+	SNAPSHOT_BUCKET="ndau-snapshots"
+fi
+
+if [ -z "$NETWORK_NAME" ]; then
+	errcho "Env var NETWORK_NAME, not set."
+	exit 1
+fi
 
 # if there's no NDAUNODE_TAG specified, use these
 if [ -z "$NDAUNODE_TAG" ]; then
@@ -71,12 +81,12 @@ mkdir -p "$TEMP_DIR"
 
 # update latest timestamp
 printf "%s" "$DATE" > "$TEMP_DIR"/latest.txt
-aws s3 cp "$TEMP_DIR"/latest.txt s3://ndau-snapshots/latest.txt
+aws s3 cp "$TEMP_DIR/latest.txt" "s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/latest.txt"
 
 
 # upload tarballs
-aws s3 cp "$TEMP_DIR"/ndau-noms.tgz s3://ndau-snapshots/"$DATE"/ndau-noms.tgz
-aws s3 cp "$TEMP_DIR"/chaos-noms.tgz s3://ndau-snapshots/"$DATE"/chaos-noms.tgz
+aws s3 cp "$TEMP_DIR/ndau-noms.tgz" "s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/$DATE/ndau-noms.tgz"
+aws s3 cp "$TEMP_DIR/chaos-noms.tgz" "s3://$SNAPSHOT_BUCKET/$NETWORK_NAME/$DATE/chaos-noms.tgz"
 
 rm -rf "$TEMP_DIR"
 exit 0

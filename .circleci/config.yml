@@ -19,7 +19,12 @@ lint_bash: &lint_bash
       - run:
           name: Check Scripts
           command: |
-            export SHELLCHECK_OPTS="-e SC2164 -e SC2162 -e SC2059"
+            # disabled rules include
+            # SC2164 - `cd || exit` pattern
+            # SC2162 - use `read` with `-r`
+            # SC2059 - use printf with "%s" and not environment variables
+            # SC2086 - wrap $variables to prevent globbing and word splitting
+            export SHELLCHECK_OPTS="-e SC2164 -e SC2162 -e SC2059 -e SC2086"
             find . -type f -name '*.sh' | grep -v vendor | while read file; do
               cd $(dirname $file);
               shellcheck $(basename $file) --external-sources;

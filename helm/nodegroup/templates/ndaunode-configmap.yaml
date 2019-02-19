@@ -22,7 +22,7 @@ data:
     CFG_DIR=$NDAUHOME/ndau
     NDAU_CONFIG_TOML="$CFG_DIR"/config.toml
     NAMESPACE_FILE="$CFG_DIR"/svi-namespace
-    NAMESPACE_URL=https://s3.amazonaws.com/ndau-snapshots/svi-namespace
+    NAMESPACE_URL=https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/svi-namespace
 
     # Copy readonly config files to real config files
     if [ ! -d "$CFG_DIR" ]; then
@@ -38,7 +38,7 @@ data:
       cp /root/config-ro/config.toml "$NDAU_CONFIG_TOML"
 
       echo "getting new svi-namespace"
-      NAMESPACE_URL=https://s3.amazonaws.com/ndau-snapshots/svi-namespace
+      NAMESPACE_URL=https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/svi-namespace
       if curl "$NAMESPACE_URL" -o "$NAMESPACE_FILE" --retry $CURL_RETRIES --retry-delay 0; then
         SVI_NAMESPACE=$(cat "$NAMESPACE_FILE")
         echo "Fetched namsepace: $SVI_NAMESPACE"

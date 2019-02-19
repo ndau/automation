@@ -14,7 +14,7 @@ data:
     already_ran=false
 
     # s3_upload takes the first argument as the full local file path and uploads it to s3
-    # to the path defined by the convention `/ndau-snapshots/$NEW_CODE/$s3_file`, where `$NEW_CODE`
+    # to the path defined by the convention `/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/$s3_file`, where `$NEW_CODE`
     # is the common random NEW_CODE shared across this release, and $s3_file is the name of
     # the file in s3.
     s3_upload() {
@@ -24,7 +24,7 @@ data:
 
       # prepare headers and signature
       the_date=$(date -R)
-      s3_path="/ndau-snapshots/$NEW_CODE/$s3_file"
+      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/$s3_file"
       content_type="application/octet-stream"
       signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
       signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
@@ -86,7 +86,7 @@ data:
 
       # check to see if the snapshot is already there
       tar_file=$this_service.tgz
-      s3_path="/ndau-snapshots/$NEW_CODE/${tar_file}"
+      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/${tar_file}"
 
       if curl_response=$(curl --head -f http://s3.amazonaws.com$s3_path); then
         errcho "Snapshot $s3_path already exists. Will not upload."

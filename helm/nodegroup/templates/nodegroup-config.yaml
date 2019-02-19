@@ -88,13 +88,13 @@ data:
         log "Using snapshot code: $SNAPSHOT_CODE"
         token=$SNAPSHOT_CODE
       else
-        snapshot_list_url=http://ndau-snapshots.s3.amazonaws.com?prefix=by-height/${this_node}
+        snapshot_list_url=http://{{ .Values.aws.snapshotBucket }}.s3.amazonaws.com?prefix={{ .Values.networkName }}/by-height/${this_node}
         if snapshot_list=$(curl $snapshot_list_url); then
           log "Latest snapshot list: $snapshot_list"
 
           latest_height_code=$(echo $snapshot_list | perl -nle'print $& while m{(?<=<Key>).*?(?=</Key>)}g' | grep "$this_node" | sort | tail -n 1)
           log "Latest snapshot height: $latest_snapshot_height"
-          latest_height_url=https://s3.amazonaws.com/ndau-snapshots/${latest_height_code}
+          latest_height_url=https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/${latest_height_code}
           if [ -z "$latest_height_code" ]; then
             log "No latest height code found. Defaulting to genesis."
             token=genesis
@@ -111,7 +111,7 @@ data:
       fi
       log "Clearing data directory and installing new one"
       [ ! $NO_CLEAR == "true" ] && rm -rf "$DATA_DIR"/*
-      download_url="https://s3.amazonaws.com/ndau-snapshots/$token/$SNAPSHOT_FILE"
+      download_url="https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$token/$SNAPSHOT_FILE"
       log "Downloading from: $download_url"
       curl $download_url | tar xzvf - -C "$DATA_DIR"
     }
