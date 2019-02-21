@@ -110,6 +110,8 @@ spec:
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
           value: {{ .Values.honeycomb.dataset }}
+        - name: NODE_ID
+          value: {{ .Values.ndau.tendermint.moniker }}
         - name: NDAUHOME
           value: "/root/.ndau"
         volumeMounts:
