@@ -147,6 +147,8 @@ spec:
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
           value: {{ .Values.honeycomb.dataset }}
+        - name: NODE_ID
+          value: {{ .Values.ndau.tendermint.moniker }}
         - name: UPDATE_PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:

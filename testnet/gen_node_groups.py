@@ -293,10 +293,15 @@ class Conf:
             except subprocess.CalledProcessError:
                 abortClean("Could not get master node's IP address: ${ret.returncode}")
 
+<<<<<<< HEAD
         self.ELB_SUBDOMAIN = os.environ.get("ELB_SUBDOMAIN")
         if self.ELB_SUBDOMAIN is None and not self.IS_MINIKUBE:
             abortClean(f"ELB_SUBDOMAIN env var required for non-minikube deployments.")
 
+=======
+        # add ECR string to image names, or not
+        self.ECR = "578681496768.dkr.ecr.us-east-1.amazonaws.com/"
+>>>>>>> adc4cf8e1617a22bf4abbf2ed9008f8e312151fc
 
         #
         # Genuine constants
@@ -359,6 +364,14 @@ def initNodegroup(nodes):
         vprint(f"node_key.json: {ret.stdout}")
         node.chaos_nodeKey = json.loads(ret.stdout)
 
+        # JSG we need the node ID for persistent peers
+        ret = run_command(
+            f"{c.DOCKER_RUN} -e TMHOME=/tendermint "
+            f"{c.ECR}tendermint:{c.CHAOS_TM_TAG} show_node_id"
+        )
+        node.chaos_node_id = ret.stdout.strip()
+        vprint(f"chaos node ID: {node.chaos_node_id}")
+
         steprint("Removing tendermint's config directory")
         run_command(f"{c.DOCKER_RUN} busybox rm -rf /tendermint/config")
 
@@ -382,6 +395,14 @@ def initNodegroup(nodes):
         )
         vprint(f"node_key.json: {ret.stdout}")
         node.ndau_nodeKey = json.loads(ret.stdout)
+
+        # JSG we need the node ID for persistent peers
+        ret = run_command(
+            f"{c.DOCKER_RUN} -e TMHOME=/tendermint "
+            f"{c.ECR}tendermint:{c.CHAOS_TM_TAG} show_node_id"
+        )
+        node.ndau_node_id = ret.stdout.strip()
+        vprint(f"ndau node ID: {node.ndau_node_id}")
 
         steprint("Removing tendermint's config directory")
         run_command(f"{c.DOCKER_RUN} busybox rm -rf /tendermint/config")
@@ -518,7 +539,7 @@ def main():
         # create a string of chaos peers in tendermint's formats
         def chaos_peer(peer):
             return (
-                f'{peer.chaos_priv["address"]}@{c.MASTER_IP}:'
+                f'{peer.chaos_node_id}@{c.MASTER_IP}:'
                 f'{peer.chaos["port"]["p2p"]}'
             )
 
@@ -533,7 +554,7 @@ def main():
         # create a string of ndau peers in tendermint's formats
         def ndau_peer(peer):
             return (
-                f'{peer.ndau_priv["address"]}@{c.MASTER_IP}'
+                f'{peer.ndau_node_id}@{c.MASTER_IP}'
                 f':{peer.ndau["port"]["p2p"]}'
             )
 
@@ -562,7 +583,6 @@ def main():
                     "tendermint": {
                         "moniker": node.name,
                         "persistentPeers": b64(chaosPeers),
-                        "privatePeerIds": b64(chaosPeerIds),
                         "image": {"tag": "$CHAOS_TM_TAG"},
                         "nodePorts": {
                             "enabled": "true",
@@ -595,7 +615,6 @@ def main():
                         "image": {"tag": "$NDAU_TM_TAG"},
                         "moniker": node.name,
                         "persistentPeers": b64(ndauPeers),
-                        "privatePeerIds": b64(ndauPeerIds),
                         "nodePorts": {
                             "enabled": "true",
                             "p2p": node.ndau["port"]["p2p"],
