@@ -24,61 +24,98 @@ spec:
       imagePullSecrets:
       - name: awsecr-cred
       {{ end }}
-      terminationGracePeriodSeconds: 120 # 2 minutes. Increase grace period from default 30 seconds for snapshot creation.
       containers:
-      {{ if .Values.snapshotOnShutdown }}
-      - name: s3
-        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
-        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["/bin/bash"]
-        args: ["/root/make-snapshot.sh"]
+      - name: noms
+        image: "{{ .Values.ndau.noms.image.repository }}:{{ .Values.ndau.noms.image.tag }}"
+        imagePullPolicy: {{ .Values.ndau.noms.image.pullPolicy }}
+        command:
+          - /bin/sh
+          - -c
+          - |-
+
+            mkdir -p /noms/data || echo "/noms/data already created."
+
+            # check to see if snapshot is needed
+            DATA_DIR=/noms/data \
+            DATA_EXISTS_FILE=/noms/data/manifest \
+            SNAPSHOT_FILE=ndau-noms.tgz \
+            LOG_TAG=ndau-noms \
+              /bin/sh /root/restore-snapshot.sh
+
+            # start noms
+            noms serve /noms/data &
+            pid=$!
+
+            shutdown() {
+              echo "Shutting down"
+              kill $pid
+              while kill -0 $pid; do echo "waiting for $THIS_SERVICE to stop"; sleep 1; done;
+              echo "done waiting"
+              [ "$SNAPSHOTGUN_ENABLED" == "true" ] && [ "$SNAPSHOT_CALLED" == "true" ] && /bin/bash -x /root/make-snapshot.sh >&1
+              exit 0
+            }
+
+            # wait for a sigterm and run shutdown
+            trap shutdown SIGTERM
+
+            # check redis and loop until this service has been told to shutdown by redis
+            while [ "$res" != "1" ]; do
+              echo "." # proof of life
+              sleep 2
+              res=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$THIS_SERVICE")
+            done
+            SNAPSHOT_CALLED="true"
+            shutdown
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.ndau.noms.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.ndau.noms.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
         env:
+        - name: SNAPSHOTGUN_ENABLED
+          value: "{{ .Values.snapshot.enabled }}"
         - name: AWS_KEY
           value: {{ .Values.aws.accessKeyID }}
         - name: AWS_SECRET
           value: {{ .Values.aws.secretAccessKey }}
-        - name: NEW_CODE
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-              key: new-snapshot-code
-        volumeMounts:
-        # shares the noms data volume with this sidecar container.
-        - mountPath: /noms
-          name: noms-volume
-        - name: make-snapshot-sh
-          mountPath: /root/make-snapshot.sh
-          subPath: make-snapshot.sh
-      {{ end }}
-      - name: noms
-        image: "{{ .Values.ndau.noms.image.repository }}:{{ .Values.ndau.noms.image.tag }}"
-        imagePullPolicy: {{ .Values.ndau.noms.image.pullPolicy }}
-        command: ["/bin/sh"]
-        args: ["/root/noms-start.sh"]
-        env:
-        - name: SNAPSHOT_CODE
-          value: {{ .Values.ndau.noms.snapshotCode }}
-        - name: DOWNLOAD_SNAPSHOT
-          value: {{ .Values.ndau.noms.downloadSnapshot }}
+        - name: R_HOST # for snapshot coordination
+          value: {{ template "nodegroup.fullname" . }}-snapshot-redis
+        - name: THIS_SERVICE
+          value: ndau-noms
         - name: CHAIN
           value: "ndau"
-        - name: RELEASE_TOKEN
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-              key: release-token
+        - name: SNAPSHOT_CODE
+          value: {{ .Values.ndau.noms.snapshotCode }}
         ports:
         - containerPort: {{ .Values.ndau.noms.port }}
         volumeMounts:
         - name: noms-start-sh
           mountPath: /root/noms-start.sh
           subPath: noms-start.sh
+        - name: make-snapshot-sh
+          mountPath: /root/make-snapshot.sh
+          subPath: make-snapshot.sh
         - name: snapshot-sh
-          mountPath: /root/snapshot.sh
-          subPath: snapshot.sh
+          mountPath: /root/restore-snapshot.sh
+          subPath: restore-snapshot.sh
+        - name: redis-cli-sh
+          mountPath: /root/redis-cli.sh
+          subPath: redis-cli.sh
         - name: noms-volume
           mountPath: /noms
       volumes:
+      - name: noms-start-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+          items:
+          - key: noms-start.sh
+            path: noms-start.sh
+
       - name: noms-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-ndau-noms-claim
@@ -93,14 +130,14 @@ spec:
         configMap:
           name: {{ template "nodegroup.fullname" . }}-nodegroup-config
           items:
-          - key: snapshot.sh
-            path: snapshot.sh
-      - name: noms-start-sh
+          - key: restore-snapshot.sh
+            path: restore-snapshot.sh
+      - name: redis-cli-sh
         configMap:
-          name: {{ template "nodegroup.fullname" . }}-ndau-noms-config
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
           items:
-          - key: noms-start.sh
-            path: noms-start.sh
+          - key: redis-cli.sh
+            path: redis-cli.sh
       resources:
         requests:
           memory: {{ .Values.ndau.noms.resources.requests.memory }}

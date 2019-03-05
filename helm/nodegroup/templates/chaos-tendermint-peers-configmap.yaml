@@ -5,6 +5,11 @@
 kind: ConfigMap
 metadata:
   name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-peers
+  labels:
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
 apiVersion: v1
 data:
   addresses: {{ default "" ( b64dec .Values.chaos.tendermint.persistentPeers ) | quote }}

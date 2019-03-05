@@ -1,22 +1,17 @@
 kind: ConfigMap
 metadata:
   name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+  labels:
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
 apiVersion: v1
 data:
-  # This is used something like a cache buster.
-  # Since we want an operation to occur only once when the OPERATION_X value is set to true,
-  # we would like to set a flag by touching a file `operation_x_done` for example.
-  # This OPERATION_X value however, may remain set across different helm install/upgrades.
-  # So instead of simply touching a flag file, we also save a random token for this release.
-  # Now instead of checking for the existence of a flag file, we can compare our release-token
-  # to the saved release token in the flag file. *whew*
-  release-token: {{ randAlphaNum 10 | b64enc | quote }}
-  new-snapshot-code:  {{ randAlphaNum 10 | b64enc | quote }}
-  tm-home: "/tendermint"
-  snapshot.sh: |
-    #!/bin/sh
 
-    set -x
+  tm-home: "/tendermint"
+  restore-snapshot.sh: |
+    #!/bin/sh
 
     # This depends on three variables being set prior to running.
     #
@@ -24,42 +19,11 @@ data:
     #                     e.g. /noms/data
     # DATA_EXISTS_FILE    A file, such that it's existence means the database exists.
     #                     e.g. /noms/data/manifest
-    # FLAG_DIR            The directory to store two flag files. Must be persistent and not container storage.
-    #                     e.g. /noms
     # SNAPSHOT_FILE       The name of the tarball file on s3 to use.
     #                     e.g. ndau-noms.tgz
     # LOG_TAG             A simple string to better identify logs.
     #                     e.g. ndau-noms
 
-    # Other variables that are not set dynamically but are set in the .
-
-    # When it comes to download snapshot data, we only want to do that once per pod deployment.
-    # Meaning, if the pod restarts, we don't want to download from the latest snapshot again.
-    # Otherwise, we would wipe out any data that we had created after the first download.
-    #
-    # Disregarding the amount of times it downloads, the desired behavior is still that we download
-    # in two different situations.
-    # 1) If there is no data. ( this only happens once, so we simply check to see if data is there.)
-    # 2) We're forcing an update.
-    #   In case 2, we set a variable with helm install. This means that every time the pod
-    # restarts it will still have that variable set until the next time a helm install occurs.
-
-    # This state machine-like block basically says only download once.
-    # In the following table, the important states are described with their actions.
-    # Where
-    #   AF is already forced (touched file present),
-    #   DS is the download snapshot variable and
-    #   DT is different token (written token is different from current token).
-    # For these, we assume some database is already present.
-
-    # 1  DS &&  AF &&  DT = download snapshot, update token
-    # 2  DS &&  AF && !DT = do nothing. (just a restarted pod)
-    # 3  DS && !AF &&  DT = download snapshot, set AF=true
-    # 4  DS && !AF && !DT = download snapshot, set AF=true. (DS newly set on this install)
-    # 5 !DS &&  AF &&  DT = don't download, set AF=false (this is a clean up step)
-    # 6 !DS &&  AF && !DT = don't download, set AF=false (this is a clean up step)
-    # 7 !DS && !AF &&  DT = do nothing
-    # 8 !DS && !AF && !DT = do nothing
 
     log () {
       >&2 echo "snapshot-$LOG_TAG:" "$@"
@@ -70,101 +34,48 @@ data:
       exit 1
     }
 
-    # TODO put this in the deploy utils image
-    which curl || apk add --no-cache curl
-
-    # TODO put this in the deploy utils image
-    which perl || apk add --no-cache perl
-
-    if [ ! -d "$DATA_DIR" ]; then
-      mkdir -p "$DATA_DIR"
-    fi
-
     # download
     download() {
       log "Downloading and restoring snapshot."
       local token
       if [ ! -z "$SNAPSHOT_CODE" ]; then
         log "Using snapshot code: $SNAPSHOT_CODE"
-        token=$SNAPSHOT_CODE
+        token={{ .Values.networkName }}/$SNAPSHOT_CODE
       else
-        snapshot_list_url=http://{{ .Values.aws.snapshotBucket }}.s3.amazonaws.com?prefix={{ .Values.networkName }}/by-height/${this_node}
-        if snapshot_list=$(curl $snapshot_list_url); then
-          log "Latest snapshot list: $snapshot_list"
-
-          latest_height_code=$(echo $snapshot_list | perl -nle'print $& while m{(?<=<Key>).*?(?=</Key>)}g' | grep "$this_node" | sort | tail -n 1)
-          log "Latest snapshot height: $latest_snapshot_height"
-          latest_height_url=https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/${latest_height_code}
-          if [ -z "$latest_height_code" ]; then
-            log "No latest height code found. Defaulting to genesis."
-            token=genesis
-          elif token=$(curl $latest_height_url); then
+        # list all snapshots for this network and this chain
+        s3_search_url=http://{{ .Values.aws.snapshotBucket }}.s3.amazonaws.com?prefix={{ .Values.networkName }}/${CHAIN}
+        log "s3_search_url: $s3_search_url"
+        if search_results=$(curl $s3_search_url); then
+          log "Latest snapshot list: $search_results"
+          # process XML list, get the largest height
+          latest_snapshot=$(echo $search_results | perl -nle'print $& while m{(?<=<Key>).*?(?=</Key>)}g' | grep "$CHAIN" | sort | tail -n 1 | awk -F'/' '{print $1"/"$2}')
+          log "Latest snapshot: $latest_snapshot"
+          # test to see if snapshot file is there. If not, default to genesis.
+          latest_height_url="https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/$latest_snapshot/$SNAPSHOT_FILE"
+          if curl -I -f "$latest_height_url"; then
+            token=$latest_height_url
             log "Using latest snapshot: $token"
           else
             log "Could not find latest height URL: $latest_height_url. Defaulting to genesis."
-            token=genesis
+            token={{ .Values.networkName }}/genesis
           fi
         else
-          log "Cannot get snapshot list from s3 $snapshot_list_url. Defaulting to genesis."
-          token=genesis
+          log "Cannot get snapshot list from s3 $s3_search_url. Defaulting to genesis."
+          token={{ .Values.networkName }}/genesis
         fi
       fi
-      log "Clearing data directory and installing new one"
-      [ ! $NO_CLEAR == "true" ] && rm -rf "$DATA_DIR"/*
-      download_url="https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$token/$SNAPSHOT_FILE"
+      if [ ! $NO_CLEAR == "true" ]; then
+        rm -rf "$DATA_DIR"
+        log "Cleared data directory."
+        mkdir -p "$DATA_DIR"
+      fi
+      download_url="https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/$token/$SNAPSHOT_FILE"
       log "Downloading from: $download_url"
-      curl $download_url | tar xzvf - -C "$DATA_DIR"
+      [ ! -d "$DATA_DIR" ] && mkdir -p "$DATA_DIR" # ensure directory
+      # download and unzip if it's there
+      curl -I -f $download_url && \
+        curl $download_url | tar xzvf - -C "$DATA_DIR"
     }
-
-    # marks the last time we were forced to download a snapshot
-    update_token() {
-      printf $RELEASE_TOKEN > $FLAG_DIR/last_forced_release
-    }
-
-    # marks that we were not forced to download
-    set_af_false() {
-      rm $FLAG_DIR/already_forced
-    }
-
-    # marks that we were forced to download
-    set_af_true() {
-      touch $FLAG_DIR/already_forced
-    }
-
-    # get our variables to perform logic on
-
-    # already forced
-    AF=false
-    [ -f $FLAG_DIR/already_forced ] && AF=true
-
-    # download snapshot
-    DS=false
-    [ "$DOWNLOAD_SNAPSHOT" == "true" ] && DS=true
-
-    # different token
-    DT=false
-    [ "$RELEASE_TOKEN" != "$(cat $FLAG_DIR/last_forced_release)" ] && DT=true
-
-    if $DS; then
-      if $DT; then # cases 1 and 3
-        download
-        if $AF; then
-          update_token # 1
-        else
-          set_af_true # 3
-        fi
-      fi
-      if ! $AF && ! $DT; then # case 4
-        download
-        set_af_true
-      fi
-    else
-      if $AF; then
-        set_af_false # cases 5 and 6
-      fi
-    fi
-
-    # Case 2, 7, 8 do nothing
 
     if [ ! -f "$DATA_EXISTS_FILE" ]; then
       download
@@ -189,71 +100,75 @@ data:
     RO_DATA=/root/data-ro
 
     # ensure directory for read-writeable config files
-    if mkdir -p $TM_CONFIG; then
-      log "Created $TM_CONFIG directory"
+    if [ ! -d $TM_CONFIG ]; then
+      mkdir -p $TM_CONFIG && log "Created $TM_CONFIG directory" || log "Could not create $TM_CONFIG"
     else
-      log "Could not create $TM_CONFIG"
+      log "Directory $TM_CONFIG already exists."
     fi
-
     # ensure directory for read-writeable data files
-    if mkdir -p $TM_DATA; then
-      log "Created $TM_DATA directory"
+    if [ ! -d $TM_DATA ]; then
+      mkdir -p $TM_DATA && log "Created $TM_DATA directory" || log "Could not create $TM_DATA"
     else
-      log "Could not create $TM_DATA"
+      log "Directory $TM_DATA already exists."
     fi
 
-    # update genesis.json with the app hash
+    # get app_hash created in a previous container
     app_hash=$(cat $TMHOME/app_hash)
+    log "app hash created in init container: $app_hash"
 
     # initialize if config does not already exist
     if [ ! -f "$TM_CONFIG/init-done" ]; then
 
-      # check snapshot for genesis
+      # check snapshot for genesis.json
       DATA_DIR=$TM_CONFIG \
       DATA_EXISTS_FILE=$TM_CONFIG/genesis.json \
-      FLAG_DIR=/tendermint \
       SNAPSHOT_FILE=$CHAIN-genesis.tgz \
       NO_CLEAR=true \
-      this_node=$CHAIN \
       LOG_TAG=$CHAIN-tendermint-genesis \
-        /bin/sh /root/snapshot.sh
+        /bin/sh /root/restore-snapshot.sh
 
-      # copy all read only files from config map to real config directory
-      if cp $RO_CONFIG/* $TM_CONFIG; then
+      # copy readonly files from config map to real config directory
+      # genesis.json is handled below
+      if cp $RO_CONFIG/priv_validator_key.json $TM_CONFIG && \
+         cp $RO_CONFIG/node_key.json $TM_CONFIG && \
+         cp $RO_CONFIG/config.toml $TM_CONFIG; then
         log "Read only files copied to tendermint config"
       else
         err "Could not copy read-only files to tendermint config"
       fi
 
-      # copy all read only files from data map to real data directory
+      # copy all readonly files from data map to real data directory
       if cp $RO_DATA/* $TM_DATA; then
         log "Read only files copied to tendermint data"
       else
         err "Could not copy read-only files to tendermint data"
       fi
 
-      # copy genesis and insert app hash
-      if [ -f "$TM_CONFIG/genesis.json" ]; then
-        cp $TM_CONFIG/genesis.json $TM_CONFIG/genesis-old.json
-        if jq ".app_hash=\"$app_hash\"" $TM_CONFIG/genesis-old.json > $TM_CONFIG/genesis.json; then
-          log "Updated old genesis with app hash $app_hash"
+      # if genesis.json does not exist
+      #   then it was not downloaded in the snapshot
+      #   and it was not previously there
+      if [ ! -f "$TM_CONFIG/genesis.json" ]; then
+        log "Copying readonly and updating app_hash"
+        if [ -z $(jq -r ".app_hash" $RO_CONFIG/genesis.json) ]; then
+          log "app_hash is empty, updating with $app_hash"
+          if jq ".app_hash=\"$app_hash\"" $RO_CONFIG/genesis.json > $TM_CONFIG/genesis.json; then
+            log "$RO_CONFIG/genesis.json:\n$(cat $RO_CONFIG/genesis.json)"
+            log "$TM_CONFIG/genesis.json:\n$(cat $TM_CONFIG/genesis.json)"
+          else
+            err "Failed to copy readonly genesis.json and update with app hash."
+          fi
         else
-          err "Could not update genesis with app hash."
+          log "app_hash in readonly genesis.json is not empty ($(jq -r ".app_hash" $RO_CONFIG/genesis.json))"
+          if cp $RO_CONFIG/genesis.json $TM_CONFIG/genesis.json; then
+            log "genesis.json copied as is from readonly"
+            log "$TM_CONFIG/genesis.json:\n$(cat $TM_CONFIG/genesis.json)"
+          else
+            err "Failed to copy readonly genesis.json"
+          fi
         fi
       else
-        if jq ".app_hash=\"$app_hash\"" $RO_CONFIG/genesis.json > $TM_CONFIG/genesis.json; then
-          log "config-ro genesis.json"
-          log $(cat $RO_CONFIG/genesis.json)
-          log "config genesis.json"
-          log $(cat $TM_CONFIG/genesis.json)
-          log "Created new genesis with app hash $app_hash"
-        else
-          err "Could not update genesis with app hash."
-        fi
+        log "$TM_CONFIG/genesis.json exists, will not update app_hash."
       fi
-
-      # output app hash
-      log "app hash: $app_hash"
 
       # output for the logs
       log "Final config files"
@@ -269,8 +184,279 @@ data:
     # check snapshot
     DATA_DIR=/tendermint/data \
     DATA_EXISTS_FILE=/tendermint/data/blockstore.db/LOCK \
-    FLAG_DIR=/tendermint \
     SNAPSHOT_FILE=$CHAIN-tm.tgz \
-    this_node=$CHAIN \
     LOG_TAG=$CHAIN-tendermint \
-      /bin/sh /root/snapshot.sh
+      /bin/sh /root/restore-snapshot.sh
+
+    log "done tendermint-init.sh"
+
+
+  tendermint-start.sh: |
+    #!/bin/bash
+
+    log () {
+      >&2 echo "tendermint-start-$LOG_TAG: $@"
+    }
+
+    err () {
+      >&2 echo "tendermint-start-$LOG_TAG: $@"
+      exit 1
+    }
+
+    startup() {
+      # start tendermint, add --log_level="*:debug" to debug
+      /bin/tendermint node \
+        --p2p.persistent_peers "$PERSISTENT_PEERS" \
+        --log_level="*:debug" &
+      pid=$!
+    }
+
+    shutdown() {
+      log "Shutting down"
+      kill $pid
+      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
+      log "done waiting"
+      exit 0
+    }
+
+    snapshot() {
+      log "Starting snapshot, shutting down gracefully."
+      kill $pid
+      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
+      log "done waiting"
+      height=$(cat /tendermint/data/priv_validator_state.json | jq -r ".height")
+      log "$CHAIN height: $height"
+      /bin/bash /root/redis-cli.sh -h $R_HOST set "snapshot-$CHAIN-height" "$height"
+      /bin/bash -x /root/make-snapshot.sh >&1
+      # restart when snapshot is done
+      startup
+    }
+
+    # wait for a sigterm and run shutdown
+    trap shutdown SIGTERM
+
+    # Tendermint config
+    LOG_TAG=$CHAIN \
+      /bin/bash /root/tendermint-init.sh
+
+    # start tendermint
+    startup
+
+    # main loop
+    while true; do
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # snapshot if this service has been told to snapshot by redis
+        sleep 2
+        res=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$THIS_SERVICE")
+        [ "$res" == "1" ] && snapshot
+      else
+        sleep 42
+      fi
+    done
+
+
+  noms-start.sh: |
+
+    log () {
+      >&2 echo "$THIS_SERVICE-start: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-start: $@"
+      exit 1
+    }
+
+    mkdir -p /noms/data || log "/noms/data already created."
+
+    # check to see if snapshot is needed
+    DATA_DIR=/noms/data \
+    DATA_EXISTS_FILE=/noms/data/manifest \
+    SNAPSHOT_FILE=$THIS_SERVICE.tgz \
+    LOG_TAG=$THIS_SERVICE \
+      /bin/sh /root/restore-snapshot.sh
+
+    startup() {
+      log "Starting"
+      # start noms
+      noms serve /noms/data &
+      pid=$! # get noms pid
+    }
+
+    snapshot() {
+      log "starting snapshot"
+      kill $pid
+      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
+      log "done waiting"
+      /bin/bash -x /root/make-snapshot.sh >&1
+      startup
+    }
+
+    shutdown() {
+      log "Shutting down"
+      kill $pid
+      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
+      log "done waiting"
+      exit 0
+    }
+
+    startup
+
+    # wait for a sigterm and run shutdown
+    trap shutdown SIGTERM
+
+    # main loop
+    log "starting main loop"
+    while true; do
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # snapshot if this service has been told to snapshot by redis
+        sleep 2
+        res=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$THIS_SERVICE")
+        [ "$res" == "1" ] && snapshot
+      else
+        sleep 42
+      fi
+    done
+
+  redis-start.sh: |
+
+    log () {
+      >&2 echo "$THIS_SERVICE-start: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-start: $@"
+      exit 1
+    }
+
+
+    # check to see if snapshot is needed
+    DATA_DIR=/redis \
+    DATA_EXISTS_FILE=/redis/dump.rdb \
+    SNAPSHOT_FILE=$THIS_SERVICE.tgz \
+    LOG_TAG=$THIS_SERVICE \
+      /bin/sh /root/restore-snapshot.sh
+
+    startup() {
+      log "Starting"
+      redis-server \
+        --dir /redis \
+        --save 60 1 \
+        --tcp-backlog 128 \
+        --port $REDIS_PORT &
+      pid=$!
+    }
+
+    shutdown() {
+      log "Shutting down"
+      kill $pid
+      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
+      exit 0
+    }
+
+    snapshot() {
+      log "Shutting down"
+      kill $pid
+      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
+      log "done waiting"
+      /bin/bash -x /root/make-snapshot.sh >&1
+      # restart when snapshot is done
+      startup
+    }
+
+    startup
+
+    # wait for a sigterm and run shutdown
+    trap shutdown SIGTERM
+
+    # main loop
+    log "starting main loop"
+    while true; do
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # snapshot if this service has been told to snapshot by redis
+        sleep 2
+        res=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$THIS_SERVICE")
+        [ "$res" == "1" ] && snapshot
+      else
+        sleep 42
+      fi
+    done
+
+
+  redis-cli.sh: |
+    #!/bin/bash
+    # https://github.com/caquino/redis-bash
+
+    redis_client() {
+      if [ ${#FUNCNAME[@]} -lt 100 ]; then
+        FD=${1}
+        shift;
+        if [ ${#} -ne 0 ]; then # always use unified protocol and let the server validate the number of parameters
+          local ARRAY=( "${@}" )
+          local CMD=("*$[${#ARRAY[@]}]")
+          local i=0
+          for ((i=0;i<${#ARRAY[@]};i++)); do
+            CMD=( "${CMD[@]}" "\$${#ARRAY[${i}]}" "${ARRAY[${i}]}" )
+          done
+          printf "%s\r\n" "${CMD[@]}" >&${FD}
+        fi
+        local ARGV
+        read -r -u ${FD}
+        REPLY=${REPLY:0:${#REPLY}-1}
+        case ${REPLY} in
+          -*|\$-*) # error message
+            echo "${REPLY:1}"
+            return 1;;
+          \$*) # message size
+            [ ${BASH_VERSINFO} -eq 3 ] && SIZEDELIM="n"
+            [ ${REPLY:1} -gt 0 ] && read -r -${SIZEDELIM:-N} $[${REPLY:1}+2] -u ${FD} # read again to get the value itself
+            ARGV=( "${REPLY:0:$[${#REPLY}-$[${BASH_VERSINFO}-2]]}" );;
+          :*) # integer message
+            ARGV=( "${REPLY:1}" );;
+          \**) # bulk reply - recursive based on number of messages
+            unset ARGV
+            for ((ARGC="${REPLY:1}";${ARGC}>0;ARGC--)); do
+              ARGV=("${ARGV[@]}" $(redis_client ${FD}))
+            done;;
+          +*) # standard message
+            ARGV=( "${REPLY:1}" );;
+          *) # wtf? just in case...
+            ARGV=( "${ARGV[@]}" "${REPLY}" );;
+        esac
+        printf "%s\n" "${ARGV[@]}"
+      else
+        printf "ERROR: Recursive function call limit.\n"
+      fi
+    }
+
+    REDISHOST=localhost
+    REDISPORT=6379
+    REPEAT=1
+    DELAY=0
+    while getopts ":h:n:p:r:a:i:" opt
+    do
+        case ${opt} in
+            h) REDISHOST=${OPTARG};;
+            n) REDISDB=${OPTARG};;
+            p) REDISPORT=${OPTARG};;
+            r) REPEAT=${OPTARG};;
+            a) AUTH=${OPTARG};;
+            i) DELAY=${OPTARG};;
+        esac
+    done
+    shift $((${OPTIND} - 1))
+    if [ "${REDISHOST}" != "" ] && [ "${REDISPORT}" != "" ]
+    then
+        # open fd
+        exec 6<>/dev/tcp/"$REDISHOST"/"$REDISPORT" || exit
+    else
+        echo "Wrong arguments"
+        exit 255
+    fi
+    [ "${AUTH}" != "" ] && redis_client 6 AUTH "$AUTH" > /dev/null
+    [ "${REDISDB}" != "" ] && redis_client 6 SELECT "$REDISDB" > /dev/null
+    for ((z=1;z<=${REPEAT};z++))
+    do
+        redis_client 6 "$@" || exit
+        [ ${DELAY} -gt 0 ] && sleep ${DELAY}
+    done
+    exec 6>&- #close fd

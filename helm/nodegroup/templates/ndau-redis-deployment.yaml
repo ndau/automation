@@ -21,41 +21,79 @@ spec:
         app: {{ template "nodegroup.name" . }}-ndau-redis
         release: {{ .Release.Name }}
     spec:
+      restartPolicy: Always
       {{ if .Values.minikube }}
       imagePullSecrets:
       - name: awsecr-cred
       {{ end }}
-      terminationGracePeriodSeconds: 120 # 2 minutes. Increase grace period from default 30 seconds for snapshot creation.
       containers:
       - name: redis
         image: "{{ .Values.ndau.redis.image.repository }}:{{ .Values.ndau.redis.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.redis.image.pullPolicy }}
         command:
-          - sh
-          - -c
-          - |-
-            redis-server \
-              --dir /redis \
-              --save 60 1 \
-              --tcp-backlog 128 \
-              --port {{ .Values.ndau.redis.port }} &
-            redis_pid=$!
-            delayed_shutdown() {
-              sleep 110 # sleep for almost 2 minutes
-              kill $redis_pid
-            }
-            trap delayed_shutdown SIGTERM
-
-            while true; do sleep 42; done
+          - /bin/bash
+          - /root/redis-start.sh
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.ndau.redis.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.ndau.redis.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
         env:
+        - name: SNAPSHOTGUN_ENABLED
+          value: "{{ .Values.snapshot.enabled }}"
+        - name: AWS_KEY
+          value: {{ .Values.aws.accessKeyID }}
+        - name: AWS_SECRET
+          value: {{ .Values.aws.secretAccessKey }}
+        - name: R_HOST # for snapshot coordination
+          value: {{ template "nodegroup.fullname" . }}-snapshot-redis
+        - name: REDIS_PORT
+          value: "{{ .Values.ndau.redis.port }}"
+        - name: THIS_SERVICE
+          value: ndau-redis
+        - name: CHAIN
+          value: ndau
         - name: NDAUHOME
           value: /redis
         ports:
         - containerPort: {{ .Values.ndau.redis.port }}
         volumeMounts:
+        - name: redis-start-sh
+          mountPath: /root/redis-start.sh
+          subPath: redis-start.sh
+        - name: make-snapshot-sh
+          mountPath: /root/make-snapshot.sh
+          subPath: make-snapshot.sh
         - name: redis-volume
           mountPath: /redis
+        - name: redis-cli-sh
+          mountPath: /root/redis-cli.sh
+          subPath: redis-cli.sh
+
       volumes:
+      - name: redis-start-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+          items:
+          - key: redis-start.sh
+            path: redis-start.sh
+      - name: redis-cli-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+          items:
+          - key: redis-cli.sh
+            path: redis-cli.sh
+      - name: make-snapshot-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-ndau-redis
+          items:
+          - key: make-snapshot.sh
+            path: make-snapshot.sh
       - name: redis-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-ndau-redis-claim

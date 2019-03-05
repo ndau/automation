@@ -3,6 +3,11 @@
 kind: ConfigMap
 metadata:
   name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
+  labels:
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
 apiVersion: v1
 data:
   genesis.json: {{ b64dec .Values.chaos.genesis | quote }}
@@ -19,46 +24,41 @@ data:
       >&2 echo $@
     }
 
-    already_ran=false
-
     # s3_upload takes the first argument as the full local file path and uploads it to s3
-    # to the path defined by the convention `/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/$s3_file`, where `$NEW_CODE`
-    # is the common random code shared across this release, and $s3_file is the name of
-    # the file in s3.
+    # at the location defined by the local variable $s3_path
     s3_upload() {
 
       local local_file=$1
       local s3_file=$2
 
+      # puts the snapshot somewhere safe while it's being built.
+      temp_token=$(/bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-temp-token")
+
       # prepare headers and signature
       the_date=$(date -R)
-      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/$s3_file"
+      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/${temp_token}/${this_node}-${height}/$s3_file"
       content_type="application/octet-stream"
       signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
       signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
 
-      # upload the manifest
+      # upload the local file
       curl -X PUT -T "$local_file" \
         -H "Host: s3.amazonaws.com" \
         -H "Date: $the_date" \
         -H "Content-Type: $content_type" \
         -H "Authorization: AWS $AWS_KEY:$signature" \
-        http://s3.amazonaws.com$s3_path
+        "http://s3.amazonaws.com$s3_path"
 
     }
 
     this_node=chaos
     this_app=tm
-    this_service=$this_node-$this_app
-
-    # Keep this as chaos so everyone is using the same database
-    rhost={{ template "nodegroup.fullname" . }}-chaos-redis-service
 
     # wait for redis
-    errcho "Pinging redis"
+    errcho "Pinging redis."
     while true ; do
       # get redis readiness
-      if ! redis-cli -h $rhost PING; then
+      if ! /bin/bash /root/redis-cli.sh -h $R_HOST PING; then
         errcho "Waiting for redis to pong."
         sleep 1
       else
@@ -67,221 +67,73 @@ data:
       fi
     done
 
-    # curl retry options
-    CURL_CONNECT_TIMEOUT=5  # each try waits X seconds
-    CURL_RETRY_MAX=50       # retry X many times
-    CURL_RETRY_TOTAL=1000   # arbitrary high number, it will timeout first.
-    CURL_RETRY_DELAY=5      # try every X seconds
-    CURL_TOTAL_TIMEOUT=60   # total seconds before it fails (60s=1m) This overrides everything.
+    # wait for height value
+    while [ "$height" == "-1" ] || [ -z "$height" ]; do
+      sleep 2
+      height=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$CHAIN-height")
+    done
+    errcho "Got height: $height"
 
-    # snapshot runs when SIGTERM is sent to this process
-    snapshot() {
+    # wait until noms snapshot is finished
+    tries_left=60 # approx 2 minutes
+    errcho "waiting for $CHAIN noms snapshot to finish" # TODO standardize errcho/log/err etx
+    while [ "$noms_snapshot_resp" != "-1" ] || (( $tries_left == 0 )); do
+      noms_snapshot_resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$CHAIN-noms")
+      sleep 1
+      (($tries_left--))
+      errcho "Waiting $tries more times."
+    done
+    errcho "done waiting"
+    if [ "$noms_snapshot_resp" == "-1" ]; then
+      errcho "$CHAIN noms snapshot didn't finish"
+    fi
 
-      already_ran=true
+    # upload the tendermint databases
 
-      # get the manifest variables
-      status_response=$(curl --connect-timeout $CURL_CONNECT_TIMEOUT \
-            --retry-connrefused \
-            --max-time $CURL_RETRY_MAX \
-            --retry $CURL_RETRY_TOTAL \
-            --retry-delay $CURL_RETRY_DELAY \
-            --retry-max-time $CURL_TOTAL_TIMEOUT \
-            localhost:26657/status )
-      errcho "Tendermint status response: $status_response"
-      height=$(jq -r ".result.sync_info.latest_block_height" <<< $status_response)
-      errcho "height: $height"
-      app_hash=$(jq -r ".result.sync_info.latest_app_hash" <<< $status_response)
-      errcho "app_hash: $app_hash"
+    # check to see if the snapshot is already there
+    tar_file=$THIS_SERVICE.tgz
+    s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/${this_node}-${height}/${tar_file}"
 
-      # try to set snapping flag if not set. If set, get it.
-      # Everything expires after 120 seconds. If things get hung up, it's possible to restart.
-      snap_res=$(redis-cli -h $rhost SET "snapshot-$NEW_CODE-snapping" 1 EX 120 NX)
-      if [ "$snap_res" == "OK" ]; then
-        # check to see if this height was already uploaded
-        if curl -f http://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/by-height/${this_node}-${height}; then
-          errcho "Quitting. Snapshot for this height ($height) already uploaded."
-          exit 1
-        fi
+    if curl_response=$(curl -I -f "http://s3.amazonaws.com$s3_path"); then
+      errcho "Snapshot $s3_path already exists. Will not upload."
+    else
+      errcho "Uploading snapshot $s3_path."
 
-        errcho "Beginning new snapshot process for all services."
-        snapping=1
-        redis-cli -h $rhost SET snapshot-$NEW_CODE-ndau-tm 1 EX 120
-        redis-cli -h $rhost SET snapshot-$NEW_CODE-ndau-noms 1 EX 120
-        redis-cli -h $rhost SET snapshot-$NEW_CODE-chaos-tm 1 EX 120
-        redis-cli -h $rhost SET snapshot-$NEW_CODE-chaos-noms 1 EX 120
-
-      else
-        # could return either 1 or 0 on second run
-        snapping=$(redis-cli -h $rhost GET "snapshot-$NEW_CODE-snapping")
-        errcho "Snapping already in progress: $snapping"
-      fi
-
-      # wait until noms snapshot is done
-      noms_snapshot_url=http://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/${this_node}-noms.tgz
-      errcho "Waiting for noms snapshot to appear at: $noms_snapshot_url."
-
-      # curl until the noms snapshot is up, or CURL_TOTAL_TIMEOUT passes
-      if curl --head --connect-timeout $CURL_CONNECT_TIMEOUT \
-          --retry-connrefused \
-          --max-time $CURL_RETRY_MAX \
-          --retry $CURL_RETRY_TOTAL \
-          --retry-delay $CURL_RETRY_DELAY \
-          --retry-max-time $CURL_TOTAL_TIMEOUT \
-          $noms_snapshot_url; then
-          errcho "Done waiting. Detected noms snapshot."
-      else
-          errcho "Aborting. Noms snapshot not detected."
-          exit 1
-      fi
-
-
-      # upload the tendermint databases
-
-      # check to see if the snapshot is already there
-      tar_file=$this_service.tgz
-      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/${tar_file}"
-
-      if curl_response=$(curl -f http://s3.amazonaws.com$s3_path); then
-        errcho "Snapshot $s3_path already exists. Will not upload."
-      else
-        errcho "Uploading snapshot $s3_path."
-
-        (
-          cd /tendermint/data
-          tar cvzf /root/$tar_file ./blockstore.db ./state.db
-        )
-
-        # prepare headers and signature
-        the_date=$(date -R)
-        content_type="application/octet-stream"
-        signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
-        signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
-
-        # upload tarball to s3
-        errcho "Uploading snapshot $s3_path."
-        curl -X PUT -T "/root/$tar_file" \
-          -H "Host: s3.amazonaws.com" \
-          -H "Date: $the_date" \
-          -H "Content-Type: $content_type" \
-          -H "Authorization: AWS $AWS_KEY:$signature" \
-          http://s3.amazonaws.com$s3_path
-
-      fi
-
-
-      # upload genesis
-
-      tar_file=${this_node}-genesis.tgz
-
-      # make the tar ball
       (
-        cd /tendermint/config
-        tar cvzf /root/$tar_file ./genesis.json
+        cd /tendermint/data
+        tar cvzf /root/$tar_file ./blockstore.db ./state.db
       )
 
-      # prepare headers and signature
-      the_date=$(date -R)
-      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/${tar_file}"
-      content_type="application/octet-stream"
-      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
-      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+      s3_upload "/root/$tar_file" "$tar_file"
 
-      # upload tarball to s3
-      errcho "Uploading genesis to $s3_path."
-      curl -X PUT -T "/root/$tar_file" \
-        -H "Host: s3.amazonaws.com" \
-        -H "Date: $the_date" \
-        -H "Content-Type: $content_type" \
-        -H "Authorization: AWS $AWS_KEY:$signature" \
-        http://s3.amazonaws.com$s3_path
-
-      # remove service flag
-      redis-cli -h $rhost DEL "snapshot-$NEW_CODE-$this_service"
-
-      # if everyone is done, then remove snapping key
-      if ! redis-cli -h $rhost MGET \
-        snapshot-$NEW_CODE-ndau-tm \
-        snapshot-$NEW_CODE-ndau-noms \
-        snapshot-$NEW_CODE-chaos-tm \
-        snapshot-$NEW_CODE-chaos-noms | grep 1; then
-
-        errcho "No current snapshot jobs."
-
-        # we're all done
-        errcho "Removing snapping flag."
-        redis-cli -h $rhost DEL snapshot-$NEW_CODE-snapping
-
-      else
-        errcho "Other snapshot jobs still in progress."
-      fi
-
-      # create a manifest file
-      jq --arg date "$(date)" \
-        --arg height "$height" \
-        --arg app_hash "$app_hash" \
-        ". | \
-        .[\"date\"]=\$date | \
-        .[\"height\"]=\$height | \
-        .[\"app_hash\"]=\$app_hash" \
-        <<< '{}' > /root/manifest.json
-      errcho "Created manifest file: $(cat /root/manifest.json)"
-
-      # prepare headers and signature
-      the_date=$(date -R)
-      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/$NEW_CODE/${this_node}-manifest.json"
-      content_type="application/octet-stream"
-      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
-      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
-
-      # upload to s3
-      curl -X PUT -T "/root/manifest.json" \
-        -H "Host: s3.amazonaws.com" \
-        -H "Date: $the_date" \
-        -H "Content-Type: $content_type" \
-        -H "Authorization: AWS $AWS_KEY:$signature" \
-        http://s3.amazonaws.com$s3_path
+    fi
 
 
-      # upload block height key
+    # upload genesis
 
-      # prepare headers and signature
-      the_date=$(date -R)
-      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/by-height/${this_node}-${height}"
-      content_type="application/octet-stream"
-      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
-      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+    tar_file=${this_node}-genesis.tgz
 
-      # upload to s3
-      curl -X PUT -T "/root/new_code" \
-        -H "Host: s3.amazonaws.com" \
-        -H "Date: $the_date" \
-        -H "Content-Type: $content_type" \
-        -H "Authorization: AWS $AWS_KEY:$signature" \
-        http://s3.amazonaws.com$s3_path
+    # make the tar ball
+    (
+      cd /tendermint/config
+      tar cvzf /root/$tar_file ./genesis.json
+    )
 
-    }
+    s3_upload "/root/$tar_file" "$tar_file"
 
-    errcho "Waiting to snapshot"
+    # delete service flag
+    /bin/bash /root/redis-cli.sh -h $R_HOST DEL "snapshot-$THIS_SERVICE"
 
-    # trap kubernetes shutdown signal. After grace period it will send sigkill.
-    trap snapshot SIGTERM
+    # create a manifest file
+    jq --arg date "$(date)" \
+      --arg height "$height" \
+      ". | \
+      .[\"date\"]=\$date | \
+      .[\"height\"]=\$height " \
+      <<< '{}' > /root/manifest.json
+    errcho "Created manifest file: $(cat /root/manifest.json)"
 
-    # check redis and loop until this service has been told to snapshot
-    while [ "$res" != "1" ] && ! $already_ran; do
-      if $already_ran; then
-        errcho "Caught SIGTERM, not waiting."
-        exit 1
-      fi
-      printf "."
-      sleep 10
-      res=$(timeout -t 5 redis-cli -h $rhost get "snapshot-$NEW_CODE-$this_service")
-    done
-
-    errcho "Done waiting. This value for key snapshot-$NEW_CODE-$this_service: $res"
-
-    # don't try to snapshot if we snapshotted already with sigterm
-    $already_ran || snapshot
-
+    s3_upload "/root/manifest.json" "${this_node}-manifest.json"
 
   config.toml: |
     # This is a TOML config file.
@@ -536,40 +388,5 @@ data:
 
     # Instrumentation namespace
     namespace = "tendermint"
-
-  tendermint-start.sh: |
-    #!/bin/sh
-
-    # init tendermint config
-    LOG_TAG=chaos \
-      /bin/sh /root/tendermint-init.sh
-
-    # wait for chaosnode to accept requests
-    while ! nc -z {{ template "nodegroup.fullname" . }}-chaosnode-service {{ .Values.chaosnode.port }}; do
-      sleep 1
-    done
-
-    # start tendermint
-    /bin/tendermint node \
-      --moniker={{ .Values.chaos.tendermint.moniker }} \
-      --p2p.private_peer_ids "$PRIVATE_PEER_IDS" \
-      --p2p.persistent_peers "$PERSISTENT_PEERS" \
-      --log_level="*:debug" &
-
-    tendermint_pid=$!
-
-    delayed_shutdown() {
-      sleep 60 # sleep for 1 minute
-      kill $tendermint_pid
-    }
-
-    # do a delayed shutdown when the child process exits as well
-    trap delayed_shutdown CHLD
-
-    # loop forever for two reasons
-    # 1) main process stays open
-    # 2) trap will wait for a sigterm and run delayed_shutdown
-    trap delayed_shutdown SIGTERM
-    while true; do sleep 42; done
 
 {{ end }}

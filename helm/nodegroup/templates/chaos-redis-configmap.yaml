@@ -1,8 +1,8 @@
-{{ if .Values.ndau.enabled }}
+{{ if .Values.chaos.enabled }}
 
 kind: ConfigMap
 metadata:
-  name: {{ template "nodegroup.fullname" . }}-ndau-noms-config
+  name: {{ template "nodegroup.fullname" . }}-chaos-redis
   labels:
     app: {{ template "nodegroup.name" . }}
     chart: {{ template "nodegroup.chart" . }}
@@ -10,15 +10,14 @@ metadata:
     heritage: {{ .Release.Service }}
 apiVersion: v1
 data:
-
   make-snapshot.sh: |
 
     log () {
-      >&2 echo "ndau-noms-make-snapshot: $@"
+      >&2 echo "chaos-redis-make-snapshot: $@"
     }
 
     err () {
-      >&2 echo "ndau-noms-make-snapshot: $@"
+      >&2 echo "chaos-redis-make-snapshot: $@"
       exit 1
     }
 
@@ -50,8 +49,8 @@ data:
 
     }
 
-    this_node=ndau
-    this_app=noms
+    this_node=chaos
+    this_app=redis
 
     # wait for redis
     log "Pinging redis."
@@ -86,15 +85,16 @@ data:
       log "Uploading snapshot $s3_path."
 
       (
-        cd /noms/data
-        tar cvzf /root/$tar_file *
+        cd /redis
+        tar cvzf /root/$tar_file dump.rdb
       )
 
-      s3_upload "/root/$tar_file" "$tar_file"
+      s3_upload /root/$tar_file $tar_file
 
     fi
 
     # delete the service flag
-    /bin/bash /root/redis-cli.sh -h $R_HOST DEL snapshot-$THIS_SERVICE
+    /bin/bash /root/redis-cli.sh -h $R_HOST DEL "snapshot-$THIS_SERVICE"
+
 
 {{ end }}

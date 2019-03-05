@@ -1,0 +1,28 @@
+{{ if .Values.snapshot.cron.enabled }}
+
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ template "nodegroup.fullname" . }}-snapshot-cronjob
+  labels:
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  schedule: {{ .Values.snapshot.cron.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: snapshot-trigger
+            image: busybox
+            command:
+            - /bin/sh
+            - -c
+            - |-
+              echo "snap" | $(which nc) {{ template "nodegroup.fullname" . }}-snapshot-redis {{ .Values.snapshot.cron.listener.port }} >&1
+          restartPolicy: OnFailure
+
+{{ end }}

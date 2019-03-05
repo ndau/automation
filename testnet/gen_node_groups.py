@@ -13,6 +13,7 @@ import sys  # to print to stderr
 import functools  # for lru_cache on preflight calls
 from datetime import datetime, timezone  # to datestamp temporary docker volumes
 import re  # regex for testing validiting when minikube returns an IP.
+import textwrap # for de-indenting multiline strings
 
 # for making json safe to send to helm through the command-line
 from base64 import b64encode
@@ -68,8 +69,11 @@ class Conf:
         Fetched automatically.
         CHAOSNODE_TAG       chaosnode ABCI app.
         NDAUNODE_TAG        ndaunode ABCI app.
+        SNAPSHOT_REDIS_TAG  snapshot coordinator's redis.
+        CHAOS_REDIS_TAG     chaosnode's redis.
         CHAOS_NOMS_TAG      chaosnode's nomsdb.
         CHAOS_TM_TAG        chaosnode's tendermint.
+        NDAU_REDIS_TAG      ndaunode's redis.
         NDAU_NOMS_TAG       ndaunode's nomsdb.
         NDAU_TM_TAG         ndaunode's tendermint.
 
@@ -91,7 +95,6 @@ class Conf:
                             between containers.
         DOCKER_RUN          Command to run a command in a docker image with our
                             temp volume.
-
 
     """
 
@@ -116,10 +119,6 @@ class Conf:
         #
         # Environment variables
         #
-
-        self.ELB_SUBDOMAIN = os.environ.get("ELB_SUBDOMAIN")
-        if self.ELB_SUBDOMAIN is None:
-            abortClean(f"ELB_SUBDOMAIN env var not set.")
 
         self.RELEASE = os.environ.get("RELEASE")
         if self.RELEASE is None:
@@ -149,6 +148,15 @@ class Conf:
             if self.NDAUNODE_TAG is None:
                 self.NDAUNODE_TAG = self.COMMANDS_TAG
 
+        self.SNAPSHOT_REDIS_TAG = os.environ.get("SNAPSHOT_REDIS_TAG")
+        if self.SNAPSHOT_REDIS_TAG is None:
+            try:
+                self.SNAPSHOT_REDIS_TAG = highest_version_tag("redis")
+            except OSError as e:
+                abortClean(
+                    f"SNAPSHOT_REDIS_TAG env var empty and could not fetch version: {e}"
+                )
+
         # chaos noms and tendermint
         self.CHAOS_NOMS_TAG = os.environ.get("CHAOS_NOMS_TAG")
         if self.CHAOS_NOMS_TAG is None:
@@ -157,6 +165,15 @@ class Conf:
             except OSError as e:
                 abortClean(
                     f"CHAOS_NOMS_TAG env var empty and could not fetch version: {e}"
+                )
+
+        self.CHAOS_REDIS_TAG = os.environ.get("CHAOS_REDIS_TAG")
+        if self.CHAOS_REDIS_TAG is None:
+            try:
+                self.CHAOS_REDIS_TAG = highest_version_tag("redis")
+            except OSError as e:
+                abortClean(
+                    f"CHAOS_REDIS_TAG env var empty and could not fetch version: {e}"
                 )
 
         self.CHAOS_TM_TAG = os.environ.get("CHAOS_TM_TAG")
@@ -178,6 +195,15 @@ class Conf:
                     f"NDAU_NOMS_TAG env var empty and could not fetch version: {e}"
                 )
 
+        self.NDAU_REDIS_TAG = os.environ.get("NDAU_REDIS_TAG")
+        if self.NDAU_REDIS_TAG is None:
+            try:
+                self.NDAU_REDIS_TAG = highest_version_tag("redis")
+            except OSError as e:
+                abortClean(
+                    f"NDAU_REDIS_TAG env var empty and could not fetch version: {e}"
+                )
+
         self.NDAU_TM_TAG = os.environ.get("NDAU_TM_TAG")
         if self.NDAU_TM_TAG is None:
             try:
@@ -194,17 +220,24 @@ class Conf:
         self.AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
         self.AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 
-        self.SNAPSHOT_ON_SHUTDOWN = os.environ.get("SNAPSHOT_ON_SHUTDOWN")
-        if self.SNAPSHOT_ON_SHUTDOWN == "true":
+        self.SNAPSHOT_ENABLED = os.environ.get("SNAPSHOT_ENABLED")
+        if self.SNAPSHOT_ENABLED is "true":
 
             if self.AWS_ACCESS_KEY_ID is None or self.AWS_SECRET_ACCESS_KEY is None:
                 abortClean(
-                    "If SNAPSHOT_ON_SHUTDOWN is set to true, AWS_ACCESS_KEY_ID and "
+                    "If SNAPSHOT_ENABLED is set to true, AWS_ACCESS_KEY_ID and "
                     "AWS_SECRET_ACCESS_KEY need to be set to an account that has "
                     "s3 write permissions on the snapshot bucket."
                 )
         else:
-            self.SNAPSHOT_ON_SHUTDOWN == "false"
+            self.SNAPSHOT_ENABLED = "false"
+
+        self.SNAPSHOT_SCHEDULE = os.environ.get("SNAPSHOT_SCHEDULE")
+        if self.SNAPSHOT_SCHEDULE == "true" and self.SNAPSHOT_ENABLED is not "true":
+            self.SNAPSHOT_SCHEDULE = ""
+            abortClean(
+                "If SNAPSHOT_SCHEDULE is set, SNAPSHOT_ENABLED must also be set."
+            )
 
         self.HONEYCOMB_KEY = os.environ.get("HONEYCOMB_KEY")
         self.HONEYCOMB_DATASET = os.environ.get("HONEYCOMB_DATASET")
@@ -260,14 +293,17 @@ class Conf:
             except subprocess.CalledProcessError:
                 abortClean("Could not get master node's IP address: ${ret.returncode}")
 
-        # add ECR string to image names, or not
-        self.ECR = (
-            "" if self.IS_MINIKUBE else "578681496768.dkr.ecr.us-east-1.amazonaws.com/"
-        )
+        self.ELB_SUBDOMAIN = os.environ.get("ELB_SUBDOMAIN")
+        if self.ELB_SUBDOMAIN is None and not self.IS_MINIKUBE:
+            abortClean(f"ELB_SUBDOMAIN env var required for non-minikube deployments.")
+
 
         #
         # Genuine constants
         #
+
+        # ECR string that gets added to image names
+        self.ECR = "578681496768.dkr.ecr.us-east-1.amazonaws.com/"
 
         # Name for a temporary docker volume. New every time.
         self.TMP_VOL = (
@@ -448,11 +484,29 @@ def main():
     else:
         vprint(f"Created directory: {network_dir}")
 
+    # write genesis jsons
+    ndau_gen_path = os.path.join(network_dir, "ndau-genesis.json")
+    f = open(ndau_gen_path, "w")
+    f.write(json.dumps(ndau_genesis))
+    f.close()
+    os.chmod(ndau_gen_path, 0o644)
+
+    chaos_gen_path = os.path.join(network_dir, "chaos-genesis.json")
+    f = open(chaos_gen_path, "w")
+    f.write(json.dumps(chaos_genesis))
+    f.close()
+    os.chmod(chaos_gen_path, 0o644)
+
     up_cmd = """#!/bin/bash\n\nif [ -z "$HELM_CHART_PATH" ]; then
         >&2 echo HELM_CHART_PATH required; exit 1; fi\n\n
         DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
         """
     down_cmd = "#!/bin/bash\n\n"
+
+    if c.IS_MINIKUBE:
+        tlsOrNot = ""
+    else:
+        tlsOrNot = "--tls"
 
     # install a node group
     for idx, node in enumerate(nodes):
@@ -502,6 +556,9 @@ def main():
                         "snapshotCode": c.SNAPSHOT_CODE,
                         "image": {"tag": "$CHAOS_NOMS_TAG"},
                     },
+                    "redis": {
+                        "image": {"tag": "$CHAOS_REDIS_TAG"},
+                    },
                     "tendermint": {
                         "moniker": node.name,
                         "persistentPeers": b64(chaosPeers),
@@ -531,6 +588,9 @@ def main():
                         "snapshotCode": c.SNAPSHOT_CODE,
                         "image": {"tag": "$NDAU_NOMS_TAG"},
                     },
+                    "redis": {
+                        "image": {"tag": "$NDAU_REDIS_TAG"},
+                    },
                     "tendermint": {
                         "image": {"tag": "$NDAU_TM_TAG"},
                         "moniker": node.name,
@@ -555,13 +615,24 @@ def main():
         else:
             envSpecificHelmOpts = "--tls"
 
+        snapshot_schedule = ""
+        if idx is 0 and c.SNAPSHOT_ENABLED:
+            snapshot_enabled = "true"
+            if c.SNAPSHOT_SCHEDULE is not "" and c.SNAPSHOT_SCHEDULE is not None:
+                snapshot_schedule = f"--set snapshot.cron.schedule={c.SNAPSHOT_SCHEDULE}"
+        else:
+            snapshot_enabled = "false"
+
+
         # This big line-continuation is ugly but the alternative of
         # concatenated fstrings is worse.
         helm_command = f'helm install --name {node.name} $HELM_CHART_PATH \
             {chaos_args} \
             {ndau_args} \
             --set networkName="$NETWORK_NAME" \
-            --set snapshotOnShutdown={c.SNAPSHOT_ON_SHUTDOWN} \
+            --set snapshot.enabled={snapshot_enabled} \
+            {snapshot_schedule} \
+            --set snapshot.redis.image.tag="$SNAPSHOT_REDIS_TAG" \
             --set aws.accessKeyID="$AWS_ACCESS_KEY_ID" \
             --set aws.secretAccessKey="$AWS_SECRET_ACCESS_KEY" \
             --set ndau.deployUtils.image.tag="0.0.4" \
@@ -573,16 +644,41 @@ def main():
             --set honeycomb.dataset="$HONEYCOMB_DATASET" \
             {envSpecificHelmOpts}'
 
+        # make helm_command more human friendly
+        helm_command = helm_command.replace(" {2,}", "").replace("--set", "\\\n  --set")
+
         vprint(f"helm command: {helm_command}")
 
         f_name = f"node-{idx}.sh"
-        down_cmd += f"helm del {node.name} --purge --tls || echo Could not delete {node.name}. Not found.\n"
+        down_cmd += f"helm del {node.name} --purge {tlsOrNot} || echo Could not delete {node.name}. Not found.\n"
         up_cmd += f"$DIR/{f_name}\n"
         f_path = os.path.join(network_dir, f_name)
         f = open(f_path, "w")
         f.write(f"#!/bin/bash\n{helm_command}")
         f.close()
         os.chmod(f_path, 0o777)
+
+    # save the preconf.sh script
+    preconf_cmd = textwrap.dedent(f"""
+        #!/bin/bash\n\n
+        NETWORK_NAME="{c.RELEASE}" \\
+        SNAPSHOT_REDIS_TAG="{c.SNAPSHOT_REDIS_TAG}" \\
+        CHAOSNODE_TAG="{c.CHAOSNODE_TAG}" \\
+        CHAOS_REDIS_TAG="{c.CHAOS_REDIS_TAG}" \\
+        CHAOS_NOMS_TAG="{c.CHAOS_NOMS_TAG}" \\
+        CHAOS_TM_TAG="{c.CHAOS_TM_TAG}" \\
+        NDAUNODE_TAG="{c.NDAUNODE_TAG}" \\
+        NDAU_REDIS_TAG="{c.NDAU_REDIS_TAG}" \\
+        NDAU_NOMS_TAG="{c.NDAU_NOMS_TAG}" \\
+        NDAU_TM_TAG="{c.NDAU_TM_TAG}" \\
+        HELM_CHART_PATH={c.SCRIPT_DIR}/../helm/nodegroup \\
+        "{network_dir}/up.sh"
+        """)
+    preconf_path = os.path.join(network_dir, "preconf.sh")
+    f = open(preconf_path, "w")
+    f.write(preconf_cmd)
+    f.close()
+    os.chmod(preconf_path, 0o777)
 
     # save the up.sh script
     up_path = os.path.join(network_dir, "up.sh")
