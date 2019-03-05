@@ -293,15 +293,10 @@ class Conf:
             except subprocess.CalledProcessError:
                 abortClean("Could not get master node's IP address: ${ret.returncode}")
 
-<<<<<<< HEAD
         self.ELB_SUBDOMAIN = os.environ.get("ELB_SUBDOMAIN")
         if self.ELB_SUBDOMAIN is None and not self.IS_MINIKUBE:
             abortClean(f"ELB_SUBDOMAIN env var required for non-minikube deployments.")
 
-=======
-        # add ECR string to image names, or not
-        self.ECR = "578681496768.dkr.ecr.us-east-1.amazonaws.com/"
->>>>>>> adc4cf8e1617a22bf4abbf2ed9008f8e312151fc
 
         #
         # Genuine constants
