@@ -51,7 +51,7 @@ data:
 
       # get a temp token and upload there first
       # this will prevent partial uploads from being downloaded
-      temp_token=$(base64 /dev/urandom | head -c 32)
+      temp_token=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
       redis-cli SET snapshot-temp-token "$temp_token" EX 120
 
       # tell services to make a snapshot
