@@ -123,7 +123,6 @@ ndau:
     moniker: anonymous
     createEmptyBlocksInterval: 300s
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
-    updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
     resources:
       requests:
         memory: 1Gi
@@ -283,7 +282,6 @@ chaos:
     moniker: anonymous
     createEmptyBlocksInterval: 300s
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
-    updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
     resources:
       requests:
         memory: 1Gi

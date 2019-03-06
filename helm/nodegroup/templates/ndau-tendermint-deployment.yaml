@@ -149,21 +149,11 @@ spec:
           value: {{ .Values.honeycomb.dataset }}
         - name: NODE_ID
           value: {{ .Values.ndau.tendermint.moniker }}
-        - name: UPDATE_PERSISTENT_PEERS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-peers
-              key: updatePeerAddresses
         - name: PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-peers
-              key: addresses
-        - name: PRIVATE_PEER_IDS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-peers
-              key: privatePeerIds
+              name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-config
+              key: persistentPeers
         - name: SNAPSHOT_CODE
           value: {{ .Values.ndau.noms.snapshotCode }}
       volumes:

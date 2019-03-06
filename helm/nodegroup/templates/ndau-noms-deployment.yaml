@@ -29,43 +29,8 @@ spec:
         image: "{{ .Values.ndau.noms.image.repository }}:{{ .Values.ndau.noms.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.noms.image.pullPolicy }}
         command:
-          - /bin/sh
-          - -c
-          - |-
-
-            mkdir -p /noms/data || echo "/noms/data already created."
-
-            # check to see if snapshot is needed
-            DATA_DIR=/noms/data \
-            DATA_EXISTS_FILE=/noms/data/manifest \
-            SNAPSHOT_FILE=ndau-noms.tgz \
-            LOG_TAG=ndau-noms \
-              /bin/sh /root/restore-snapshot.sh
-
-            # start noms
-            noms serve /noms/data &
-            pid=$!
-
-            shutdown() {
-              echo "Shutting down"
-              kill $pid
-              while kill -0 $pid; do echo "waiting for $THIS_SERVICE to stop"; sleep 1; done;
-              echo "done waiting"
-              [ "$SNAPSHOTGUN_ENABLED" == "true" ] && [ "$SNAPSHOT_CALLED" == "true" ] && /bin/bash -x /root/make-snapshot.sh >&1
-              exit 0
-            }
-
-            # wait for a sigterm and run shutdown
-            trap shutdown SIGTERM
-
-            # check redis and loop until this service has been told to shutdown by redis
-            while [ "$res" != "1" ]; do
-              echo "." # proof of life
-              sleep 2
-              res=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$THIS_SERVICE")
-            done
-            SNAPSHOT_CALLED="true"
-            shutdown
+          - /bin/bash
+          - /root/noms-start.sh
         readinessProbe:
           tcpSocket:
             port: {{ .Values.ndau.noms.port }}
