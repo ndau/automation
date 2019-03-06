@@ -53,8 +53,8 @@ data:
           # test to see if snapshot file is there. If not, default to genesis.
           latest_height_url="https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/$latest_snapshot/$SNAPSHOT_FILE"
           if curl -I -f "$latest_height_url"; then
-            token=$latest_height_url
-            log "Using latest snapshot: $token"
+            download_url=$latest_height_url
+            log "Using latest snapshot: $download_url"
           else
             log "Could not find latest height URL: $latest_height_url. Defaulting to genesis."
             token={{ .Values.networkName }}/genesis
@@ -69,7 +69,7 @@ data:
         log "Cleared data directory."
         mkdir -p "$DATA_DIR"
       fi
-      download_url="https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/$token/$SNAPSHOT_FILE"
+      [ -z "$download_url" ] && download_url="https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/$token/$SNAPSHOT_FILE"
       log "Downloading from: $download_url"
       [ ! -d "$DATA_DIR" ] && mkdir -p "$DATA_DIR" # ensure directory
       # download and unzip if it's there
