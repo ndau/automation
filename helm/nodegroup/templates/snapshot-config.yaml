@@ -95,24 +95,24 @@ data:
     errcho "Verifying snapshot"
     BP=ndau-snapshots/{{ .Values.networkName }} # base path
     if \
-      aws s3 ls "$BP/$temp_token/ndau-genesis.tgz" && \
-      aws s3 ls "$BP/$temp_token/ndau-tm.tgz" && \
-      aws s3 ls "$BP/$temp_token/ndau-noms.tgz" && \
-      aws s3 ls "$BP/$temp_token/ndau-redis.tgz" && \
-      aws s3 ls "$BP/$temp_token/chaos-genesis.tgz" && \
-      aws s3 ls "$BP/$temp_token/chaos-tm.tgz" && \
-      aws s3 ls "$BP/$temp_token/chaos-noms.tgz" && \
-      aws s3 ls "$BP/$temp_token/chaos-redis.tgz"; then
+      aws s3 ls "$BP/$temp_token/ndau-$ndau_height/ndau-genesis.tgz" && \
+      aws s3 ls "$BP/$temp_token/ndau-$ndau_height/ndau-tm.tgz" && \
+      aws s3 ls "$BP/$temp_token/ndau-$ndau_height/ndau-noms.tgz" && \
+      aws s3 ls "$BP/$temp_token/ndau-$ndau_height/ndau-redis.tgz" && \
+      aws s3 ls "$BP/$temp_token/chaos-$chaos_height/chaos-genesis.tgz" && \
+      aws s3 ls "$BP/$temp_token/chaos-$chaos_height/chaos-tm.tgz" && \
+      aws s3 ls "$BP/$temp_token/chaos-$chaos_height/chaos-noms.tgz" && \
+      aws s3 ls "$BP/$temp_token/chaos-$chaos_height/chaos-redis.tgz"; then
 
       errcho "Snapshot verified"
-      aws s3 mv "s3://$BP/$temp_token/ndau-tm.tgz" "s3://$BP/ndau-$ndau_height/ndau-tm.tgz"
-      aws s3 mv "s3://$BP/$temp_token/ndau-tm.tgz" "s3://$BP/ndau-$ndau_height/ndau-genesis.tgz"
-      aws s3 mv "s3://$BP/$temp_token/ndau-noms.tgz" "s3://$BP/ndau-$ndau_height/ndau-noms.tgz"
-      aws s3 mv "s3://$BP/$temp_token/ndau-redis.tgz" "s3://$BP/ndau-$ndau_height/ndau-redis.tgz"
-      aws s3 mv "s3://$BP/$temp_token/chaos-tm.tgz" "s3://$BP/chaos-$chaos_height/chaos-tm.tgz"
-      aws s3 mv "s3://$BP/$temp_token/chaos-tm.tgz" "s3://$BP/chaos-$chaos_height/chaos-genesis.tgz"
-      aws s3 mv "s3://$BP/$temp_token/chaos-noms.tgz" "s3://$BP/chaos-$chaos_height/chaos-noms.tgz"
-      aws s3 mv "s3://$BP/$temp_token/chaos-redis.tgz" "s3://$BP/chaos-$chaos_height/chaos-redis.tgz"
+      aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-tm.tgz" "s3://$BP/ndau-$ndau_height/ndau-tm.tgz"
+      aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-tm.tgz" "s3://$BP/ndau-$ndau_height/ndau-genesis.tgz"
+      aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-noms.tgz" "s3://$BP/ndau-$ndau_height/ndau-noms.tgz"
+      aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-redis.tgz" "s3://$BP/ndau-$ndau_height/ndau-redis.tgz"
+      aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-tm.tgz" "s3://$BP/chaos-$chaos_height/chaos-tm.tgz"
+      aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-tm.tgz" "s3://$BP/chaos-$chaos_height/chaos-genesis.tgz"
+      aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-noms.tgz" "s3://$BP/chaos-$chaos_height/chaos-noms.tgz"
+      aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-redis.tgz" "s3://$BP/chaos-$chaos_height/chaos-redis.tgz"
     else
       errcho "Error: snapshot at s3://$BP/$temp_token could not be verified."
     fi
