@@ -137,7 +137,7 @@ spec:
           value: {{ .Values.aws.secretAccessKey }}
         - name: R_HOST # for snapshot coordination
           value: {{ template "nodegroup.fullname" . }}-snapshot-redis
-       - name: TMHOME
+        - name: TMHOME
           value: "/tendermint"
         - name: THIS_SERVICE
           value: ndau-tm
