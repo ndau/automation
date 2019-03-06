@@ -106,11 +106,11 @@ data:
 
       errcho "Snapshot verified"
       aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-tm.tgz" "s3://$BP/ndau-$ndau_height/ndau-tm.tgz"
-      aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-tm.tgz" "s3://$BP/ndau-$ndau_height/ndau-genesis.tgz"
+      aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-genesis.tgz" "s3://$BP/ndau-$ndau_height/ndau-genesis.tgz"
       aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-noms.tgz" "s3://$BP/ndau-$ndau_height/ndau-noms.tgz"
       aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-redis.tgz" "s3://$BP/ndau-$ndau_height/ndau-redis.tgz"
       aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-tm.tgz" "s3://$BP/chaos-$chaos_height/chaos-tm.tgz"
-      aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-tm.tgz" "s3://$BP/chaos-$chaos_height/chaos-genesis.tgz"
+      aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-genesis.tgz" "s3://$BP/chaos-$chaos_height/chaos-genesis.tgz"
       aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-noms.tgz" "s3://$BP/chaos-$chaos_height/chaos-noms.tgz"
       aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-redis.tgz" "s3://$BP/chaos-$chaos_height/chaos-redis.tgz"
     else
