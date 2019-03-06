@@ -221,8 +221,8 @@ class Conf:
         self.AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 
         self.SNAPSHOT_ENABLED = os.environ.get("SNAPSHOT_ENABLED")
-        if self.SNAPSHOT_ENABLED is "true":
-
+        if self.SNAPSHOT_ENABLED == "true":
+            self.SNAPSHOT_ENABLED = True
             if self.AWS_ACCESS_KEY_ID is None or self.AWS_SECRET_ACCESS_KEY is None:
                 abortClean(
                     "If SNAPSHOT_ENABLED is set to true, AWS_ACCESS_KEY_ID and "
@@ -230,14 +230,26 @@ class Conf:
                     "s3 write permissions on the snapshot bucket."
                 )
         else:
-            self.SNAPSHOT_ENABLED = "false"
+            self.SNAPSHOT_ENABLED = False
 
-        self.SNAPSHOT_SCHEDULE = os.environ.get("SNAPSHOT_SCHEDULE")
-        if self.SNAPSHOT_SCHEDULE == "true" and self.SNAPSHOT_ENABLED is not "true":
-            self.SNAPSHOT_SCHEDULE = ""
-            abortClean(
-                "If SNAPSHOT_SCHEDULE is set, SNAPSHOT_ENABLED must also be set."
-            )
+        self.SNAPSHOT_CRON_ENABLED = os.environ.get("SNAPSHOT_CRON_ENABLED")
+        if self.SNAPSHOT_CRON_ENABLED == "true":
+            self.SNAPSHOT_CRON_ENABLED = True
+            if not self.SNAPSHOT_ENABLED:
+                abortClean(
+                    "If SNAPSHOT_CRON_ENABLED is true, SNAPSHOT_ENABLED must also be set to true."
+                )
+        else:
+            self.SNAPSHOT_CRON_ENABLED = False
+
+        self.SNAPSHOT_CRON_SCHEDULE = os.environ.get("SNAPSHOT_CRON_SCHEDULE")
+        if self.SNAPSHOT_CRON_SCHEDULE is not None:
+            if not self.SNAPSHOT_CRON_ENABLED:
+                abortClean(
+                    "If SNAPSHOT_CRON_SCHEDULE is set, SNAPSHOT_CRON_ENABLED must be set to true."
+                )
+        else:
+            self.SNAPSHOT_CRON_SCHEDULE = ""
 
         self.HONEYCOMB_KEY = os.environ.get("HONEYCOMB_KEY")
         self.HONEYCOMB_DATASET = os.environ.get("HONEYCOMB_DATASET")
@@ -629,13 +641,15 @@ def main():
         else:
             envSpecificHelmOpts = "--tls"
 
-        snapshot_schedule = ""
+        snapshot_enabled = ""
+        snapshot_cron_enabled = ""
+        snapshot_cron_schedule = ""
         if idx is 0 and c.SNAPSHOT_ENABLED:
-            snapshot_enabled = "true"
-            if c.SNAPSHOT_SCHEDULE is not "" and c.SNAPSHOT_SCHEDULE is not None:
-                snapshot_schedule = f"--set snapshot.cron.schedule={c.SNAPSHOT_SCHEDULE}"
-        else:
-            snapshot_enabled = "false"
+            snapshot_enabled = "--set snapshot.enabled=true"
+            if c.SNAPSHOT_CRON_ENABLED:
+                snapshot_cron_enabled = "--set snapshot.cron.enabled=true"
+            if c.SNAPSHOT_CRON_SCHEDULE != "":
+                snapshot_cron_schedule = f"--set snapshot.cron.schedule=\"{c.SNAPSHOT_CRON_SCHEDULE}\""
 
 
         # This big line-continuation is ugly but the alternative of
@@ -644,8 +658,9 @@ def main():
             {chaos_args} \
             {ndau_args} \
             --set networkName="$NETWORK_NAME" \
-            --set snapshot.enabled={snapshot_enabled} \
-            {snapshot_schedule} \
+            {snapshot_enabled} \
+            {snapshot_cron_enabled} \
+            {snapshot_cron_schedule} \
             --set snapshot.redis.image.tag="$SNAPSHOT_REDIS_TAG" \
             --set aws.accessKeyID="$AWS_ACCESS_KEY_ID" \
             --set aws.secretAccessKey="$AWS_SECRET_ACCESS_KEY" \
