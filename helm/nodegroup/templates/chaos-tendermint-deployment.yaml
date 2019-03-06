@@ -210,7 +210,7 @@ spec:
             items:
             - key: make-snapshot.sh
               path: make-snapshot.sh
-        - name: snapshot-sh
+        - name: restore-snapshot-sh
           configMap:
             name: {{ template "nodegroup.fullname" . }}-nodegroup-config
             items:
