@@ -29,21 +29,21 @@ spec:
       - name: waits
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: # TODO normalize sh commands so they look like this
+        command:
           - sh
           - -c
           - |-
-            # wait for noms
-            echo starting noms wait loop
-            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}; do
-              echo waiting for {{ template "nodegroup.fullname" . }}-ndau-noms-service
-              sleep 2
-            done
-
             # wait for redis
             echo starting redis wait loop
             until nc -z -w 1 {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}; do
               echo waiting for {{ template "nodegroup.fullname" . }}-ndau-redis-service
+              sleep 2
+            done
+
+            # wait for noms
+            echo starting noms wait loop
+            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}; do
+              echo waiting for {{ template "nodegroup.fullname" . }}-ndau-noms-service
               sleep 2
             done
 
@@ -95,7 +95,7 @@ spec:
         - name: tendermint-start-sh
           mountPath: /root/tendermint-start.sh
           subPath: tendermint-start.sh
-        - name: snapshot-sh
+        - name: restore-snapshot-sh
           mountPath: /root/restore-snapshot.sh
           subPath: restore-snapshot.sh
         - name: redis-cli-sh
@@ -137,12 +137,12 @@ spec:
           value: {{ .Values.aws.secretAccessKey }}
         - name: R_HOST # for snapshot coordination
           value: {{ template "nodegroup.fullname" . }}-snapshot-redis
-        - name: THIS_SERVICE # TODO refactor so THIS_SERVICE is built from from CHAIN and APP, for example
+       - name: TMHOME
+          value: "/tendermint"
+        - name: THIS_SERVICE
           value: ndau-tm
         - name: CHAIN
           value: "ndau"
-        - name: TMHOME
-          value: "/tendermint"
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
@@ -210,7 +210,7 @@ spec:
             items:
             - key: make-snapshot.sh
               path: make-snapshot.sh
-        - name: snapshot-sh
+        - name: restore-snapshot-sh
           configMap:
             name: {{ template "nodegroup.fullname" . }}-nodegroup-config
             items:

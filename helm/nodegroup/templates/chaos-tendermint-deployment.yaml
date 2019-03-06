@@ -94,7 +94,7 @@ spec:
         - name: tendermint-start-sh
           mountPath: /root/tendermint-start.sh
           subPath: tendermint-start.sh
-        - name: snapshot-sh
+        - name: restore-snapshot-sh
           mountPath: /root/restore-snapshot.sh
           subPath: restore-snapshot.sh
         - name: redis-cli-sh

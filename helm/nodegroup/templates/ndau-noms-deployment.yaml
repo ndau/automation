@@ -100,7 +100,7 @@ spec:
         - name: make-snapshot-sh
           mountPath: /root/make-snapshot.sh
           subPath: make-snapshot.sh
-        - name: snapshot-sh
+        - name: restore-snapshot-sh
           mountPath: /root/restore-snapshot.sh
           subPath: restore-snapshot.sh
         - name: redis-cli-sh
@@ -126,7 +126,7 @@ spec:
           items:
           - key: make-snapshot.sh
             path: make-snapshot.sh
-      - name: snapshot-sh
+      - name: restore-snapshot-sh
         configMap:
           name: {{ template "nodegroup.fullname" . }}-nodegroup-config
           items:

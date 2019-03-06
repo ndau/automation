@@ -75,6 +75,9 @@ spec:
         - name: make-snapshot-sh
           mountPath: /root/make-snapshot.sh
           subPath: make-snapshot.sh
+        - name: restore-snapshot-sh
+          mountPath: /root/restore-snapshot.sh
+          subPath: restore-snapshot.sh
       volumes:
       - name: redis-start-sh
         configMap:
@@ -94,6 +97,12 @@ spec:
           items:
           - key: make-snapshot.sh
             path: make-snapshot.sh
+      - name: restore-snapshot-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+          items:
+          - key: restore-snapshot.sh
+            path: restore-snapshot.sh
       - name: redis-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-chaos-redis-claim
