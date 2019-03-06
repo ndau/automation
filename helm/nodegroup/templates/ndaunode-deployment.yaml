@@ -63,8 +63,8 @@ spec:
 
             # wait for chaosnode
             echo starting chaosnode wait loop
-            until nc -z -w 1 {host} ${rpc_port}; do
-              echo waiting for {host}
+            until nc -z -w 1 $host $rpc_port; do
+              echo waiting for $host
               sleep 2
             done
       - name: config
