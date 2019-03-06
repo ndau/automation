@@ -60,6 +60,13 @@ spec:
               echo waiting for {{ template "nodegroup.fullname" . }}-ndau-redis-service
               sleep 2
             done
+
+            # wait for chaosnode
+            echo starting chaosnode wait loop
+            until nc -z -w 1 {host} ${rpc_port}; do
+              echo waiting for {host}
+              sleep 2
+            done
       - name: config
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}

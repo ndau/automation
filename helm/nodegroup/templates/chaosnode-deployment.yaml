@@ -48,7 +48,7 @@ spec:
               sleep 2
             done
 
-            # get chaos' tendermint address
+            # get ndau's tendermint address
             fullname="{{ template "nodegroup.fullname" . }}"
             echo "$fullname: $fullname"
             RELEASE=$(echo ${fullname//-/_} | awk '{print toupper($0)}')
@@ -63,9 +63,9 @@ spec:
             rpc_port=${!RPC_PORT_VAR}
             echo "rpc_port: $rpc_port"
 
-            chaos_address=http://${host}:${rpc_port}
+            ndau_address=http://${host}:${rpc_port}
 
-            printf $chaos_address > /root/.ndau/chaos-address
+            printf $ndau_address > /root/.ndau/ndau-address
 
         volumeMounts:
         - mountPath: "/root/.ndau"
@@ -79,7 +79,7 @@ spec:
           - /bin/sh
           - -c
           - |-
-            chaosnode --set-ndaunode $(cat /root/.ndau/chaos-address)
+            chaosnode --set-ndaunode $(cat /root/.ndau/ndau-address)
             chaosnode \
               -spec http://{{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} \
               -addr 0.0.0.0:{{ required ".Values.chaosnode.port required" .Values.chaosnode.port }} \
