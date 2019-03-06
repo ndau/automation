@@ -21,41 +21,88 @@ spec:
         app: {{ template "nodegroup.name" . }}-chaos-redis
         release: {{ .Release.Name }}
     spec:
+      restartPolicy: Always
       {{ if .Values.minikube }}
       imagePullSecrets:
       - name: awsecr-cred
       {{ end }}
-      terminationGracePeriodSeconds: 120 # 2 minutes. Increase grace period from default 30 seconds for snapshot creation.
       containers:
       - name: redis
         image: "{{ .Values.chaos.redis.image.repository }}:{{ .Values.chaos.redis.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.redis.image.pullPolicy }}
         command:
-          - sh
-          - -c
-          - |-
-            redis-server \
-              --dir /redis \
-              --save 60 1 \
-              --tcp-backlog 128 \
-              --port {{ .Values.ndau.redis.port }} &
-            PID=$!
-            delayed_shutdown() {
-              sleep 110 # sleep for almost 2 minutes
-              kill $PID
-            }
-            trap delayed_shutdown SIGTERM
-
-            while true; do sleep 42; done
+          - /bin/bash
+          - /root/redis-start.sh
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.chaos.redis.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.chaos.redis.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
         env:
+        - name: SNAPSHOTGUN_ENABLED
+          value: "{{ .Values.snapshot.enabled }}"
+        - name: AWS_KEY
+          value: {{ .Values.aws.accessKeyID }}
+        - name: AWS_SECRET
+          value: {{ .Values.aws.secretAccessKey }}
+        - name: REDIS_PORT
+          value: "{{ .Values.chaos.redis.port }}"
+        - name: R_HOST # for snapshot coordination
+          value: {{ template "nodegroup.fullname" . }}-snapshot-redis
+        - name: THIS_SERVICE
+          value: chaos-redis
+        - name: CHAIN
+          value: chaos
         - name: NDAUHOME
           value: /redis
         ports:
         - containerPort: {{ .Values.chaos.redis.port }}
         volumeMounts:
+
+        - name: redis-start-sh
+          mountPath: /root/redis-start.sh
+          subPath: redis-start.sh
+        - name: redis-cli-sh
+          mountPath: /root/redis-cli.sh
+          subPath: redis-cli.sh
         - name: redis-volume
           mountPath: /redis
+        - name: make-snapshot-sh
+          mountPath: /root/make-snapshot.sh
+          subPath: make-snapshot.sh
+        - name: restore-snapshot-sh
+          mountPath: /root/restore-snapshot.sh
+          subPath: restore-snapshot.sh
       volumes:
+      - name: redis-start-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+          items:
+          - key: redis-start.sh
+            path: redis-start.sh
+      - name: redis-cli-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+          items:
+          - key: redis-cli.sh
+            path: redis-cli.sh
+      - name: make-snapshot-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-chaos-redis
+          items:
+          - key: make-snapshot.sh
+            path: make-snapshot.sh
+      - name: restore-snapshot-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+          items:
+          - key: restore-snapshot.sh
+            path: restore-snapshot.sh
       - name: redis-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-chaos-redis-claim

@@ -1,0 +1,126 @@
+{{ if .Values.snapshot.enabled }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "nodegroup.fullname" . }}-snapshot-redis
+  labels:
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "nodegroup.name" . }}-snapshot-redis
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "nodegroup.name" . }}-snapshot-redis
+        release: {{ .Release.Name }}
+    spec:
+      {{ if .Values.minikube }}
+      imagePullSecrets:
+      - name: awsecr-cred
+      {{ end }}
+      containers:
+      - name: redis
+        image: "{{ .Values.snapshot.redis.image.repository }}:{{ .Values.snapshot.redis.image.tag }}"
+        imagePullPolicy: {{ .Values.snapshot.redis.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.snapshot.redis.port }}
+        command:
+          - /bin/sh
+          - -c
+          - |-
+            set -x
+
+            # add aws-cli
+            apk add groff less python py-pip --no-cache
+            pip install awscli
+
+            cd /data
+            docker-entrypoint.sh \
+              --tcp-backlog 128 \
+              --port {{ .Values.snapshot.redis.port }} &
+            pid=$!
+
+            shutdown() {
+              echo "Shutting down"
+              kill $pid
+              while kill -0 $pid; do echo "waiting for $THIS_SERVICE to stop"; sleep 1; done;
+              echo "done waiting"
+              exit 0
+            }
+
+            # wait for a sigterm and run shutdown
+            trap shutdown SIGTERM
+
+            /bin/bash -x /root/listener.sh >&1 &
+
+            while true; do
+              sleep 42
+            done
+
+        volumeMounts:
+        - name: start-sh
+          mountPath: /root/start.sh
+          subPath: start.sh
+        - name: listener-sh
+          mountPath: /root/listener.sh
+          subPath: listener.sh
+        env:
+          - name: AWS_ACCESS_KEY_ID
+            value: {{ .Values.aws.accessKeyID }}
+          - name: AWS_SECRET_ACCESS_KEY
+            value: {{ .Values.aws.secretAccessKey }}
+      volumes:
+      - name: start-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-snapshot-config
+          items:
+          - key: start.sh
+            path: start.sh
+      - name: listener-sh
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-snapshot-config
+          items:
+          - key: listener.sh
+            path: listener.sh
+      resources:
+        requests:
+          memory: {{ .Values.snapshot.redis.resources.requests.memory }}
+          cpu: {{ .Values.snapshot.redis.resources.requests.cpu }}
+        limits:
+          memory: {{ .Values.snapshot.redis.resources.limits.memory }}
+          cpu: {{ .Values.snapshot.redis.resources.limits.cpu }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "nodegroup.fullname" . }}-snapshot-redis
+  labels:
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.snapshot.redis.service.type }}
+  ports:
+    - name: redis
+      port: {{ .Values.snapshot.redis.port }}
+      targetPort: {{ .Values.snapshot.redis.port }}
+      protocol: TCP
+    - name: listener
+      port: {{ .Values.snapshot.cron.listener.port }}
+      targetPort: {{ .Values.snapshot.cron.listener.port }}
+      protocol: TCP
+  selector:
+    app: {{ template "nodegroup.name" . }}-snapshot-redis
+    release: {{ .Release.Name }}
+
+{{ end }}

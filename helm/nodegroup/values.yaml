@@ -1,27 +1,42 @@
 # This values file is applied to the helm chart templates.
-# You can supply overrides via the commandline or provide them
-# in another yaml file with the -f option. Please take care in
-# supplying properties of objects. Your supplied overrides are
-# not merged, they are overrides. For this reason the `--set`
-# flag provides the dot notation for changing a single property.
+# You can supply overrides via the commandline or provide them in another yaml file with the -f option. Please take care in supplying properties of objects. Your supplied overrides are not merged, they are overrides. For this reason the `--set` flag provides the dot notation for changing a single property.
 
-
-networkName: "devnet"
-
-
-# This controls imagePullSecrets for ECR and must be configured with
+# This controls imagePullSecrets for ECR and must be configured with the following commands
 # minikube addons configure awsecr-creds
 # minikube addons enable awsecr-creds
 minikube: false
-
-# For uploading snapshots
-snapshotOnShutdown: false
 
 # These credentials must be s3 snapshot bucket writable.
 aws:
   accessKeyID: ""
   secretAccessKey: ""
   snapshotBucket: "ndau-snapshots"
+
+# networkName is used to determine which subdirectory in the
+networkName: "devnet"
+
+snapshot:
+  enabled: false
+  cron:
+    enabled: false
+    schedule: "0 0 * * *" # every day at midnight
+    listener:
+      port: 3333
+  redis:
+    image:
+      repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/redis
+      tag: 0.0.1
+      pullPolicy: IfNotPresent
+    port: 6379
+    service:
+      type: ClusterIP
+    resources:
+      requests:
+        memory: 50Mi
+        cpu: 0.2
+      limits:
+        memory: 500Mi
+        cpu: 0.1
 
 ndaunode:
   image:
@@ -70,14 +85,21 @@ ndau:
 
   redis:
     image:
-      repository: redis
-      tag: 4.0.11-alpine3.8
+      repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/redis
+      tag: 0.0.1
       pullPolicy: IfNotPresent
     persistence:
       size: 4Gi
     port: 6379
     service:
       type: ClusterIP
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 0.2
+      limits:
+        memory: 4Gi
+        cpu: 1
 
   tendermint:
     image:
@@ -101,7 +123,6 @@ ndau:
     moniker: anonymous
     createEmptyBlocksInterval: 300s
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
-    updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
     resources:
       requests:
         memory: 1Gi
@@ -128,23 +149,6 @@ ndau:
         memory: 4Gi
         cpu: 1
 
-  redis:
-    image:
-      repository: redis
-      tag: 4.0.11-alpine3.8
-      pullPolicy: IfNotPresent
-    persistence:
-      size: 4Gi
-    port: 6379
-    service:
-      type: ClusterIP
-    resources:
-      requests:
-        memory: 1Gi
-        cpu: 0.2
-      limits:
-        memory: 4Gi
-        cpu: 1
 
   # deployUtils is an small image with tools used for small tasks.
   deployUtils:
@@ -240,14 +244,21 @@ chaos:
 
   redis:
     image:
-      repository: redis
-      tag: 4.0.11-alpine3.8
+      repository: 578681496768.dkr.ecr.us-east-1.amazonaws.com/redis
+      tag: 0.0.1
       pullPolicy: IfNotPresent
     persistence:
       size: 4Gi
     port: 6379
     service:
       type: ClusterIP
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 0.2
+      limits:
+        memory: 4Gi
+        cpu: 1
 
   tendermint:
     image:
@@ -271,7 +282,6 @@ chaos:
     moniker: anonymous
     createEmptyBlocksInterval: 300s
     persistentPeers: "" # Tendermint's persistent peers separated by a comma.
-    updatePeerAddresses: false # Trigger an update for the tendermint peer addresses.
     resources:
       requests:
         memory: 1Gi
@@ -288,24 +298,6 @@ chaos:
     persistence:
       size: 4Gi
     port: 8000
-    service:
-      type: ClusterIP
-    resources:
-      requests:
-        memory: 1Gi
-        cpu: 0.2
-      limits:
-        memory: 4Gi
-        cpu: 1
-
-  redis:
-    image:
-      repository: redis
-      tag: 4.0.11-alpine3.8
-      pullPolicy: IfNotPresent
-    persistence:
-      size: 4Gi
-    port: 6379
     service:
       type: ClusterIP
     resources:

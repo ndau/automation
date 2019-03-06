@@ -1,12 +1,32 @@
-# Local (minikube) testing
+# Local (minikube) testing and debugging
 
-This guide will help you install minikube on your local machine.
+This guide will help you install minikube on your mac.
 
-`brew install minikube`
+## What is minikube?
 
-minikube lets you run a kubernetes cluster on your machine as a single master node. It does so by running a kubernetes server in a linux VM and automatically configuring kubectl to connect to it. For more info, see https://github.com/kubernetes/minikube.
+minikube lets you run a kubernetes cluster on your machine as a single master node. It does so by creating a new linux virtual machine in which it installs and runs `docker` and `kubernetes`. It will also configure `kubectl` to connect to your "minikube cluster". For more info, see https://github.com/kubernetes/minikube.
 
-In order for minikube to spin up a new VM, it needs a hypervisor, [many are supported](https://github.com/kubernetes/minikube). Assuming you've installed docker for mac and want to use Docker's hypervisor `hyperkit`, you need to install a driver from the minikube repository as per the [instructions here](https://github.com/kubernetes/minikube/blob/master/docs/drivers.md#hyperkit-driver).
+## Why use minikube?
+
+To shorten dev cycles. The automated deployment process can take time and perform steps that may be irrelevant to your task. minikube is a good environment to test on without having to involve CI or an external kubernetes cluster.
+
+## How do I install it?
+
+First you'll need homebrew for the `brew` command. [Get it here](https://brew.sh/).
+
+Then you'll need `docker` and `minikube`.
+
+```
+brew install docker
+```
+
+```
+brew cask install minikube
+```
+
+In order for minikube to spin up a new virtual machine, it needs a hypervisor. [Many are supported](https://github.com/kubernetes/minikube). Assuming you've installed docker for mac and want to use Docker's hypervisor `hyperkit`, you need to install a driver from the minikube repository as per the [instructions here](https://github.com/kubernetes/minikube/blob/master/docs/drivers.md#hyperkit-driver).
+
+The following command `curl`s and executable from google and installs it to `/usr/local/bin`.
 
 ```
 curl -LO https://storage.googleapis.com/minikube/releases/latest/docker-machine-driver-hyperkit \
@@ -22,6 +42,17 @@ Once minikube and hyperkit are installed, you can start your local cluster with 
 minikube start --vm-driver=hyperkit
 ```
 
+Other start options exist, and typically you may use something like the following.
+
+```
+minikube start \
+  --vm-driver=hyperkit \
+  --cpus=3 \
+  --disk-size=20g \
+  --memory=8192 \
+  --kubernetes-version v1.10.11
+```
+
 If that all worked, you'll have a single node cluster running on your machine. You can test it with a simple echo service.
 
 ```
@@ -35,13 +66,53 @@ kubectl expose deployment hello-minikube --type=NodePort
 curl $(minikube service hello-minikube --url)
 ```
 
-The minikube cluster runs its own docker server. You can configure your docker client to connect to minikube with `eval $(minikube docker-env)` and build images available to minikube's docker.
+You may need to wait a minute for the hello-minikube service to start accepting connections.
+
+The minikube cluster runs its own docker daemon. You can configure your docker client to connect to minikube with `eval $(minikube docker-env)` and build images available to minikube's docker.
 
 If you're interested, you can ssh into the machine and inspect it further with `minikube ssh`.
 
 There is a web ui for a kubernetes cluster that great for seeing things at a glance, but isn't generally good for making changes to your cluster. To run it and connect: `minikube dashboard`.
 
-## Minikube port forwarding
+## Install helm
+
+`helm` is used for templating kubernetes manifests. `gen_node_groups.py` creates helm commands that you can run to install node groups.
+
+`brew install kubernetes-helm`
+
+Helm works by having an application installed on your kubernetes cluster (the helm tiller) that is capible of installing other software. To initialize the tiller on minikube, use the following command.
+
+```
+helm init
+```
+
+## ECR configuration
+
+Minikube, in it's default configuration will not be able to pull images from ECR. In order to authenticate with ECR, you must configure and enable a minikube addon. The enable step below will be required about as often as the `docker login` command is required.
+
+The configure command bellow will require:
+
+  * AWS credentials (secret key and secret access key).
+  * A region. `us-east-1` will do.
+  * Our 12 digit aws account id.
+
+```
+minikube addons configure registry-creds
+minikube addons enable registry-creds
+```
+
+Once this is done, the `gen_node_groups.py` script will automatically detect the minikube environment and add the minikube specific setting, which enables `imagePullSecret`s in the helm charts. You should then be able to install like normal with the following command.
+
+```
+RELEASE=test ELB_SUBDOMAIN=test ./testnet/gen_node_groups.py 1 30100
+```
+
+Please be sure to check that your current `kubectl` context is set to `minikube` by typing: `kubectl config current-context`. If it is not, this will set it, `kubectl config use-context minikube`
+
+
+# How to...
+
+## port forward
 
 ```shell
 kubectl get pods # find the pod name you're looking for
@@ -50,7 +121,7 @@ kubectl port-forward POD_NAME 46657:46657
 
 Use `ctrl+c` to stop port forwarding.
 
-## Logs
+## get logs
 
 To see the logs of one pod
 
@@ -72,120 +143,9 @@ kubetail $c_pod,$t_pod
 
 Sometimes the best thing to do is to blow away minikube and try again. `minikube delete`.
 
-## ECR configuration
+### Debugging our applications
 
-Minikube, in it's default configuration will not be able to pull images from ECR. In order to authenticate with ECR, you must configure and enable a minikube addon. The enable step below will be required about as often as the `docker login` command is required.
+Sometimes it's useful to run a special version of our software that contains, for example, more debugging output. If you simply wish to build docker images from your local commands repo, you can run `./build-docker-images.sh`, which will build docker images for each of the components of our application using our minikube's docker daemon. That means that those images, built with the supplied common image tag, will be accessible to your minikube's kubernetes node without needing to download images from external sources.
 
-The configure command bellow will require:
+This also has the side effect of cache busting the docker images. For example, using the tag `latest` repeatedly across nodegroup installs will now work. Why? Because kubernetes' normal behavior is to fetch images only when they don't already exist in its local docker repo. Consequently, it will never download `latest` from ECR again after the first time, and they will never be overwritten with newer versions of images tagged `latest`. When we build images using minikube's docker, we directly overwrite that `latest` image. So don't worry about bumping your versions to see fresh code changes. Simply rerun `./build-docker-images.sh`.
 
-  * AWS credentials (secret key and secret access key).
-  * A region. `us-east-1` will do.
-  * Our 12 digit aws account id.
-
-```
-minikube addons configure registry-creds
-minikube addons enable registry-creds
-```
-
-Once this is done, the `gen_node_groups.py` script will automatically detect the minikube environment and add the minikube specific setting, which enables `imagePullSecret`s in the helm charts. You should then be able to install like normal with the following command.
-
-```
-RELEASE=test-2 ELB_SUBDOMAIN=test ./testnet/gen_node_groups.py 1 30100
-```
-
-Please be sure to check that your current `kubectl` context is set to `minikube` by typing: `kubectl config current-context`. If it is not, this will set it, `kubectl config use-context minikube`
-
-~~~
-
-## Integration testing
-
-To bring up a test net locally with minikube for integration testing.
-
-*The following steps will not check out any new code. This will build whatever version you currently have in `$GOPATH/src/github.com/oneiro-ndev/chaos`.*
-
-### Requirements
-You can run `env/local/dev.sh` or you can install the following manually. *Note: `dev.sh` will not upgrade for you.*
-
-```
-brew cask install minikube
-brew install kubectl
-brew install kubernetes-helm
-# The following will install minikube's docker hypervisor
-curl -LO https://storage.googleapis.com/minikube/releases/latest/docker-machine-driver-hyperkit \
-&& chmod +x docker-machine-driver-hyperkit \
-&& sudo mv docker-machine-driver-hyperkit /usr/local/bin/ \
-&& sudo chown root:wheel /usr/local/bin/docker-machine-driver-hyperkit \
-&& sudo chmod u+s /usr/local/bin/docker-machine-driver-hyperkit
-```
-
-1. Start minikube
-```
-minikube start --vm-driver=hyperkit --disk-size=20g
-# 20g because it's good to have lots of space for images. Otherwise kublet might garbage collect them.
-```
-2. Connect docker-cli to minikube
-```
-eval $(minikube docker-env)
-```
-3. Build the images to be tested
-```
-# build ndaunode
-ndau_dir=$GOPATH/src/github.com/oneiro-ndev/ndau
-ndau_sha=$(cd $ndau_dir; git rev-parse --short HEAD)
-docker build -f "${ndau_dir}/Dockerfile" "$ndau_dir" -t ndau:${ndau_sha}
-
-# build chaosnode
-chaos_dir=$GOPATH/src/github.com/oneiro-ndev/chaos
-chaos_sha=$(cd $chaos_dir; git rev-parse --short HEAD)
-docker build -f "${chaos_dir}/Dockerfile" "$chaos_dir" -t chaos:${chaos_sha}
-
-# build tendermint
-docker build -f "${chaos_dir}/tm-docker/Dockerfile" "$chaos_dir/tm-docker" -t tendermint:latest
-
-# build noms
-docker build -f "${chaos_dir}/noms-docker/Dockerfile" "$chaos_dir/noms-docker" -t noms:latest
-
-# build helper image
-docker build -f "./docker-images/deploy-utils.docker" "./docker-images" -t deploy-utils:latest
-```
-4. Install the helm tiller
-```
-helm init
-```
-5. install the testnet with "castor" and "pollux" nodes
-```
-VERSION_TAG=${chaos_sha} ./testnet/chaos.js 30000 castor pollux
-```
-6. Bonus (install ndaunode and connect it to the chaos nodes)
-```
-ip=$(minikube ip)
-VERSION_TAG=${ndau_sha} CHAOS_LINK=http://$ip:30001 ./testnet/ndau.js 30010 mario luigi
-```
-
-Once you've done your tests, or want to test again, you can clean up the two releases with the following command.
-```
-helm del --purge castor pollux mario luigi
-```
-
-At this point you'll have to wait a little while until everything is running. You can type `kubectl get pods` to see if everything has a `RUNNING` status.
-
-Since we used a script to install the nodes, we didn't see the output from the helm charts. You can still view them however and get a few little helpful commands by running the comand `helm status pollux` or `helm status castor`.
-
-To get a list of services associated with pods, run the command `kubectl get service`.
-
-To get the RPC port in the tendermint pod run the following command:
-
-```
-% kubectl get service --namespace default -o jsonpath="{.spec.ports[?(@.name==\"rpc\")ePort}" castor-chaosnode-tendermint-service
-```
-
-Where "castor" above is the name of the node.
-
-To kill the cluster and remove all Kub nodes:
-
-```
-% helm del --purge castor pollux
-```
-John  the circle ci stuff for chaos is at https://github.com/oneiro-ndev/chaos/tree/master/.circleci There’s a config.yml that circleci looks at first, and local.sh will kick it off for you and try to download the circle-ci-cli if you don’t already have it. The dockerfile there is also a good example of how you can build the environment in a container and then run commands on it 🙂
-
-~~~

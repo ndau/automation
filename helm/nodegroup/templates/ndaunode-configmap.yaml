@@ -3,6 +3,11 @@
 kind: ConfigMap
 metadata:
   name: {{ template "nodegroup.fullname" . }}-ndau-config
+  labels:
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
 apiVersion: v1
 data:
   config.toml: |

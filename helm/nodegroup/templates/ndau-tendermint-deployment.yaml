@@ -26,24 +26,35 @@ spec:
       - name: awsecr-cred
       {{ end }}
       initContainers:
-      # Uses chaosnode image to get the app hash and saves it
-      - name: noms-wait
+      - name: waits
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} --connect-timeout 5; do echo waiting for {{ template "nodegroup.fullname" . }}-ndau-noms-service; sleep 5; done;"]
-      - name: redis-wait
-        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
-        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: # TODO normalize sh commands so they look like this
+        command:
           - sh
           - -c
           - |-
+            # wait for redis
             echo starting redis wait loop
-            until nc -z -w 5 {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}; do
+            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}; do
               echo waiting for {{ template "nodegroup.fullname" . }}-ndau-redis-service
-              sleep 5
+              sleep 2
             done
-      - name: hash
+
+            # wait for noms
+            echo starting noms wait loop
+            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}; do
+              echo waiting for {{ template "nodegroup.fullname" . }}-ndau-noms-service
+              sleep 2
+            done
+
+            # wait for node app
+            echo starting node app wait loop
+            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-ndaunode-service {{ .Values.ndaunode.port }}; do
+              echo waiting for {{ template "nodegroup.fullname" . }}-ndaunode-service
+              sleep 2
+            done
+
+      - name: hash # Uses ndaunode image to get the app hash and saves it
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
         command: ["/bin/sh"]
@@ -59,32 +70,8 @@ spec:
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
-      terminationGracePeriodSeconds: 120 # increase grace period from 30 seconds to a minute for snapshot creating.
       containers:
-      {{ if .Values.snapshotOnShutdown }}
-      - name: s3
-        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
-        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["/bin/bash"]
-        args: ["/root/make-snapshot.sh"]
-        env:
-        - name: AWS_KEY
-          value: {{ .Values.aws.accessKeyID }}
-        - name: AWS_SECRET
-          value: {{ .Values.aws.secretAccessKey }}
-        - name: NEW_CODE
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-              key: new-snapshot-code
-        volumeMounts:
-        # shares the tendermint data volume with this sidecar container.
-        - mountPath: /tendermint
-          name: tendermint-home-volume
-        - name: make-snapshot-sh
-          mountPath: /root/make-snapshot.sh
-          subPath: make-snapshot.sh
-      {{ end }}
+
       - name: tendermint
         image: "{{ .Values.ndau.tendermint.image.repository }}:{{ .Values.ndau.tendermint.image.tag }}"
         command: ["/bin/sh"]
@@ -99,15 +86,21 @@ spec:
           mountPath: /tendermint
 
         # scripts
+        - name: make-snapshot-sh
+          mountPath: /root/make-snapshot.sh
+          subPath: make-snapshot.sh
         - name: tendermint-init-sh
           mountPath: /root/tendermint-init.sh
           subPath: tendermint-init.sh
         - name: tendermint-start-sh
           mountPath: /root/tendermint-start.sh
           subPath: tendermint-start.sh
-        - name: snapshot-sh
-          mountPath: /root/snapshot.sh
-          subPath: snapshot.sh
+        - name: restore-snapshot-sh
+          mountPath: /root/restore-snapshot.sh
+          subPath: restore-snapshot.sh
+        - name: redis-cli-sh
+          mountPath: /root/redis-cli.sh
+          subPath: redis-cli.sh
 
         # read only config files
         - name: genesis-json
@@ -125,9 +118,29 @@ spec:
         - name: config-toml
           mountPath: /root/config-ro/config.toml
           subPath: config.toml
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.ndau.tendermint.ports.p2p }}
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.ndau.tendermint.ports.p2p }}
+          initialDelaySeconds: 10
+          periodSeconds: 10
         env:
+        - name: SNAPSHOTGUN_ENABLED
+          value: "{{ .Values.snapshot.enabled }}"
+        - name: AWS_KEY
+          value: {{ .Values.aws.accessKeyID }}
+        - name: AWS_SECRET
+          value: {{ .Values.aws.secretAccessKey }}
+        - name: R_HOST # for snapshot coordination
+          value: {{ template "nodegroup.fullname" . }}-snapshot-redis
         - name: TMHOME
           value: "/tendermint"
+        - name: THIS_SERVICE
+          value: ndau-tm
         - name: CHAIN
           value: "ndau"
         - name: HONEYCOMB_KEY
@@ -136,30 +149,13 @@ spec:
           value: {{ .Values.honeycomb.dataset }}
         - name: NODE_ID
           value: {{ .Values.ndau.tendermint.moniker }}
-        - name: UPDATE_PERSISTENT_PEERS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-peers
-              key: updatePeerAddresses
         - name: PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-peers
-              key: addresses
-        - name: PRIVATE_PEER_IDS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-peers
-              key: privatePeerIds
+              name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-config
+              key: persistentPeers
         - name: SNAPSHOT_CODE
           value: {{ .Values.ndau.noms.snapshotCode }}
-        - name: DOWNLOAD_SNAPSHOT
-          value: {{ .Values.ndau.noms.downloadSnapshot }}
-        - name: RELEASE_TOKEN
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-              key: release-token
       volumes:
         - name: tendermint-home-volume
           persistentVolumeClaim:
@@ -204,12 +200,18 @@ spec:
             items:
             - key: make-snapshot.sh
               path: make-snapshot.sh
-        - name: snapshot-sh
+        - name: restore-snapshot-sh
           configMap:
             name: {{ template "nodegroup.fullname" . }}-nodegroup-config
             items:
-            - key: snapshot.sh
-              path: snapshot.sh
+            - key: restore-snapshot.sh
+              path: restore-snapshot.sh
+        - name: redis-cli-sh
+          configMap:
+            name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+            items:
+            - key: redis-cli.sh
+              path: redis-cli.sh
         - name: tendermint-init-sh
           configMap:
             name: {{ template "nodegroup.fullname" . }}-nodegroup-config
@@ -218,7 +220,7 @@ spec:
               path: tendermint-init.sh
         - name: tendermint-start-sh
           configMap:
-            name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-config
+            name: {{ template "nodegroup.fullname" . }}-nodegroup-config
             items:
             - key: tendermint-start.sh
               path: tendermint-start.sh

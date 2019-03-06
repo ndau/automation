@@ -21,27 +21,22 @@ spec:
         app: {{ template "nodegroup.name" . }}-ndaunode
         release: {{ .Release.Name }}
     spec:
-      terminationGracePeriodSeconds: 120 # 2 minutes. Increase grace period from default 30 seconds for snapshot creation.
       initContainers:
-      - name: noms-wait
+      - name: waits
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
         command:
-          - sh
+          - /bin/bash
           - -c
           - |-
+            # wait for noms
             echo starting noms wait loop
-            until curl -v {{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} --connect-timeout 5; do
+            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}; do
               echo waiting for {{ template "nodegroup.fullname" . }}-ndau-noms-service
-              sleep 5
+              sleep 2
             done
-      - name: chaos-wait
-        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
-        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command:
-          - bash
-          - -c
-          - |-
+
+            # get chaosnode's address from env vars
             fullname="{{ template "nodegroup.fullname" . }}"
             echo $fullname
             RELEASE=$(echo ${fullname//-/_} | awk '{print toupper($0)}')
@@ -59,21 +54,18 @@ spec:
             chaos_address=http://${host}:${rpc_port}
             echo $chaos_address
 
-            until curl -v $chaos_address; do
-              echo waiting for $chaos_address
-              sleep 5
-            done
-      - name: redis-wait
-        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
-        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command:
-          - sh
-          - -c
-          - |-
+            # wait for redis
             echo starting redis wait loop
-            until nc -z -w 5 {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}; do
+            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}; do
               echo waiting for {{ template "nodegroup.fullname" . }}-ndau-redis-service
-              sleep 5
+              sleep 2
+            done
+
+            # wait for chaosnode
+            echo starting chaosnode wait loop
+            until nc -z -w 1 $host $rpc_port; do
+              echo waiting for $host
+              sleep 2
             done
       - name: config
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
@@ -102,7 +94,7 @@ spec:
             ndaunode \
             -spec http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} \
             -addr 0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }} \
-            -index {{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }} || sleep 600
+            -index {{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }}
         ports:
         - containerPort: {{ .Values.ndaunode.port }}
         env:

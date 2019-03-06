@@ -21,44 +21,34 @@ spec:
         app: {{ template "nodegroup.name" . }}-chaosnode
         release: {{ .Release.Name }}
     spec:
-      terminationGracePeriodSeconds: 120 # 2 minutes. Increase grace period from default 30 seconds for snapshot creation.
       {{ if .Values.minikube }}
       imagePullSecrets:
       - name: awsecr-cred
       {{ end }}
       initContainers:
-      - name: noms-wait
+      - name: waits
         image: "{{ .Values.chaos.deployUtils.image.repository }}:{{ .Values.chaos.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.deployUtils.image.pullPolicy }}
         command:
-          - sh
+          - /bin/bash
           - -c
           - |-
+
+            # wait for noms
             echo Starting noms wait loop
-            until curl -v {{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} --connect-timeout 5
-            do echo waiting for {{ template "nodegroup.fullname" . }}-chaos-noms-service
-              sleep 5
-            done
-      - name: redis-wait
-        image: "{{ .Values.chaos.deployUtils.image.repository }}:{{ .Values.chaos.deployUtils.image.tag }}"
-        imagePullPolicy: {{ .Values.chaos.deployUtils.image.pullPolicy }}
-        command:
-          - sh
-          - -c
-          - |-
-            echo Starting redis wait loop
-            until nc -z -w 5 {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}; do
-              echo waiting for {{ template "nodegroup.fullname" . }}-chaos-redis-service
-              sleep 5
+            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-chaos-noms-service {{ .Values.chaos.noms.port }}; do
+              echo waiting for {{ template "nodegroup.fullname" . }}-chaos-noms-service
+              sleep 2
             done
 
-      - name: chaos-address
-        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
-        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command:
-          - bash
-          - -c
-          - |-
+            # wait for redis
+            echo Starting redis wait loop
+            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}; do
+              echo waiting for {{ template "nodegroup.fullname" . }}-chaos-redis-service
+              sleep 2
+            done
+
+            # get ndau's tendermint address
             fullname="{{ template "nodegroup.fullname" . }}"
             echo "$fullname: $fullname"
             RELEASE=$(echo ${fullname//-/_} | awk '{print toupper($0)}')
@@ -73,40 +63,28 @@ spec:
             rpc_port=${!RPC_PORT_VAR}
             echo "rpc_port: $rpc_port"
 
-            chaos_address=http://${host}:${rpc_port}
-            printf $chaos_address > /root/.ndau/chaos-address
+            ndau_address=http://${host}:${rpc_port}
+
+            printf $ndau_address > /root/.ndau/ndau-address
+
         volumeMounts:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
 
-
+      containers:
       - name: chaosnode-config-ndau
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
         imagePullPolicy: {{ .Values.chaosnode.image.pullPolicy }}
-        command: ["/bin/sh"]
-        args: [
-          "-c",
-          "chaosnode --set-ndaunode $(cat /root/.ndau/chaos-address)"
-        ]
-        env:
-        - name: HONEYCOMB_KEY
-          value: {{ .Values.honeycomb.key }}
-        - name: HONEYCOMB_DATASET
-          value: {{ .Values.honeycomb.dataset }}-chaos
-        - name: NDAUHOME
-          value: "/root/.ndau"
-        volumeMounts:
-        - mountPath: "/root/.ndau"
-          name: ndau-home-volume
-      containers:
-      - name: chaosnode
-        image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
-        imagePullPolicy: {{ .Values.chaosnode.image.pullPolicy }}
-        args: [
-          "-spec", "http://{{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }}",
-          "-addr", "0.0.0.0:{{ required ".Values.chaosnode.port required" .Values.chaosnode.port }}",
-          "-index", "{{ template "nodegroup.fullname" . }}-chaos-redis-service:{{ .Values.chaos.redis.port }}"
-        ]
+        command:
+          - /bin/sh
+          - -c
+          - |-
+            chaosnode --set-ndaunode $(cat /root/.ndau/ndau-address)
+            chaosnode \
+              -spec http://{{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} \
+              -addr 0.0.0.0:{{ required ".Values.chaosnode.port required" .Values.chaosnode.port }} \
+              -index {{ template "nodegroup.fullname" . }}-chaos-redis-service:{{ .Values.chaos.redis.port }}
+
         ports:
         - containerPort: {{ .Values.chaosnode.port }}
         env:

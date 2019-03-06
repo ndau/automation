@@ -27,22 +27,34 @@ spec:
       {{ end }}
       initContainers:
       # Uses chaosnode image to get empty hash and saves it
-      - name: redis-wait
+      - name: waits
         image: "{{ .Values.chaos.deployUtils.image.repository }}:{{ .Values.chaos.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.deployUtils.image.pullPolicy }}
         command:
           - sh
           - -c
           - |-
+            # wait for redis
             echo starting redis wait loop
-            until nc -z -w 5 {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}; do
+            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}; do
               echo waiting for {{ template "nodegroup.fullname" . }}-chaos-redis-service
-              sleep 5
+              sleep 2
             done
-      - name: noms-wait
-        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
-        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["sh", "-c", "echo starting noms wait loop; until curl -v {{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} --connect-timeout 5; do echo waiting for {{ template "nodegroup.fullname" . }}-chaos-noms-service; sleep 5; done;"]
+
+            # wait for noms
+            echo starting noms wait loop
+            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-chaos-noms-service {{ .Values.chaos.noms.port }}; do
+              echo waiting for {{ template "nodegroup.fullname" . }}-chaos-noms-service
+              sleep 2
+            done
+
+            # wait for node app
+            echo starting node app wait loop
+            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-chaosnode-service {{ .Values.chaosnode.port }}; do
+              echo waiting for {{ template "nodegroup.fullname" . }}-chaosnode-service {{ .Values.chaosnode.port }}
+              sleep 2
+            done
+
       - name: hash
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.tendermint.image.pullPolicy }}
@@ -59,32 +71,7 @@ spec:
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
-      terminationGracePeriodSeconds: 120 # increase grace period from 30 seconds to a minute for snapshot creating.
       containers:
-      {{ if .Values.snapshotOnShutdown }}
-      - name: s3
-        image: "{{ .Values.chaos.deployUtils.image.repository }}:{{ .Values.chaos.deployUtils.image.tag }}"
-        imagePullPolicy: {{ .Values.chaos.deployUtils.image.pullPolicy }}
-        command: ["/bin/bash"]
-        args: ["/root/make-snapshot.sh"]
-        env:
-        - name: AWS_KEY
-          value: {{ .Values.aws.accessKeyID }}
-        - name: AWS_SECRET
-          value: {{ .Values.aws.secretAccessKey }}
-        - name: NEW_CODE
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-              key: new-snapshot-code
-        volumeMounts:
-        # shares the tendermint data volume with this sidecar container.
-        - mountPath: /tendermint
-          name: tendermint-home-volume
-        - name: make-snapshot-sh
-          mountPath: /root/make-snapshot.sh
-          subPath: make-snapshot.sh
-      {{ end }}
       - name: tendermint
         image: "{{ .Values.chaos.tendermint.image.repository }}:{{ .Values.chaos.tendermint.image.tag }}"
         command: ["/bin/sh"]
@@ -98,15 +85,21 @@ spec:
           name: tendermint-home-volume
 
         # scripts
+        - name: make-snapshot-sh
+          mountPath: /root/make-snapshot.sh
+          subPath: make-snapshot.sh
         - name: tendermint-init-sh
           mountPath: /root/tendermint-init.sh
           subPath: tendermint-init.sh
         - name: tendermint-start-sh
           mountPath: /root/tendermint-start.sh
           subPath: tendermint-start.sh
-        - name: snapshot-sh
-          mountPath: /root/snapshot.sh
-          subPath: snapshot.sh
+        - name: restore-snapshot-sh
+          mountPath: /root/restore-snapshot.sh
+          subPath: restore-snapshot.sh
+        - name: redis-cli-sh
+          mountPath: /root/redis-cli.sh
+          subPath: redis-cli.sh
 
         # read only config files
         - name: genesis-json
@@ -124,9 +117,30 @@ spec:
         - name: config-toml
           mountPath: /root/config-ro/config.toml
           subPath: config.toml
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.chaos.tendermint.ports.p2p }}
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.chaos.tendermint.ports.p2p }}
+          initialDelaySeconds: 10
+          periodSeconds: 10
+
         env:
+        - name: SNAPSHOTGUN_ENABLED
+          value: "{{ .Values.snapshot.enabled }}"
+        - name: AWS_KEY
+          value: {{ .Values.aws.accessKeyID }}
+        - name: AWS_SECRET
+          value: {{ .Values.aws.secretAccessKey }}
+        - name: R_HOST # for snapshot coordination
+          value: {{ template "nodegroup.fullname" . }}-snapshot-redis
         - name: TMHOME
           value: "/tendermint"
+        - name: THIS_SERVICE
+          value: chaos-tm
         - name: CHAIN # for downloading snapshots
           value: "chaos"
         - name: HONEYCOMB_KEY
@@ -135,30 +149,13 @@ spec:
           value: {{ .Values.honeycomb.dataset }}
         - name: NODE_ID
           value: {{ .Values.chaos.tendermint.moniker }}
-        - name: UPDATE_PERSISTENT_PEERS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-peers
-              key: updatePeerAddresses
         - name: PERSISTENT_PEERS
           valueFrom:
             configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-peers
-              key: addresses
-        - name: PRIVATE_PEER_IDS
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-peers
-              key: privatePeerIds
+              name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
+              key: persistentPeers
         - name: SNAPSHOT_CODE
           value: {{ .Values.chaos.noms.snapshotCode }}
-        - name: DOWNLOAD_SNAPSHOT
-          value: {{ .Values.chaos.noms.downloadSnapshot }}
-        - name: RELEASE_TOKEN
-          valueFrom:
-            configMapKeyRef:
-              name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-              key: release-token
       volumes:
         - name: tendermint-home-volume
           persistentVolumeClaim:
@@ -203,12 +200,18 @@ spec:
             items:
             - key: make-snapshot.sh
               path: make-snapshot.sh
-        - name: snapshot-sh
+        - name: restore-snapshot-sh
           configMap:
             name: {{ template "nodegroup.fullname" . }}-nodegroup-config
             items:
-            - key: snapshot.sh
-              path: snapshot.sh
+            - key: restore-snapshot.sh
+              path: restore-snapshot.sh
+        - name: redis-cli-sh
+          configMap:
+            name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+            items:
+            - key: redis-cli.sh
+              path: redis-cli.sh
         - name: tendermint-init-sh
           configMap:
             name: {{ template "nodegroup.fullname" . }}-nodegroup-config
@@ -217,7 +220,7 @@ spec:
               path: tendermint-init.sh
         - name: tendermint-start-sh
           configMap:
-            name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
+            name: {{ template "nodegroup.fullname" . }}-nodegroup-config
             items:
             - key: tendermint-start.sh
               path: tendermint-start.sh
