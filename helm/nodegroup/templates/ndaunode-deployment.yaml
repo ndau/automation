@@ -57,6 +57,7 @@ spec:
           - sh
           - -c
           - |-
+            /bin/bash /root/startup-waits.sh
             ndaunode \
             -spec http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} \
             -addr 0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }} \
