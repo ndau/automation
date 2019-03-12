@@ -2,7 +2,7 @@
 
 kind: ConfigMap
 metadata:
-  name: {{ template "nodegroup.fullname" . }}-ndau-config
+  name: {{ template "nodegroup.fullname" . }}-ndaunode-config
   labels:
     app: {{ template "nodegroup.name" . }}
     chart: {{ template "nodegroup.chart" . }}
@@ -84,5 +84,36 @@ data:
 
     # Show what files are there
     find /root/.ndau
+  startup-waits.sh: |
+    #!/bin/bash
+    errcho() {
+      >&2 echo $@
+    }
+
+    wait_for() {
+      service=$1
+      pod=$2
+      port=$3
+
+      errcho starting $service wait loop
+      until nc -z -w 1 $pod $port; do
+        errcho waiting for $pod on $port to accept connection
+        sleep 2
+      done
+    }
+
+    errcho "Starting wait loops"
+    wait_for redis {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}
+    wait_for noms {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
+
+    # get chaosnode's address from env vars
+    fullname="{{ template "nodegroup.fullname" . }}"
+    RELEASE=$(echo ${fullname//-/_} | awk '{print toupper($0)}')
+    HOST_VAR=${RELEASE}_CHAOS_TENDERMINT_SERVICE_SERVICE_HOST
+    RPC_PORT_VAR=${RELEASE}_CHAOS_TENDERMINT_SERVICE_SERVICE_PORT_RPC
+    host=${!HOST_VAR}
+    rpc_port=${!RPC_PORT_VAR}
+
+    wait_for chaosnode $host $rpc_port
 
 {{ end }}

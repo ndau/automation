@@ -33,35 +33,15 @@ spec:
           - /bin/bash
           - -c
           - |-
-
-            # wait for noms
-            echo Starting noms wait loop
-            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-chaos-noms-service {{ .Values.chaos.noms.port }}; do
-              echo waiting for {{ template "nodegroup.fullname" . }}-chaos-noms-service
-              sleep 2
-            done
-
-            # wait for redis
-            echo Starting redis wait loop
-            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}; do
-              echo waiting for {{ template "nodegroup.fullname" . }}-chaos-redis-service
-              sleep 2
-            done
+            /bin/bash /root/startup-waits.sh
 
             # get ndau's tendermint address
             fullname="{{ template "nodegroup.fullname" . }}"
-            echo "$fullname: $fullname"
             RELEASE=$(echo ${fullname//-/_} | awk '{print toupper($0)}')
-            echo "RELEASE: $RELEASE"
             HOST_VAR=${RELEASE}_NDAU_TENDERMINT_SERVICE_SERVICE_HOST
-            echo "HOST_VAR: $HOST_VAR"
             RPC_PORT_VAR=${RELEASE}_NDAU_TENDERMINT_SERVICE_SERVICE_PORT_RPC
-            echo "RPC_PORT_VAR: $RPC_PORT_VAR"
-
             host=${!HOST_VAR}
-            echo "host: $host"
             rpc_port=${!RPC_PORT_VAR}
-            echo "rpc_port: $rpc_port"
 
             ndau_address=http://${host}:${rpc_port}
 
@@ -70,21 +50,15 @@ spec:
         volumeMounts:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
+        - mountPath: /root/startup-waits.sh
+          name: chaosnode-config
+          subPath: startup-waits.sh
 
       containers:
-      - name: chaosnode-config-ndau
+      - name: chaosnode
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
         imagePullPolicy: {{ .Values.chaosnode.image.pullPolicy }}
-        command:
-          - /bin/sh
-          - -c
-          - |-
-            chaosnode --set-ndaunode $(cat /root/.ndau/ndau-address)
-            chaosnode \
-              -spec http://{{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} \
-              -addr 0.0.0.0:{{ required ".Values.chaosnode.port required" .Values.chaosnode.port }} \
-              -index {{ template "nodegroup.fullname" . }}-chaos-redis-service:{{ .Values.chaos.redis.port }}
-
+        command: ["/bin/bash", "/root/chaosnode-start.sh"]
         ports:
         - containerPort: {{ .Values.chaosnode.port }}
         env:
@@ -97,6 +71,12 @@ spec:
         - name: NDAUHOME
           value: "/root/.ndau"
         volumeMounts:
+        - mountPath: /root/chaosnode-start.sh
+          name: chaosnode-config
+          subPath: chaosnode-start.sh
+        - mountPath: /root/startup-waits.sh
+          name: chaosnode-config
+          subPath: startup-waits.sh
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
         resources:
@@ -110,5 +90,8 @@ spec:
       - name: ndau-home-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-chaosnode-claim
+      - name: chaosnode-config
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-chaosnode-config
 
 {{ end }}

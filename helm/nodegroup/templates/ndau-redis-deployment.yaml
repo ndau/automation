@@ -63,49 +63,31 @@ spec:
         ports:
         - containerPort: {{ .Values.ndau.redis.port }}
         volumeMounts:
-        - name: redis-start-sh
-          mountPath: /root/redis-start.sh
-          subPath: redis-start.sh
-        - name: make-snapshot-sh
-          mountPath: /root/make-snapshot.sh
-          subPath: make-snapshot.sh
-        - name: restore-snapshot-sh
-          mountPath: /root/restore-snapshot.sh
-          subPath: restore-snapshot.sh
         - name: redis-volume
           mountPath: /redis
-        - name: redis-cli-sh
-          mountPath: /root/redis-cli.sh
+        - mountPath: /root/redis-start.sh
+          name: nodegroup-config
+          subPath: redis-start.sh
+        - mountPath: /root/make-snapshot.sh
+          name: ndau-redis-config
+          subPath: make-snapshot.sh
+        - mountPath: /root/restore-snapshot.sh
+          name: nodegroup-config
+          subPath: restore-snapshot.sh
+        - mountPath: /root/redis-cli.sh
+          name: nodegroup-config
           subPath: redis-cli.sh
 
       volumes:
-      - name: redis-start-sh
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: redis-start.sh
-            path: redis-start.sh
-      - name: redis-cli-sh
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: redis-cli.sh
-            path: redis-cli.sh
-      - name: make-snapshot-sh
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-ndau-redis
-          items:
-          - key: make-snapshot.sh
-            path: make-snapshot.sh
-      - name: restore-snapshot-sh
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: restore-snapshot.sh
-            path: restore-snapshot.sh
       - name: redis-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-ndau-redis-claim
+      - name: nodegroup-config
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
+      - name: ndau-redis-config
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-ndau-redis
       resources:
         requests:
           memory: {{ .Values.ndau.redis.resources.requests.memory }}

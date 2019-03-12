@@ -78,10 +78,15 @@ class Conf:
         NDAU_TM_TAG         ndaunode's tendermint.
 
         Environment variables that are optional
-        HONEYCOMB_KEY       API key for honeycomb.
-        HONEYCOMB_DATASET   Honeycomb data bucket name.
-        SNAPSHOT_CODE       Timestamp of directory to use inside the snapshot bucket.
-                            (e.g. 2018-11-16T13-17-16Z)
+        HONEYCOMB_KEY          API key for honeycomb.
+        HONEYCOMB_DATASET      Honeycomb data bucket name.
+        SNAPSHOT_CODE          Timestamp of directory to use inside the snapshot bucket.
+                               (e.g. 2018-11-16T13-17-16Z)
+        SNAPSHOT_ENABLED       When set to "true" it will make the first node able to take snapshots.
+        SNAPSHOT_CRON_ENABLED  When set to "true" it will turn on automatic snapshots on the default
+                               schedule set in the helm chart's values.yaml.
+        SNAPSHOT_CRON_SCHEDULE Sets the schedule of the cron job in standard crontab format.
+
 
         Dynamically generaed constants
         SCRIPT_DIR          The absolute path of this script.

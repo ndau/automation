@@ -205,6 +205,8 @@ data:
 
     startup() {
       # start tendermint, add --log_level="*:debug" to debug
+      log "start"
+      /bin/bash /root/startup-waits.sh
       /bin/tendermint node \
         --p2p.persistent_peers "$PERSISTENT_PEERS" \
         --log_level="*:debug" &

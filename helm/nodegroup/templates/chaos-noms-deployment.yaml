@@ -60,49 +60,30 @@ spec:
         ports:
         - containerPort: {{ .Values.chaos.noms.port }}
         volumeMounts:
-        - name: noms-start-sh
-          mountPath: /root/noms-start.sh
-          subPath: noms-start.sh
-        - name: make-snapshot-sh
-          mountPath: /root/make-snapshot.sh
-          subPath: make-snapshot.sh
-        - name: restore-snapshot-sh
-          mountPath: /root/restore-snapshot.sh
-          subPath: restore-snapshot.sh
-        - name: redis-cli-sh
-          mountPath: /root/redis-cli.sh
-          subPath: redis-cli.sh
         - name: noms-volume
           mountPath: /noms
+        - mountPath: /root/noms-start.sh
+          name: nodegroup-config
+          subPath: noms-start.sh
+        - mountPath: /root/make-snapshot.sh
+          name: chaos-noms-config
+          subPath: make-snapshot.sh
+        - mountPath: /root/restore-snapshot.sh
+          name: nodegroup-config
+          subPath: restore-snapshot.sh
+        - mountPath: /root/redis-cli.sh
+          name: nodegroup-config
+          subPath: redis-cli.sh
       volumes:
-      - name: noms-start-sh
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: noms-start.sh
-            path: noms-start.sh
       - name: noms-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-chaos-noms-claim
-      # scripts
-      - name: restore-snapshot-sh
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: restore-snapshot.sh
-            path: restore-snapshot.sh
-      - name: redis-cli-sh
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: redis-cli.sh
-            path: redis-cli.sh
-      - name: make-snapshot-sh
+      - name: chaos-noms-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-chaos-noms-config
-          items:
-          - key: make-snapshot.sh
-            path: make-snapshot.sh
+      - name: nodegroup-config
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
       resources:
         requests:
           memory: {{ .Values.chaos.noms.resources.requests.memory }}
