@@ -84,10 +84,92 @@ data:
 
     # Show what files are there
     find /root/.ndau
+
+  ndaunode-start.sh: |
+    log () {
+      >&2 echo "$THIS_SERVICE-start: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-start: $@"
+      exit 1
+    }
+
+    startup() {
+      log "Starting"
+
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # if snapshot is taking place, wait until done
+        tries_left=30 # approx 1 minute
+        log "waiting for snapshot to finish"
+        # wait until done snapping, or, timed out
+        while [ "$resp" != "-1" ]; do
+          [[ "$tries_left" -lt "1" ]] && break
+          resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
+          sleep 1
+          tries_left=$((tries_left-1))
+          log "Waiting $tries_left more times."
+        done
+      fi
+
+      >&2 /bin/bash /root/startup-waits.sh
+
+      ndaunode \
+        -spec http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} \
+        -addr 0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }} \
+        -index {{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }} &
+
+      pid=$! # get ndaunode pid
+    }
+
+    snapshot() {
+      log "starting snapshot"
+      kill $pid
+      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
+      log "done waiting"
+      /bin/bash -x /root/make-snapshot.sh >&1
+      startup
+    }
+
+    shutdown() {
+      log "Shutting down"
+      >&2 /bin/bash /root/shutdown-waits.sh
+      kill $pid
+      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
+      log "done waiting"
+      exit 0
+    }
+
+    startup
+
+    # wait for a sigterm and run shutdown
+    trap shutdown SIGTERM
+
+    # main loop
+    log "starting main loop"
+    while true; do
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # snapshot if this service has been told to snapshot by redis
+        sleep 2
+        res=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$THIS_SERVICE")
+        [ "$res" == "1" ] && snapshot
+      else
+        sleep 42
+      fi
+    done
+
+
+
   startup-waits.sh: |
     #!/bin/bash
-    errcho() {
-      >&2 echo $@
+
+    log () {
+      >&2 echo "$THIS_SERVICE-startup-waits: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-startup-waits: $@"
+      exit 1
     }
 
     wait_for() {
@@ -95,16 +177,17 @@ data:
       pod=$2
       port=$3
 
-      errcho starting $service wait loop
+      log starting $service wait loop
       until nc -z -w 1 $pod $port; do
-        errcho waiting for $pod on $port to accept connection
+        log waiting for $pod on $port to accept connection
         sleep 2
       done
     }
 
-    errcho "Starting wait loops"
+    log "Starting wait loops"
     wait_for redis {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}
     wait_for noms {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
+    log "Done"
 
     # get chaosnode's address from env vars
     fullname="{{ template "nodegroup.fullname" . }}"
@@ -115,5 +198,36 @@ data:
     rpc_port=${!RPC_PORT_VAR}
 
     wait_for chaosnode $host $rpc_port
+
+
+
+  shutdown-waits.sh: |
+
+    log () {
+      >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
+      exit 1
+    }
+
+    # wait for waits until a service is shut down
+    wait_for() {
+      service=$1
+      pod=$2
+      port=$3
+
+      log starting $service wait loop
+      until ! nc -z -w 1 $pod $port; do
+        log waiting for $pod on $port to become inactive
+        sleep 2
+      done
+    }
+
+    log "Starting wait loops"
+    wait_for ndau-tm {{ template "nodegroup.fullname" . }}-ndau-tendermint-service {{ .Values.ndau.tendermint.ports.rpc }}
+    log "Done"
+
 
 {{ end }}

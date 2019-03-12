@@ -29,19 +29,17 @@ spec:
       - name: noms
         image: "{{ .Values.chaos.noms.image.repository }}:{{ .Values.chaos.noms.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.noms.image.pullPolicy }}
-        command:
-          - /bin/bash
-          - /root/noms-start.sh
+        command: ["/bin/bash", "/root/noms-start.sh"]
         readinessProbe:
           tcpSocket:
             port: {{ .Values.chaos.noms.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.chaos.noms.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
         env:
         - name: SNAPSHOTGUN_ENABLED
           value: "{{ .Values.snapshot.enabled }}"
@@ -62,6 +60,9 @@ spec:
         volumeMounts:
         - name: noms-volume
           mountPath: /noms
+        - mountPath: /root/shutdown-waits.sh
+          name: chaos-noms-config
+          subPath: shutdown-waits.sh
         - mountPath: /root/noms-start.sh
           name: nodegroup-config
           subPath: noms-start.sh

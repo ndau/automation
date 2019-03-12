@@ -36,12 +36,12 @@ spec:
         readinessProbe:
           tcpSocket:
             port: {{ .Values.chaos.redis.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.chaos.redis.port }}
-          initialDelaySeconds: 10
+          initialDelaySeconds: 30
           periodSeconds: 10
         env:
         - name: SNAPSHOTGUN_ENABLED
@@ -65,6 +65,9 @@ spec:
         volumeMounts:
         - name: redis-volume
           mountPath: /redis
+        - mountPath: /root/shutdown-waits.sh
+          name: chaos-redis-config
+          subPath: shutdown-waits.sh
         - mountPath: /root/make-snapshot.sh
           name: chaos-redis-config
           subPath: make-snapshot.sh

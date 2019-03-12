@@ -53,7 +53,7 @@ spec:
       containers:
       - name: tendermint
         image: "{{ .Values.chaos.tendermint.image.repository }}:{{ .Values.chaos.tendermint.image.tag }}"
-        command: ["/bin/sh", "/root/tendermint-start.sh"]
+        command: ["/bin/bash", "/root/tendermint-start.sh"]
         imagePullPolicy: {{ .Values.chaos.tendermint.image.pullPolicy }}
         ports:
           - containerPort: {{ .Values.chaos.tendermint.ports.p2p }}
@@ -63,6 +63,9 @@ spec:
           name: tendermint-home-volume
 
         # scripts
+        - mountPath: /root/shutdown-waits.sh
+          name: chaos-tendermint-config
+          subPath: shutdown-waits.sh
         - mountPath: /root/startup-waits.sh
           name: chaos-tendermint-config
           subPath: startup-waits.sh
@@ -101,12 +104,12 @@ spec:
         readinessProbe:
           tcpSocket:
             port: {{ .Values.chaos.tendermint.ports.p2p }}
-          initialDelaySeconds: 10
+          initialDelaySeconds: 30
           periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.chaos.tendermint.ports.p2p }}
-          initialDelaySeconds: 10
+          initialDelaySeconds: 30
           periodSeconds: 10
 
         env:

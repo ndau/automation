@@ -11,42 +11,70 @@ apiVersion: v1
 data:
   listener.sh: |
 
-    set -x
-
-    # errcho prints an error message to stderr.
-    errcho() {
-        >&2 echo -e "$@"
+    log () {
+      >&2 echo "listener: $@"
     }
 
-    errcho "Starting listener loop"
+    err () {
+      >&2 echo "listener: $@"
+      exit 1
+    }
+
+
+    log "Starting listener loop"
 
     while true; do
       req=$(nc -l -p 3333)
-      errcho "req: $req"
+      log "req: $req"
       if [ "$req" == "snap" ]; then
-        errcho "Starting snapshot"
-        /bin/bash /root/start.sh
+        log "Starting snapshot"
+        >&2 /bin/bash /root/start.sh
       fi
     done
 
   start.sh: |
 
     # this will start the snapshot process and wait for it to complete.
-
-    # errcho prints an error message to stderr.
-    errcho() {
-        >&2 echo -e "$@"
+    log () {
+      >&2 echo "start.sh: $@"
     }
 
-    errcho "starting snapshot"
+    err () {
+      >&2 echo "start.sh: $@"
+      exit 1
+    }
+
+
+    wait_for() {
+      service=$1
+      pod=$2
+      port=$3
+
+      log starting $service wait loop
+      until nc -z -w 1 $pod $port; do
+        log waiting for $pod on $port to become inactive
+        sleep 2
+      done
+    }
+
+    log "Make sure all services are currently running"
+    wait_for ndau-redis {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}
+    wait_for ndau-noms {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
+    wait_for ndau-tm {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
+    wait_for ndaunode {{ template "nodegroup.fullname" . }}-ndaunode-service {{ .Values.ndaunode.port }}
+
+    wait_for chaos-redis {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}
+    wait_for chaos-noms {{ template "nodegroup.fullname" . }}-chaos-noms-service {{ .Values.chaos.noms.port }}
+    wait_for chaos-tm {{ template "nodegroup.fullname" . }}-chaos-noms-service {{ .Values.chaos.noms.port }}
+    wait_for chaosnode {{ template "nodegroup.fullname" . }}-chaosnode-service {{ .Values.chaosnode.port }}
 
     # try to set snapping flag if not set. If set, get it.
     # Everything expires after 120 seconds. If things get hung up, it's possible to restart.
     snap_res=$(redis-cli SET "snapshot-snapping" 1 EX 120 NX)
-    errcho "snap_res: $snap_res"
+    log "snap_res: $snap_res"
     if [ "$snap_res" == "OK" ]; then
 
-      errcho "Beginning new snapshot process for all services."
+      log "Beginning new snapshot process for all services."
       snapping=1
 
       # get a temp token and upload there first
@@ -59,17 +87,21 @@ data:
       redis-cli SET snapshot-ndau-tm 1 EX 120
       redis-cli SET snapshot-ndau-noms 1 EX 120
       redis-cli SET snapshot-ndau-redis 1 EX 120
+      redis-cli SET snapshot-ndaunode 1 EX 120
       redis-cli SET snapshot-chaos-tm 1 EX 120
       redis-cli SET snapshot-chaos-noms 1 EX 120
       redis-cli SET snapshot-chaos-redis 1 EX 120
+      redis-cli SET snapshot-chaosnode 1 EX 120
 
     else
       # could return either 1 or 0 on second run
       snapping=$(redis-cli GET "snapshot-snapping")
-      errcho "Snapping already in progress: snapshot-snapping = $snapping"
+      log "Snapping already in progress: snapshot-snapping = $snapping"
+      exit 0
     fi
 
     # wait until everyone is done, then remove snapping key
+    # Don't check chaosnode and ndaunode, they don't snap anything
     while redis-cli MGET \
       snapshot-ndau-tm \
       snapshot-ndau-redis \
@@ -78,21 +110,21 @@ data:
       snapshot-chaos-redis \
       snapshot-chaos-noms | grep 1; do
 
-        errcho "Other snapshot jobs still in progress."
+        log "Other snapshot jobs still in progress."
         sleep 5
     done
 
-    errcho "No more snapshot jobs detected."
+    log "No more snapshot jobs detected."
 
     chaos_height=$(redis-cli GET snapshot-chaos-height)
     ndau_height=$(redis-cli GET snapshot-ndau-height)
 
     # uploading the snapshot should be done now
-    errcho "Cleaning up temporary keys."
+    log "Cleaning up temporary keys."
     redis-cli DEL snapshot-snapping snapshot-chaos-height snapshot-ndau-height
 
     # verify the snapshot
-    errcho "Verifying snapshot"
+    log "Verifying snapshot"
     BP=ndau-snapshots/{{ .Values.networkName }} # base path
     if \
       aws s3 ls "$BP/$temp_token/ndau-$ndau_height/ndau-genesis.tgz" && \
@@ -104,7 +136,7 @@ data:
       aws s3 ls "$BP/$temp_token/chaos-$chaos_height/chaos-noms.tgz" && \
       aws s3 ls "$BP/$temp_token/chaos-$chaos_height/chaos-redis.tgz"; then
 
-      errcho "Snapshot verified"
+      log "Snapshot verified"
       aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-tm.tgz" "s3://$BP/ndau-$ndau_height/ndau-tm.tgz"
       aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-genesis.tgz" "s3://$BP/ndau-$ndau_height/ndau-genesis.tgz"
       aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-noms.tgz" "s3://$BP/ndau-$ndau_height/ndau-noms.tgz"
@@ -114,8 +146,8 @@ data:
       aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-noms.tgz" "s3://$BP/chaos-$chaos_height/chaos-noms.tgz"
       aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-redis.tgz" "s3://$BP/chaos-$chaos_height/chaos-redis.tgz"
     else
-      errcho "Error: snapshot at s3://$BP/$temp_token could not be verified."
+      log "Error: snapshot at s3://$BP/$temp_token could not be verified."
     fi
 
-    errcho "removing temp token $temp_token"
-    redis-cli DEL snapshot-temp-token
+    log "removing temp token $temp_token"
+    redis-cli DEL snapshot-temp-token snapshot-chaosnode snapshot-ndaunode

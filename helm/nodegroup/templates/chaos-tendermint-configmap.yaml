@@ -23,8 +23,14 @@ data:
 
   startup-waits.sh: |
     #!/bin/bash
-    errcho() {
-      >&2 echo $@
+
+    log () {
+      >&2 echo "$THIS_SERVICE-startup-waits: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-startup-waits: $@"
+      exit 1
     }
 
     wait_for() {
@@ -32,22 +38,56 @@ data:
       pod=$2
       port=$3
 
-      errcho starting $service wait loop
+      log starting $service wait loop
       until nc -z -w 1 $pod $port; do
-        errcho waiting for $pod on $port to accept connection
+        log waiting for $pod on $port to accept connection
         sleep 2
       done
     }
 
-    errcho "Starting wait loops"
+    log "Starting wait loops"
     wait_for redis {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}
     wait_for noms {{ template "nodegroup.fullname" . }}-chaos-noms-service {{ .Values.chaos.noms.port }}
     wait_for chaosnode {{ template "nodegroup.fullname" . }}-chaosnode-service {{ .Values.chaosnode.port }}
+    log "Done"
+
+  shutdown-waits.sh: |
+
+    log () {
+      >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
+      exit 1
+    }
+
+    # wait for waits until a service is shut down
+    wait_for() {
+      service=$1
+      pod=$2
+      port=$3
+
+      log starting $service wait loop
+      until ! nc -z -w 5 $pod $port; do
+        log waiting for $pod on $port to become inactive
+        sleep 2
+      done
+    }
+
+    log "Starting wait loops"
+    wait_for ndaunode {{ template "nodegroup.fullname" . }}-ndaunode-service {{ .Values.ndaunode.port }}
+    log "Done"
 
   make-snapshot.sh: |
 
-    errcho() {
-      >&2 echo $@
+    log () {
+      >&2 echo "$THIS_SERVICE-make-snapshot: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-make-snapshot: $@"
+      exit 1
     }
 
     # s3_upload takes the first argument as the full local file path and uploads it to s3
@@ -81,14 +121,14 @@ data:
     this_app=tm
 
     # wait for redis
-    errcho "Pinging redis."
+    log "Pinging redis."
     while true ; do
       # get redis readiness
       if ! /bin/bash /root/redis-cli.sh -h $R_HOST PING; then
-        errcho "Waiting for redis to pong."
+        log "Waiting for redis to pong."
         sleep 1
       else
-        errcho "Redis is ready."
+        log "Redis is ready."
         break
       fi
     done
@@ -98,20 +138,21 @@ data:
       sleep 2
       height=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$CHAIN-height")
     done
-    errcho "Got height: $height"
+    log "Got height: $height"
 
     # wait until noms snapshot is finished
     tries_left=60 # approx 2 minutes
-    errcho "waiting for $CHAIN noms snapshot to finish" # TODO standardize errcho/log/err etx
-    while [ "$noms_snapshot_resp" != "-1" ] || (( $tries_left == 0 )); do
+    log "waiting for $CHAIN noms snapshot to finish" # TODO standardize errcho/log/err etx
+    while [ "$noms_snapshot_resp" != "-1" ]; do
+      [[ "$tries_left" -lt "1" ]] && break
       noms_snapshot_resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$CHAIN-noms")
       sleep 1
       tries_left=$((tries_left-1))
-      errcho "Waiting $tries more times."
+      log "Waiting $tries_left more times."
     done
-    errcho "done waiting"
+    log "done waiting"
     if [ "$noms_snapshot_resp" == "-1" ]; then
-      errcho "$CHAIN noms snapshot didn't finish"
+      log "$CHAIN noms snapshot didn't finish"
     fi
 
     # upload the tendermint databases
@@ -121,9 +162,9 @@ data:
     s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/${this_node}-${height}/${tar_file}"
 
     if curl_response=$(curl -I -f "http://s3.amazonaws.com$s3_path"); then
-      errcho "Snapshot $s3_path already exists. Will not upload."
+      log "Snapshot $s3_path already exists. Will not upload."
     else
-      errcho "Uploading snapshot $s3_path."
+      log "Uploading snapshot $s3_path."
 
       (
         cd /tendermint/data
@@ -157,7 +198,7 @@ data:
       .[\"date\"]=\$date | \
       .[\"height\"]=\$height " \
       <<< '{}' > /root/manifest.json
-    errcho "Created manifest file: $(cat /root/manifest.json)"
+    log "Created manifest file: $(cat /root/manifest.json)"
 
     s3_upload "/root/manifest.json" "${this_node}-manifest.json"
 

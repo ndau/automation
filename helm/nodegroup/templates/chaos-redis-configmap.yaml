@@ -96,5 +96,33 @@ data:
     # delete the service flag
     /bin/bash /root/redis-cli.sh -h $R_HOST DEL "snapshot-$THIS_SERVICE"
 
+  shutdown-waits.sh: |
+
+    log () {
+      >&2 echo "$THIS_SERVICE-shutdown: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-shutdown: $@"
+      exit 1
+    }
+
+    # wait for waits until a service is shut down
+    wait_for() {
+      service=$1
+      pod=$2
+      port=$3
+
+      log starting $service wait loop
+      until ! nc -z -w 5 $pod $port; do
+        log waiting for $pod on $port to become inactive
+        sleep 2
+      done
+    }
+
+    log "Starting wait loops"
+    wait_for chaosnode {{ template "nodegroup.fullname" . }}-chaosode-service {{ .Values.chaosnode.port }}
+    log "Done"
+
 
 {{ end }}

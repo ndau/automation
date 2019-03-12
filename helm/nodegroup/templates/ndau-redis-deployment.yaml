@@ -36,13 +36,13 @@ spec:
         readinessProbe:
           tcpSocket:
             port: {{ .Values.ndau.redis.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.ndau.redis.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
         env:
         - name: SNAPSHOTGUN_ENABLED
           value: "{{ .Values.snapshot.enabled }}"
@@ -63,6 +63,9 @@ spec:
         ports:
         - containerPort: {{ .Values.ndau.redis.port }}
         volumeMounts:
+        - mountPath: /root/shutdown-waits.sh
+          name: ndau-redis-config
+          subPath: shutdown-waits.sh
         - name: redis-volume
           mountPath: /redis
         - mountPath: /root/redis-start.sh

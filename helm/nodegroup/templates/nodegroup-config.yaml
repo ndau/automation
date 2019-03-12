@@ -10,8 +10,9 @@ apiVersion: v1
 data:
 
   tm-home: "/tendermint"
+
   restore-snapshot.sh: |
-    #!/bin/sh
+    #!/bin/bash
 
     # This depends on three variables being set prior to running.
     #
@@ -48,7 +49,7 @@ data:
         if search_results=$(curl $s3_search_url); then
           log "Latest snapshot list: $search_results"
           # process XML list, get the largest height
-          latest_snapshot=$(echo $search_results | perl -nle'print $& while m{(?<=<Key>).*?(?=</Key>)}g' | grep "$CHAIN" | sort | tail -n 1 | awk -F'/' '{print $1"/"$2}')
+          latest_snapshot=$(echo $search_results | perl -nle'print $& while m{(?<=<Key>).*?(?=</Key>)}g' | sed "s/^{{ .Values.networkName }}\/${CHAIN}-//" | sort -n | tail -n 1 | awk -F'/' "{print \"{{ .Values.networkName }}/${CHAIN}-\" \$1}")
           log "Latest snapshot: $latest_snapshot"
           # test to see if snapshot file is there. If not, default to genesis.
           latest_height_url="https://s3.amazonaws.com/{{ .Values.aws.snapshotBucket }}/$latest_snapshot/$SNAPSHOT_FILE"
@@ -84,7 +85,7 @@ data:
     fi
 
   tendermint-init.sh: |
-
+    echo "tendermint-oinit"
     log () {
       >&2 echo "tendermint-init-$LOG_TAG: $@"
     }
@@ -125,7 +126,7 @@ data:
       SNAPSHOT_FILE=$CHAIN-genesis.tgz \
       NO_CLEAR=true \
       LOG_TAG=$CHAIN-tendermint-genesis \
-        /bin/sh /root/restore-snapshot.sh
+        /bin/bash /root/restore-snapshot.sh >&2
 
       # copy readonly files from config map to real config directory
       # genesis.json is handled below
@@ -186,14 +187,14 @@ data:
     DATA_EXISTS_FILE=/tendermint/data/blockstore.db/LOCK \
     SNAPSHOT_FILE=$CHAIN-tm.tgz \
     LOG_TAG=$CHAIN-tendermint \
-      /bin/sh /root/restore-snapshot.sh
+      /bin/bash /root/restore-snapshot.sh >&2
 
     log "done tendermint-init.sh"
 
 
   tendermint-start.sh: |
     #!/bin/bash
-
+    echo "tendermint start"
     log () {
       >&2 echo "tendermint-start-$LOG_TAG: $@"
     }
@@ -205,8 +206,23 @@ data:
 
     startup() {
       # start tendermint, add --log_level="*:debug" to debug
-      log "start"
-      /bin/bash /root/startup-waits.sh
+      log "Starting"
+
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # if snapshot is taking place, wait until done
+        tries_left=30 # approx 1 minute
+        log "waiting for snapshot to finish"
+        # wait until done snapping, or, timed out
+        while [ "$resp" != "-1" ]; do
+          [[ "$tries_left" -lt "1" ]] && break
+          resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
+          sleep 1
+          tries_left=$((tries_left-1))
+          log "Waiting $tries_left more times."
+        done
+      fi
+
+      >&2 /bin/bash /root/startup-waits.sh
       /bin/tendermint node \
         --p2p.persistent_peers "$PERSISTENT_PEERS" \
         --log_level="*:debug" &
@@ -215,6 +231,7 @@ data:
 
     shutdown() {
       log "Shutting down"
+      >&2 /bin/bash /root/shutdown-waits.sh
       kill $pid
       while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
       log "done waiting"
@@ -245,6 +262,7 @@ data:
     startup
 
     # main loop
+    log "starting main loop"
     while true; do
       if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
         # snapshot if this service has been told to snapshot by redis
@@ -258,7 +276,6 @@ data:
 
 
   noms-start.sh: |
-
     log () {
       >&2 echo "$THIS_SERVICE-start: $@"
     }
@@ -275,10 +292,25 @@ data:
     DATA_EXISTS_FILE=/noms/data/manifest \
     SNAPSHOT_FILE=$THIS_SERVICE.tgz \
     LOG_TAG=$THIS_SERVICE \
-      /bin/sh /root/restore-snapshot.sh
+      /bin/bash /root/restore-snapshot.sh >&2
 
     startup() {
       log "Starting"
+
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # if snapshot is taking place, wait until done
+        tries_left=30 # approx 1 minute
+        log "waiting for snapshot to finish"
+        # wait until done snapping, or, timed out
+        while [ "$resp" != "-1" ]; do
+          [[ "$tries_left" -lt "1" ]] && break
+          resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
+          sleep 1
+          tries_left=$((tries_left-1))
+          log "Waiting $tries_left more times."
+        done
+      fi
+
       # start noms
       noms serve /noms/data &
       pid=$! # get noms pid
@@ -295,6 +327,7 @@ data:
 
     shutdown() {
       log "Shutting down"
+      >&2 /bin/bash /root/shutdown-waits.sh
       kill $pid
       while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
       log "done waiting"
@@ -320,7 +353,6 @@ data:
     done
 
   redis-start.sh: |
-
     log () {
       >&2 echo "$THIS_SERVICE-start: $@"
     }
@@ -330,16 +362,30 @@ data:
       exit 1
     }
 
-
     # check to see if snapshot is needed
     DATA_DIR=/redis \
     DATA_EXISTS_FILE=/redis/dump.rdb \
     SNAPSHOT_FILE=$THIS_SERVICE.tgz \
     LOG_TAG=$THIS_SERVICE \
-      /bin/sh /root/restore-snapshot.sh
+      /bin/bash /root/restore-snapshot.sh >&2
 
     startup() {
       log "Starting"
+
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # if snapshot is taking place, wait until done
+        tries_left=30 # approx 1 minute
+        log "waiting for snapshot to finish"
+        # wait until done snapping, or, timed out
+        while [ "$resp" != "-1" ]; do
+          [[ "$tries_left" -lt "1" ]] && break
+          resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
+          sleep 1
+          tries_left=$((tries_left-1))
+          log "Waiting $tries_left more times."
+        done
+      fi
+
       redis-server \
         --dir /redis \
         --save 60 1 \
@@ -350,6 +396,7 @@ data:
 
     shutdown() {
       log "Shutting down"
+      >&2 /bin/bash /root/shutdown-waits.sh
       kill $pid
       while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
       exit 0

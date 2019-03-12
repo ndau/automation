@@ -37,11 +37,10 @@ spec:
       - name: hash # Uses ndaunode image to get the app hash and saves it
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
-        command: ["/bin/sh"]
-        args: [
-          "-c",
-          "/bin/ndaunode -echo-hash -spec http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/app_hash",
-        ]
+        command:
+          - /bin/sh
+          - -c
+          - /bin/ndaunode -echo-hash -spec http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/app_hash
         env:
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
@@ -64,6 +63,9 @@ spec:
           mountPath: /tendermint
 
         # scripts
+        - mountPath: /root/shutdown-waits.sh
+          name: ndau-tendermint-config
+          subPath: shutdown-waits.sh
         - mountPath: /root/startup-waits.sh
           name: ndau-tendermint-config
           subPath: startup-waits.sh
@@ -103,12 +105,12 @@ spec:
           tcpSocket:
             port: {{ .Values.ndau.tendermint.ports.p2p }}
           initialDelaySeconds: 30
-          periodSeconds: 15
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.ndau.tendermint.ports.p2p }}
           initialDelaySeconds: 30
-          periodSeconds: 15
+          periodSeconds: 10
         env:
         - name: SNAPSHOTGUN_ENABLED
           value: "{{ .Values.snapshot.enabled }}"

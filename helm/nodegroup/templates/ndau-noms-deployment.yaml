@@ -34,13 +34,13 @@ spec:
         readinessProbe:
           tcpSocket:
             port: {{ .Values.ndau.noms.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.ndau.noms.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
         env:
         - name: SNAPSHOTGUN_ENABLED
           value: "{{ .Values.snapshot.enabled }}"
@@ -61,6 +61,9 @@ spec:
         volumeMounts:
         - name: noms-volume
           mountPath: /noms
+        - mountPath: /root/shutdown-waits.sh
+          name: ndau-noms-config
+          subPath: shutdown-waits.sh
         - mountPath: /root/noms-start.sh
           name: nodegroup-config
           subPath: noms-start.sh
@@ -74,15 +77,15 @@ spec:
           name: nodegroup-config
           subPath: redis-cli.sh
       volumes:
+      - name: noms-volume
+        persistentVolumeClaim:
+          claimName: {{ template "nodegroup.fullname" . }}-ndau-noms-claim
       - name: ndau-noms-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-ndau-noms-config
       - name: nodegroup-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-      - name: noms-volume
-        persistentVolumeClaim:
-          claimName: {{ template "nodegroup.fullname" . }}-ndau-noms-claim
       resources:
         requests:
           memory: {{ .Values.ndau.noms.resources.requests.memory }}

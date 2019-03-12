@@ -38,6 +38,9 @@ spec:
         - name: NDAUHOME
           value: "/root/.ndau"
         volumeMounts:
+        - mountPath: /root/shutdown-waits.sh
+          name: ndaunode-config
+          subPath: shutdown-waits.sh
         - mountPath: /root/startup-waits.sh
           name: ndaunode-config
           subPath: startup-waits.sh
@@ -53,18 +56,12 @@ spec:
       - name: ndaunode
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
-        command:
-          - sh
-          - -c
-          - |-
-            /bin/bash /root/startup-waits.sh
-            ndaunode \
-            -spec http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} \
-            -addr 0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }} \
-            -index {{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }}
+        command: ["/bin/bash", "/root/ndaunode-start.sh"]
         ports:
         - containerPort: {{ .Values.ndaunode.port }}
         env:
+        - name: THIS_SERVICE
+          value: chaosnode
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
@@ -76,6 +73,22 @@ spec:
         volumeMounts:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
+        - mountPath: /root/ndaunode-start.sh
+          name: ndaunode-config
+          subPath: ndaunode-start.sh
+        - mountPath: /root/redis-cli.sh
+          name: ndaunode-config
+          subPath: redis-cli.sh
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.chaosnode.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.chaosnode.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
         resources:
           requests:
             memory: {{ .Values.ndaunode.resources.requests.memory }}

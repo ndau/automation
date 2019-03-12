@@ -33,7 +33,7 @@ spec:
           - /bin/bash
           - -c
           - |-
-            /bin/bash /root/startup-waits.sh
+            >&2 /bin/bash /root/startup-waits.sh
 
             # get ndau's tendermint address
             fullname="{{ template "nodegroup.fullname" . }}"
@@ -53,7 +53,6 @@ spec:
         - mountPath: /root/startup-waits.sh
           name: chaosnode-config
           subPath: startup-waits.sh
-
       containers:
       - name: chaosnode
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
@@ -62,6 +61,8 @@ spec:
         ports:
         - containerPort: {{ .Values.chaosnode.port }}
         env:
+        - name: THIS_SERVICE
+          value: chaosnode
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
@@ -71,14 +72,30 @@ spec:
         - name: NDAUHOME
           value: "/root/.ndau"
         volumeMounts:
+        - mountPath: /root/.ndau
+          name: ndau-home-volume
+        - mountPath: /root/shutdown-waits.sh
+          name: chaosnode-config
+          subPath: shutdown-waits.sh
+        - mountPath: /root/redis-cli.sh
+          name: nodegroup-config
+          subPath: redis-cli.sh
         - mountPath: /root/chaosnode-start.sh
           name: chaosnode-config
           subPath: chaosnode-start.sh
         - mountPath: /root/startup-waits.sh
           name: chaosnode-config
           subPath: startup-waits.sh
-        - mountPath: "/root/.ndau"
-          name: ndau-home-volume
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.chaosnode.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.chaosnode.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
         resources:
           requests:
             memory: {{ .Values.chaosnode.resources.requests.memory }}
@@ -93,5 +110,8 @@ spec:
       - name: chaosnode-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-chaosnode-config
+      - name: nodegroup-config
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
 
 {{ end }}
