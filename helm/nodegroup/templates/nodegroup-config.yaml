@@ -22,16 +22,14 @@ data:
     #                     e.g. /noms/data/manifest
     # SNAPSHOT_FILE       The name of the tarball file on s3 to use.
     #                     e.g. ndau-noms.tgz
-    # LOG_TAG             A simple string to better identify logs.
-    #                     e.g. ndau-noms
 
 
     log () {
-      >&2 echo "snapshot-$LOG_TAG:" "$@"
+      >&2 echo "restore-snapshot-$SNAPSHOT_FILE:" "$@"
     }
 
     err () {
-      >&2 echo "snapshot-$LOG_TAG:" "$@"
+      >&2 echo "restore-snapshot-$SNAPSHOT_FILE:" "$@"
       exit 1
     }
 
@@ -85,13 +83,13 @@ data:
     fi
 
   tendermint-init.sh: |
-    echo "tendermint-oinit"
+
     log () {
-      >&2 echo "tendermint-init-$LOG_TAG: $@"
+      >&2 echo "$THIS_SERVICE-init: $@"
     }
 
     err () {
-      >&2 echo "tendermint-init-$LOG_TAG: $@"
+      >&2 echo "$THIS_SERVICE-init: $@"
       exit 1
     }
 
@@ -125,7 +123,6 @@ data:
       DATA_EXISTS_FILE=$TM_CONFIG/genesis.json \
       SNAPSHOT_FILE=$CHAIN-genesis.tgz \
       NO_CLEAR=true \
-      LOG_TAG=$CHAIN-tendermint-genesis \
         /bin/bash /root/restore-snapshot.sh >&2
 
       # copy readonly files from config map to real config directory
@@ -186,7 +183,6 @@ data:
     DATA_DIR=/tendermint/data \
     DATA_EXISTS_FILE=/tendermint/data/blockstore.db/LOCK \
     SNAPSHOT_FILE=$CHAIN-tm.tgz \
-    LOG_TAG=$CHAIN-tendermint \
       /bin/bash /root/restore-snapshot.sh >&2
 
     log "done tendermint-init.sh"
@@ -196,11 +192,11 @@ data:
     #!/bin/bash
     echo "tendermint start"
     log () {
-      >&2 echo "tendermint-start-$LOG_TAG: $@"
+      >&2 echo "$THIS_SERVICE-start: $@"
     }
 
     err () {
-      >&2 echo "tendermint-start-$LOG_TAG: $@"
+      >&2 echo "$THIS_SERVICE-start: $@"
       exit 1
     }
 
@@ -213,7 +209,7 @@ data:
         tries_left=30 # approx 1 minute
         log "waiting for snapshot to finish"
         # wait until done snapping, or, timed out
-        while [ "$resp" != "-1" ]; do
+        until [ "$resp" == "-1" ]; do
           [[ "$tries_left" -lt "1" ]] && break
           resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
           sleep 1
@@ -255,8 +251,7 @@ data:
     trap shutdown SIGTERM
 
     # Tendermint config
-    LOG_TAG=$CHAIN \
-      /bin/bash /root/tendermint-init.sh
+    /bin/bash /root/tendermint-init.sh
 
     # start tendermint
     startup
@@ -291,7 +286,6 @@ data:
     DATA_DIR=/noms/data \
     DATA_EXISTS_FILE=/noms/data/manifest \
     SNAPSHOT_FILE=$THIS_SERVICE.tgz \
-    LOG_TAG=$THIS_SERVICE \
       /bin/bash /root/restore-snapshot.sh >&2
 
     startup() {
@@ -302,7 +296,7 @@ data:
         tries_left=30 # approx 1 minute
         log "waiting for snapshot to finish"
         # wait until done snapping, or, timed out
-        while [ "$resp" != "-1" ]; do
+        until [ "$resp" == "-1" ]; do
           [[ "$tries_left" -lt "1" ]] && break
           resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
           sleep 1
@@ -366,7 +360,6 @@ data:
     DATA_DIR=/redis \
     DATA_EXISTS_FILE=/redis/dump.rdb \
     SNAPSHOT_FILE=$THIS_SERVICE.tgz \
-    LOG_TAG=$THIS_SERVICE \
       /bin/bash /root/restore-snapshot.sh >&2
 
     startup() {
@@ -377,7 +370,7 @@ data:
         tries_left=30 # approx 1 minute
         log "waiting for snapshot to finish"
         # wait until done snapping, or, timed out
-        while [ "$resp" != "-1" ]; do
+        until [ "$resp" == "-1" ]; do
           [[ "$tries_left" -lt "1" ]] && break
           resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
           sleep 1

@@ -103,7 +103,7 @@ data:
         tries_left=30 # approx 1 minute
         log "waiting for snapshot to finish"
         # wait until done snapping, or, timed out
-        while [ "$resp" != "-1" ]; do
+        until [ "$resp" == "-1" ]; do
           [[ "$tries_left" -lt "1" ]] && break
           resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
           sleep 1
@@ -219,7 +219,7 @@ data:
       port=$3
 
       log starting $service wait loop
-      until ! nc -z -w 1 $pod $port; do
+      while nc -z -w 1 $pod $port; do
         log waiting for $pod on $port to become inactive
         sleep 2
       done

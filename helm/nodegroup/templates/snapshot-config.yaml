@@ -52,7 +52,7 @@ data:
 
       log starting $service wait loop
       until nc -z -w 1 $pod $port; do
-        log waiting for $pod on $port to become inactive
+        log waiting for $pod on $port to accept
         sleep 2
       done
     }
@@ -60,12 +60,12 @@ data:
     log "Make sure all services are currently running"
     wait_for ndau-redis {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}
     wait_for ndau-noms {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
-    wait_for ndau-tm {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
+    wait_for ndau-tm {{ template "nodegroup.fullname" . }}-ndau-tendermint-service {{ .Values.ndau.tendermint.ports.p2p }}
     wait_for ndaunode {{ template "nodegroup.fullname" . }}-ndaunode-service {{ .Values.ndaunode.port }}
 
     wait_for chaos-redis {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}
     wait_for chaos-noms {{ template "nodegroup.fullname" . }}-chaos-noms-service {{ .Values.chaos.noms.port }}
-    wait_for chaos-tm {{ template "nodegroup.fullname" . }}-chaos-noms-service {{ .Values.chaos.noms.port }}
+    wait_for chaos-tm {{ template "nodegroup.fullname" . }}-chaos-tendermint-service {{ .Values.chaos.tendermint.ports.p2p }}
     wait_for chaosnode {{ template "nodegroup.fullname" . }}-chaosnode-service {{ .Values.chaosnode.port }}
 
     # try to set snapping flag if not set. If set, get it.

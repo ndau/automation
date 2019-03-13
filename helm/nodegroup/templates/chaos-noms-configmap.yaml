@@ -115,7 +115,7 @@ data:
       port=$3
 
       log starting $service wait loop
-      until ! nc -z -w 5 $pod $port; do
+      while nc -z -w 5 $pod $port; do
         log waiting for $pod on $port to become inactive
         sleep 2
       done
