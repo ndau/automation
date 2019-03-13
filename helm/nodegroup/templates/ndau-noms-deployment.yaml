@@ -35,12 +35,12 @@ spec:
           tcpSocket:
             port: {{ .Values.ndau.noms.port }}
           initialDelaySeconds: 30
-          periodSeconds: 10
+          periodSeconds: 30
         livenessProbe:
           tcpSocket:
             port: {{ .Values.ndau.noms.port }}
           initialDelaySeconds: 30
-          periodSeconds: 10
+          periodSeconds: 30
         env:
         - name: SNAPSHOTGUN_ENABLED
           value: "{{ .Values.snapshot.enabled }}"

@@ -83,12 +83,12 @@ spec:
           tcpSocket:
             port: {{ .Values.chaosnode.port }}
           initialDelaySeconds: 30
-          periodSeconds: 10
+          periodSeconds: 30
         livenessProbe:
           tcpSocket:
             port: {{ .Values.chaosnode.port }}
           initialDelaySeconds: 30
-          periodSeconds: 10
+          periodSeconds: 30
         resources:
           requests:
             memory: {{ .Values.ndaunode.resources.requests.memory }}
