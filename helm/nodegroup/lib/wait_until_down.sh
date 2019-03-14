@@ -2,7 +2,8 @@
 
 # wait for waits until a service is shut down
 wait_until_down() {
-	service=$1
-	log "waiting for $service to shut down"
-	wait_until_key_gone "snapshot-$service-down" 30
+	local service=$1
+	local tag="wait_until_down"
+	log "$tag: waiting for $service to shut down"
+	wait_until_key_exist "snapshot-$service-down" 30
 }

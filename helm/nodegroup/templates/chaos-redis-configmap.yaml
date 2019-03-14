@@ -26,6 +26,8 @@ data:
 
     this_node=chaos
     this_app=redis
+    BUCKET={{ .Values.aws.snapshotBucket }}
+    NETWORK={{ .Values.networkName }}
 
     # wait for redis
     log "Pinging redis."

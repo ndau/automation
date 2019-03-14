@@ -73,6 +73,8 @@ data:
 
     this_node=ndau
     this_app=tm
+    BUCKET={{ .Values.aws.snapshotBucket }}
+    NETWORK={{ .Values.networkName }}
 
     # wait for redis
     log "Pinging redis."
