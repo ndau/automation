@@ -50,6 +50,8 @@ spec:
         volumeMounts:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
+        - mountPath: /root/lib
+          name: script-lib
         - mountPath: /root/startup-waits.sh
           name: chaosnode-config
           subPath: startup-waits.sh
@@ -74,6 +76,11 @@ spec:
         volumeMounts:
         - mountPath: /root/.ndau
           name: ndau-home-volume
+        - mountPath: /root/lib
+          name: script-lib
+        - mountPath: /root/liveness-decoy.sh
+          name: nodegroup-config
+          subPath: liveness-decoy.sh
         - mountPath: /root/shutdown-waits.sh
           name: chaosnode-config
           subPath: shutdown-waits.sh
@@ -90,12 +97,12 @@ spec:
           tcpSocket:
             port: {{ .Values.chaosnode.port }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.chaosnode.port }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
         resources:
           requests:
             memory: {{ .Values.chaosnode.resources.requests.memory }}
@@ -107,6 +114,9 @@ spec:
       - name: ndau-home-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-chaosnode-claim
+      - name: script-lib
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-scripts
       - name: chaosnode-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-chaosnode-config

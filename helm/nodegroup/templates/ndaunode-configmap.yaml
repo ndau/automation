@@ -22,6 +22,9 @@ data:
 
   init.sh: |
 
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
     CURL_RETRIES=10
     CURL_RETRY_DELAY=0
     CFG_DIR=$NDAUHOME/ndau
@@ -86,6 +89,10 @@ data:
     find /root/.ndau
 
   ndaunode-start.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
     log () {
       >&2 echo "$THIS_SERVICE-start: $@"
     }
@@ -105,7 +112,7 @@ data:
         # wait until done snapping, or, timed out
         until [ "$resp" == "-1" ]; do
           [[ "$tries_left" -lt "1" ]] && break
-          resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
+          resp=$(redis_cli GET "snapshot-snapping")
           sleep 1
           tries_left=$((tries_left-1))
           log "Waiting $tries_left more times."
@@ -118,25 +125,14 @@ data:
         -spec http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} \
         -addr 0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }} \
         -index {{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }} &
-
       pid=$! # get ndaunode pid
-    }
-
-    snapshot() {
-      log "starting snapshot"
-      kill $pid
-      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
-      log "done waiting"
-      /bin/bash -x /root/make-snapshot.sh >&1
-      startup
+      redis_cli DEL "snapshot-$THIS_SERVICE-down"
     }
 
     shutdown() {
       log "Shutting down"
       >&2 /bin/bash /root/shutdown-waits.sh
-      kill $pid
-      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
-      log "done waiting"
+      kill_and_wait $pid $THIS_SERVICE
       exit 0
     }
 
@@ -151,8 +147,10 @@ data:
       if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
         # snapshot if this service has been told to snapshot by redis
         sleep 2
-        res=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$THIS_SERVICE")
-        [ "$res" == "1" ] && snapshot
+        res=$(redis_cli GET "snapshot-$THIS_SERVICE")
+        if [ "$res" == "1" ]; then
+          DECOY_PORT={{ .Values.ndaunode.port }} make_service_snapshot
+        fi
       else
         sleep 42
       fi
@@ -163,6 +161,9 @@ data:
   startup-waits.sh: |
     #!/bin/bash
 
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
     log () {
       >&2 echo "$THIS_SERVICE-startup-waits: $@"
     }
@@ -172,21 +173,9 @@ data:
       exit 1
     }
 
-    wait_for() {
-      service=$1
-      pod=$2
-      port=$3
-
-      log starting $service wait loop
-      until nc -z -w 1 $pod $port; do
-        log waiting for $pod on $port to accept connection
-        sleep 2
-      done
-    }
-
     log "Starting wait loops"
-    wait_for redis {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}
-    wait_for noms {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
+    wait_for_connection redis {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}
+    wait_for_connection noms {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
     log "Done"
 
     # get chaosnode's address from env vars
@@ -197,11 +186,14 @@ data:
     host=${!HOST_VAR}
     rpc_port=${!RPC_PORT_VAR}
 
-    wait_for chaosnode $host $rpc_port
+    wait_for_connection chaosnode $host $rpc_port
 
 
 
   shutdown-waits.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
 
     log () {
       >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
@@ -212,21 +204,8 @@ data:
       exit 1
     }
 
-    # wait for waits until a service is shut down
-    wait_for() {
-      service=$1
-      pod=$2
-      port=$3
-
-      log starting $service wait loop
-      while nc -z -w 1 $pod $port; do
-        log waiting for $pod on $port to become inactive
-        sleep 2
-      done
-    }
-
     log "Starting wait loops"
-    wait_for ndau-tm {{ template "nodegroup.fullname" . }}-ndau-tendermint-service {{ .Values.ndau.tendermint.ports.rpc }}
+    wait_until_down ndau-tm
     log "Done"
 
 

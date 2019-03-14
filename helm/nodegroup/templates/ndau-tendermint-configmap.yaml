@@ -22,6 +22,9 @@ data:
 
   startup-waits.sh: |
 
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
     log () {
       >&2 echo "$THIS_SERVICE-startup-waits: $@"
     }
@@ -31,26 +34,17 @@ data:
       exit 1
     }
 
-    wait_for() {
-      service=$1
-      pod=$2
-      port=$3
-
-      log starting $service wait loop
-      until nc -z -w 1 $pod $port; do
-        log waiting for $pod on $port to accept connection
-        sleep 2
-      done
-    }
-
     log "Starting wait loops"
-    wait_for redis {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}
-    wait_for noms {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
-    wait_for ndaunode {{ template "nodegroup.fullname" . }}-ndaunode-service {{ .Values.ndaunode.port }}
+    wait_for_connection redis {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}
+    wait_for_connection noms {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
+    wait_for_connection ndaunode {{ template "nodegroup.fullname" . }}-ndaunode-service {{ .Values.ndaunode.port }}
     log "Done"
 
   shutdown-waits.sh: |
 
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
     log () {
       >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
     }
@@ -58,19 +52,6 @@ data:
     err () {
       >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
       exit 1
-    }
-
-    # wait for waits until a service is shut down
-    wait_for() {
-      service=$1
-      pod=$2
-      port=$3
-
-      log starting $service wait loop
-      while nc -z -w 1 $pod $port; do
-        log waiting for $pod on $port to become inactive
-        sleep 2
-      done
     }
 
     log "Starting wait loops"
@@ -78,6 +59,9 @@ data:
 
   make-snapshot.sh: |
 
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
     log () {
       >&2 echo "$THIS_SERVICE-make-snapshot: $@"
     }
@@ -85,33 +69,6 @@ data:
     err () {
       >&2 echo "$THIS_SERVICE-make-snapshot: $@"
       exit 1
-    }
-
-    # s3_upload takes the first argument as the full local file path and uploads it to s3
-    # at the location defined by the local variable $s3_path
-    s3_upload() {
-
-      local local_file=$1
-      local s3_file=$2
-
-      # puts the snapshot somewhere safe while it's being built.
-      temp_token=$(/bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-temp-token")
-
-      # prepare headers and signature
-      the_date=$(date -R)
-      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/${temp_token}/${this_node}-${height}/$s3_file"
-      content_type="application/octet-stream"
-      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
-      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
-
-      # upload the local file
-      curl -X PUT -T "$local_file" \
-        -H "Host: s3.amazonaws.com" \
-        -H "Date: $the_date" \
-        -H "Content-Type: $content_type" \
-        -H "Authorization: AWS $AWS_KEY:$signature" \
-        "http://s3.amazonaws.com$s3_path"
-
     }
 
     this_node=ndau
@@ -121,7 +78,7 @@ data:
     log "Pinging redis."
     while true ; do
       # get redis readiness
-      if ! /bin/bash /root/redis-cli.sh -h $R_HOST PING; then
+      if ! redis_cli PING; then
         log "Waiting for redis to pong."
         sleep 1
       else
@@ -131,18 +88,15 @@ data:
     done
 
     # wait for height value
-    while [ "$height" == "-1" ] || [ -z "$height" ]; do
-      sleep 2
-      height=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$CHAIN-height")
-    done
-    log "Got height: $height"
+    height="$(get_height $CHAIN)"
 
     # wait until noms snapshot is finished
     tries_left=60 # approx 2 minutes
-    log "waiting for $CHAIN noms snapshot to finish" # TODO standardize errcho/log/err etx
-    while [ "$noms_snapshot_resp" != "-1" ]; do
+    log "waiting for $CHAIN noms snapshot to finish"
+    noms_snapshot_resp="1"
+    until [ "$noms_snapshot_resp" == "-1" ]; do
       [[ "$tries_left" -lt "1" ]] && break
-      noms_snapshot_resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$CHAIN-noms")
+      noms_snapshot_resp=$(redis_cli GET "snapshot-$CHAIN-noms")
       sleep 1
       tries_left=$((tries_left-1))
       log "Waiting $tries_left more times."
@@ -186,7 +140,7 @@ data:
     s3_upload "/root/$tar_file" "$tar_file"
 
     # delete service flag
-    /bin/bash /root/redis-cli.sh -h $R_HOST DEL "snapshot-$THIS_SERVICE"
+    redis_cli DEL "snapshot-$THIS_SERVICE"
 
     # create a manifest file
     jq --arg date "$(date)" \

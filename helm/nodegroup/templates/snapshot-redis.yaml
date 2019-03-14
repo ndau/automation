@@ -48,16 +48,14 @@ spec:
             shutdown() {
               echo "Shutting down"
               >&2 /bin/bash /root/shutdown-waits.sh
-              kill $pid
-              while kill -0 $pid; do echo "waiting for $THIS_SERVICE to stop"; sleep 1; done;
-              echo "done waiting"
+              kill_and_wait $pid $THIS_SERVICE
               exit 0
             }
 
             # wait for a sigterm and run shutdown
             trap shutdown SIGTERM
 
-            /bin/bash -x /root/listener.sh >&1 &
+            >&2 /bin/bash /root/listener.sh &
 
             while true; do
               sleep 42
@@ -67,6 +65,8 @@ spec:
         - mountPath: /root/start.sh
           name: snapshot-config
           subPath: start.sh
+        - mountPath: /root/lib
+          name: script-lib
         - mountPath: /root/listener.sh
           name: snapshot-config
           subPath: listener.sh
@@ -79,6 +79,9 @@ spec:
       - name: snapshot-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-snapshot-config
+      - name: script-lib
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-scripts
       resources:
         requests:
           memory: {{ .Values.snapshot.redis.resources.requests.memory }}

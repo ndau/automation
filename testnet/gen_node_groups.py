@@ -693,8 +693,7 @@ def main():
         os.chmod(f_path, 0o777)
 
     # save the preconf.sh script
-    preconf_cmd = textwrap.dedent(f"""
-        #!/bin/bash\n\n
+    preconf_cmd = textwrap.dedent(f"""#!/bin/bash\n\n
         NETWORK_NAME="{c.RELEASE}" \\
         SNAPSHOT_REDIS_TAG="{c.SNAPSHOT_REDIS_TAG}" \\
         CHAOSNODE_TAG="{c.CHAOSNODE_TAG}" \\

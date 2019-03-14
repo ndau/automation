@@ -30,6 +30,8 @@ spec:
         - mountPath: /root/startup-waits.sh
           name: ndaunode-config
           subPath: startup-waits.sh
+        - mountPath: /root/lib
+          name: script-lib
       - name: config
         image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
@@ -38,6 +40,10 @@ spec:
         - name: NDAUHOME
           value: "/root/.ndau"
         volumeMounts:
+        - mountPath: "/root/.ndau"
+          name: ndau-home-volume
+        - mountPath: /root/lib
+          name: script-lib
         - mountPath: /root/shutdown-waits.sh
           name: ndaunode-config
           subPath: shutdown-waits.sh
@@ -50,8 +56,6 @@ spec:
         - mountPath: /root/config-ro/config.toml
           name: ndaunode-config
           subPath: config.toml
-        - mountPath: "/root/.ndau"
-          name: ndau-home-volume
       containers:
       - name: ndaunode
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
@@ -73,22 +77,27 @@ spec:
         volumeMounts:
         - mountPath: "/root/.ndau"
           name: ndau-home-volume
+        - mountPath: /root/lib
+          name: script-lib
+        - mountPath: /root/liveness-decoy.sh
+          name: nodegroup-config
+          subPath: liveness-decoy.sh
         - mountPath: /root/ndaunode-start.sh
           name: ndaunode-config
           subPath: ndaunode-start.sh
         - mountPath: /root/redis-cli.sh
-          name: ndaunode-config
+          name: nodegroup-config
           subPath: redis-cli.sh
         readinessProbe:
           tcpSocket:
             port: {{ .Values.chaosnode.port }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.chaosnode.port }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
         resources:
           requests:
             memory: {{ .Values.ndaunode.resources.requests.memory }}
@@ -100,8 +109,14 @@ spec:
       - name: ndau-home-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-ndaunode-claim
+      - name: script-lib
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-scripts
       - name: ndaunode-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-ndaunode-config
+      - name: nodegroup-config
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
 
 {{ end }}

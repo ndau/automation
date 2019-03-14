@@ -34,6 +34,8 @@ spec:
         - mountPath: /root/startup-waits.sh
           name: ndau-tendermint-config
           subPath: startup-waits.sh
+        - mountPath: /root/lib
+          name: script-lib
       - name: hash # Uses ndaunode image to get the app hash and saves it
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
         imagePullPolicy: {{ .Values.ndaunode.image.pullPolicy }}
@@ -49,6 +51,8 @@ spec:
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
+        - mountPath: /root/lib
+          name: script-lib
       containers:
       - name: tendermint
         image: "{{ .Values.ndau.tendermint.image.repository }}:{{ .Values.ndau.tendermint.image.tag }}"
@@ -63,6 +67,11 @@ spec:
           mountPath: /tendermint
 
         # scripts
+        - mountPath: /root/lib
+          name: script-lib
+        - mountPath: /root/liveness-decoy.sh
+          name: nodegroup-config
+          subPath: liveness-decoy.sh
         - mountPath: /root/shutdown-waits.sh
           name: ndau-tendermint-config
           subPath: shutdown-waits.sh
@@ -105,12 +114,12 @@ spec:
           tcpSocket:
             port: {{ .Values.ndau.tendermint.ports.p2p }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.ndau.tendermint.ports.p2p }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
         env:
         - name: SNAPSHOTGUN_ENABLED
           value: "{{ .Values.snapshot.enabled }}"
@@ -126,6 +135,8 @@ spec:
           value: ndau-tm
         - name: CHAIN
           value: "ndau"
+        - name: P2P_PORT
+          value: {{ .Values.ndau.tendermint.ports.p2p | quote }}
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
@@ -143,6 +154,9 @@ spec:
         - name: tendermint-home-volume
           persistentVolumeClaim:
             claimName: {{ template "nodegroup.fullname" . }}-ndau-tendermint-claim
+        - name: script-lib
+          configMap:
+            name: {{ template "nodegroup.fullname" . }}-scripts
         - name: ndau-tendermint-config
           configMap:
             name: {{ template "nodegroup.fullname" . }}-ndau-tendermint-config

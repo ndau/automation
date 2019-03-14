@@ -34,12 +34,12 @@ spec:
           tcpSocket:
             port: {{ .Values.chaos.noms.port }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.chaos.noms.port }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
         env:
         - name: SNAPSHOTGUN_ENABLED
           value: "{{ .Values.snapshot.enabled }}"
@@ -53,6 +53,8 @@ spec:
           value: "chaos"
         - name: THIS_SERVICE
           value: chaos-noms
+        - name: NOMS_PORT
+          value: {{ .Values.chaos.noms.port | quote }}
         - name: SNAPSHOT_CODE
           value: {{ .Values.chaos.noms.snapshotCode }}
         ports:
@@ -60,6 +62,11 @@ spec:
         volumeMounts:
         - name: noms-volume
           mountPath: /noms
+        - mountPath: /root/lib
+          name: script-lib
+        - mountPath: /root/liveness-decoy.sh
+          name: nodegroup-config
+          subPath: liveness-decoy.sh
         - mountPath: /root/shutdown-waits.sh
           name: chaos-noms-config
           subPath: shutdown-waits.sh
@@ -79,6 +86,9 @@ spec:
       - name: noms-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-chaos-noms-claim
+      - name: script-lib
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-scripts
       - name: chaos-noms-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-chaos-noms-config

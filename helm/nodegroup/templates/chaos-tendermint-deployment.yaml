@@ -35,6 +35,8 @@ spec:
         - mountPath: /root/startup-waits.sh
           name: chaos-tendermint-config
           subPath: startup-waits.sh
+        - mountPath: /root/lib
+          name: script-lib
       - name: hash
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.tendermint.image.pullPolicy }}
@@ -50,6 +52,8 @@ spec:
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
+        - mountPath: /root/lib
+          name: script-lib
       containers:
       - name: tendermint
         image: "{{ .Values.chaos.tendermint.image.repository }}:{{ .Values.chaos.tendermint.image.tag }}"
@@ -61,8 +65,13 @@ spec:
         volumeMounts:
         - mountPath: /tendermint
           name: tendermint-home-volume
+        - mountPath: /root/lib
+          name: script-lib
 
         # scripts
+        - mountPath: /root/liveness-decoy.sh
+          name: nodegroup-config
+          subPath: liveness-decoy.sh
         - mountPath: /root/shutdown-waits.sh
           name: chaos-tendermint-config
           subPath: shutdown-waits.sh
@@ -105,12 +114,12 @@ spec:
           tcpSocket:
             port: {{ .Values.chaos.tendermint.ports.p2p }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.chaos.tendermint.ports.p2p }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
 
         env:
         - name: SNAPSHOTGUN_ENABLED
@@ -127,6 +136,8 @@ spec:
           value: chaos-tm
         - name: CHAIN # for downloading snapshots
           value: "chaos"
+        - name: P2P_PORT
+          value: {{ .Values.chaos.tendermint.ports.p2p | quote }}
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
@@ -144,6 +155,9 @@ spec:
         - name: tendermint-home-volume
           persistentVolumeClaim:
             claimName: {{ template "nodegroup.fullname" . }}-chaos-tendermint-claim
+        - name: script-lib
+          configMap:
+            name: {{ template "nodegroup.fullname" . }}-scripts
         - name: chaos-tendermint-config
           configMap:
             name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config

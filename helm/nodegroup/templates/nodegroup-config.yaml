@@ -14,6 +14,9 @@ data:
   restore-snapshot.sh: |
     #!/bin/bash
 
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
     # This depends on three variables being set prior to running.
     #
     # DATA_DIR            The directory that will recieve the snapshot
@@ -83,6 +86,9 @@ data:
     fi
 
   tendermint-init.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
 
     log () {
       >&2 echo "$THIS_SERVICE-init: $@"
@@ -190,7 +196,10 @@ data:
 
   tendermint-start.sh: |
     #!/bin/bash
-    echo "tendermint start"
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
     log () {
       >&2 echo "$THIS_SERVICE-start: $@"
     }
@@ -206,16 +215,7 @@ data:
 
       if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
         # if snapshot is taking place, wait until done
-        tries_left=30 # approx 1 minute
-        log "waiting for snapshot to finish"
-        # wait until done snapping, or, timed out
-        until [ "$resp" == "-1" ]; do
-          [[ "$tries_left" -lt "1" ]] && break
-          resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
-          sleep 1
-          tries_left=$((tries_left-1))
-          log "Waiting $tries_left more times."
-        done
+        wait_until_key_gone "snapshot-snapping"
       fi
 
       >&2 /bin/bash /root/startup-waits.sh
@@ -223,28 +223,14 @@ data:
         --p2p.persistent_peers "$PERSISTENT_PEERS" \
         --log_level="*:debug" &
       pid=$!
+      redis_cli DEL "snapshot-$THIS_SERVICE-down"
     }
 
     shutdown() {
       log "Shutting down"
       >&2 /bin/bash /root/shutdown-waits.sh
-      kill $pid
-      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
-      log "done waiting"
+      kill_and_wait $pid $THIS_SERVICE
       exit 0
-    }
-
-    snapshot() {
-      log "Starting snapshot, shutting down gracefully."
-      kill $pid
-      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
-      log "done waiting"
-      height=$(cat /tendermint/data/priv_validator_state.json | jq -r ".height")
-      log "$CHAIN height: $height"
-      /bin/bash /root/redis-cli.sh -h $R_HOST set "snapshot-$CHAIN-height" "$height"
-      /bin/bash -x /root/make-snapshot.sh >&1
-      # restart when snapshot is done
-      startup
     }
 
     # wait for a sigterm and run shutdown
@@ -257,23 +243,45 @@ data:
     startup
 
     # main loop
-    log "starting main loop"
     while true; do
       if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
         # snapshot if this service has been told to snapshot by redis
         sleep 2
-        res=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$THIS_SERVICE")
-        [ "$res" == "1" ] && snapshot
+        res=$(redis_cli GET "snapshot-$THIS_SERVICE")
+        if [ "$res" == "1" ]; then
+          height=$(cat /tendermint/data/priv_validator_state.json | jq -r ".height")
+          log "$CHAIN height: $height"
+          redis_cli SET "snapshot-$CHAIN-height" "$height"
+          DECOY_PORT=$P2P_PORT make_service_snapshot
+        fi
       else
         sleep 42
       fi
     done
 
+  lib.sh: |
+    log () {
+      >&2 printf '{t:"%s", l:"%s", src:"%s", msg:"%s"}' \
+        $(date +%F_%T) \
+        "info" \
+        "$log_src" \
+        "$(printf "$@" | sed 's/"/\\\"/g')"
+    }
+
+    err () {
+      >&2 printf '{t:"%s", l:"%s", src:"%s", msg:"%s"}' \
+        $(date +%F_%T) \
+        "err" \
+        "$log_src" \
+        "$(printf "$@" | sed 's/"/\\\"/g')"
+      exit 1
+    }
 
   noms-start.sh: |
-    log () {
-      >&2 echo "$THIS_SERVICE-start: $@"
-    }
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+    log_src="$THIS_SERVICE-start"
 
     err () {
       >&2 echo "$THIS_SERVICE-start: $@"
@@ -298,7 +306,7 @@ data:
         # wait until done snapping, or, timed out
         until [ "$resp" == "-1" ]; do
           [[ "$tries_left" -lt "1" ]] && break
-          resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
+          resp=$(redis_cli GET "snapshot-snapping")
           sleep 1
           tries_left=$((tries_left-1))
           log "Waiting $tries_left more times."
@@ -306,25 +314,15 @@ data:
       fi
 
       # start noms
-      noms serve /noms/data &
+      noms serve /noms/data --port=$NOMS_PORT &
       pid=$! # get noms pid
-    }
-
-    snapshot() {
-      log "starting snapshot"
-      kill $pid
-      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
-      log "done waiting"
-      /bin/bash -x /root/make-snapshot.sh >&1
-      startup
+      redis_cli DEL "snapshot-$THIS_SERVICE-down"
     }
 
     shutdown() {
       log "Shutting down"
       >&2 /bin/bash /root/shutdown-waits.sh
-      kill $pid
-      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
-      log "done waiting"
+      kill_and_wait $pid $THIS_SERVICE
       exit 0
     }
 
@@ -334,19 +332,24 @@ data:
     trap shutdown SIGTERM
 
     # main loop
-    log "starting main loop"
     while true; do
       if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
         # snapshot if this service has been told to snapshot by redis
         sleep 2
-        res=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$THIS_SERVICE")
-        [ "$res" == "1" ] && snapshot
+        res=$(redis_cli GET "snapshot-$THIS_SERVICE")
+        if [ "$res" == "1" ]; then
+          DECOY_PORT=$NOMS_PORT make_service_snapshot
+        fi
       else
         sleep 42
       fi
     done
 
   redis-start.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
     log () {
       >&2 echo "$THIS_SERVICE-start: $@"
     }
@@ -372,7 +375,7 @@ data:
         # wait until done snapping, or, timed out
         until [ "$resp" == "-1" ]; do
           [[ "$tries_left" -lt "1" ]] && break
-          resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-snapping")
+          resp=$(redis_cli GET "snapshot-snapping")
           sleep 1
           tries_left=$((tries_left-1))
           log "Waiting $tries_left more times."
@@ -385,24 +388,14 @@ data:
         --tcp-backlog 128 \
         --port $REDIS_PORT &
       pid=$!
+      redis_cli DEL "snapshot-$THIS_SERVICE-down"
     }
 
     shutdown() {
       log "Shutting down"
       >&2 /bin/bash /root/shutdown-waits.sh
-      kill $pid
-      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
+      kill_and_wait $pid $THIS_SERVICE
       exit 0
-    }
-
-    snapshot() {
-      log "Shutting down"
-      kill $pid
-      while kill -0 $pid; do log "waiting for $THIS_SERVICE to stop"; sleep 1; done;
-      log "done waiting"
-      /bin/bash -x /root/make-snapshot.sh >&1
-      # restart when snapshot is done
-      startup
     }
 
     startup
@@ -411,16 +404,38 @@ data:
     trap shutdown SIGTERM
 
     # main loop
-    log "starting main loop"
     while true; do
       if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
         # snapshot if this service has been told to snapshot by redis
         sleep 2
-        res=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$THIS_SERVICE")
-        [ "$res" == "1" ] && snapshot
+        res=$(redis_cli GET "snapshot-$THIS_SERVICE")
+        if [ "$res" == "1" ]; then
+          DECOY_PORT=$REDIS_PORT make_service_snapshot
+        fi
       else
         sleep 42
       fi
+    done
+
+
+  liveness-decoy.sh: |
+    #!/bin/bash
+
+    source /root/lib/log.sh
+    log_src="$THIS_SERVICE-decoy"
+
+    port=$1
+    log "Starting liveness decoy on port $port"
+
+    log_exit() {
+      log "Ending liveness decoy on port $port"
+    }
+
+    trap log_exit EXIT
+
+    # main
+    while true; do
+      nc -l -p "$port"
     done
 
 

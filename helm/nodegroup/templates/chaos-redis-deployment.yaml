@@ -37,12 +37,12 @@ spec:
           tcpSocket:
             port: {{ .Values.chaos.redis.port }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.chaos.redis.port }}
           initialDelaySeconds: 30
-          periodSeconds: 30
+          periodSeconds: 10
         env:
         - name: SNAPSHOTGUN_ENABLED
           value: "{{ .Values.snapshot.enabled }}"
@@ -51,7 +51,7 @@ spec:
         - name: AWS_SECRET
           value: {{ .Values.aws.secretAccessKey }}
         - name: REDIS_PORT
-          value: "{{ .Values.chaos.redis.port }}"
+          value: {{ .Values.chaos.redis.port | quote }}
         - name: R_HOST # for snapshot coordination
           value: {{ template "nodegroup.fullname" . }}-snapshot-redis
         - name: THIS_SERVICE
@@ -65,6 +65,11 @@ spec:
         volumeMounts:
         - name: redis-volume
           mountPath: /redis
+        - mountPath: /root/lib
+          name: script-lib
+        - mountPath: /root/liveness-decoy.sh
+          name: nodegroup-config
+          subPath: liveness-decoy.sh
         - mountPath: /root/shutdown-waits.sh
           name: chaos-redis-config
           subPath: shutdown-waits.sh
@@ -84,6 +89,9 @@ spec:
       - name: redis-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-chaos-redis-claim
+      - name: script-lib
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-scripts
       - name: nodegroup-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-nodegroup-config
