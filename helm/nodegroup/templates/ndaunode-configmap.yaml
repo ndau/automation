@@ -2,7 +2,7 @@
 
 kind: ConfigMap
 metadata:
-  name: {{ template "nodegroup.fullname" . }}-ndau-config
+  name: {{ template "nodegroup.fullname" . }}-ndaunode-config
   labels:
     app: {{ template "nodegroup.name" . }}
     chart: {{ template "nodegroup.chart" . }}
@@ -21,6 +21,9 @@ data:
       Namespace = "NAMESPACE_TOKEN"
 
   init.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
 
     CURL_RETRIES=10
     CURL_RETRY_DELAY=0
@@ -84,5 +87,117 @@ data:
 
     # Show what files are there
     find /root/.ndau
+
+  ndaunode-start.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
+    log () {
+      >&2 echo "$THIS_SERVICE-start: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-start: $@"
+      exit 1
+    }
+
+    startup() {
+      log "Starting"
+
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # if snapshot is taking place, wait until done
+        wait_until_key_gone "snapshot-snapping" || err "previous snapshot never finished"
+      fi
+
+      >&2 /bin/bash /root/startup-waits.sh
+
+      ndaunode \
+        -spec http://{{ template "nodegroup.fullname" . }}-ndau-noms-service:{{ .Values.ndau.noms.port }} \
+        -addr 0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }} \
+        -index {{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }} &
+      pid=$! # get ndaunode pid
+      [ "$SNAPSHOTGUN_ENABLED" == "true" ] && redis_cli DEL "snapshot-$THIS_SERVICE-down"
+    }
+
+    shutdown() {
+      log "Shutting down"
+      >&2 /bin/bash /root/shutdown-waits.sh
+      kill_and_wait $pid $THIS_SERVICE
+      exit 0
+    }
+
+    startup
+
+    # wait for a sigterm and run shutdown
+    trap shutdown SIGTERM
+
+    # main loop
+    log "starting main loop"
+    while true; do
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # snapshot if this service has been told to snapshot by redis
+        sleep 2
+        res=$(redis_cli GET "snapshot-$THIS_SERVICE")
+        if [ "$res" == "1" ]; then
+          DECOY_PORT={{ .Values.ndaunode.port }} make_service_snapshot
+        fi
+      else
+        sleep 42
+      fi
+    done
+
+
+
+  startup-waits.sh: |
+    #!/bin/bash
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
+    log () {
+      >&2 echo "$THIS_SERVICE-startup-waits: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-startup-waits: $@"
+      exit 1
+    }
+
+    log "Starting wait loops"
+    wait_for_connection redis {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}
+    wait_for_connection noms {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
+    log "Done"
+
+    # get chaosnode's address from env vars
+    fullname="{{ template "nodegroup.fullname" . }}"
+    RELEASE=$(echo ${fullname//-/_} | awk '{print toupper($0)}')
+    HOST_VAR=${RELEASE}_CHAOS_TENDERMINT_SERVICE_SERVICE_HOST
+    RPC_PORT_VAR=${RELEASE}_CHAOS_TENDERMINT_SERVICE_SERVICE_PORT_RPC
+    host=${!HOST_VAR}
+    rpc_port=${!RPC_PORT_VAR}
+
+    wait_for_connection chaosnode $host $rpc_port
+
+
+
+  shutdown-waits.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
+    log () {
+      >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
+      exit 1
+    }
+
+    log "Starting wait loops"
+    wait_until_down ndau-tm
+    log "Done"
+
 
 {{ end }}

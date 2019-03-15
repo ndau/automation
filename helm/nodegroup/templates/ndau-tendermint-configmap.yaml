@@ -20,75 +20,77 @@ data:
 
   priv_validator_state.json: {{ b64dec .Values.ndau.privValidatorState | quote }}
 
-  make-snapshot.sh: |
+  startup-waits.sh: |
 
-    errcho() {
-      >&2 echo $@
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
+    log () {
+      >&2 echo "$THIS_SERVICE-startup-waits: $@"
     }
 
-    # s3_upload takes the first argument as the full local file path and uploads it to s3
-    # at the location defined by the local variable $s3_path
-    s3_upload() {
+    err () {
+      >&2 echo "$THIS_SERVICE-startup-waits: $@"
+      exit 1
+    }
 
-      local local_file=$1
-      local s3_file=$2
+    log "Starting wait loops"
+    wait_for_connection redis {{ template "nodegroup.fullname" . }}-ndau-redis-service {{ .Values.ndau.redis.port }}
+    wait_for_connection noms {{ template "nodegroup.fullname" . }}-ndau-noms-service {{ .Values.ndau.noms.port }}
+    wait_for_connection ndaunode {{ template "nodegroup.fullname" . }}-ndaunode-service {{ .Values.ndaunode.port }}
+    log "Done"
 
-      # puts the snapshot somewhere safe while it's being built.
-      temp_token=$(/bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-temp-token")
+  shutdown-waits.sh: |
 
-      # prepare headers and signature
-      the_date=$(date -R)
-      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/${temp_token}/${this_node}-${height}/$s3_file"
-      content_type="application/octet-stream"
-      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
-      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
 
-      # upload the local file
-      curl -X PUT -T "$local_file" \
-        -H "Host: s3.amazonaws.com" \
-        -H "Date: $the_date" \
-        -H "Content-Type: $content_type" \
-        -H "Authorization: AWS $AWS_KEY:$signature" \
-        "http://s3.amazonaws.com$s3_path"
+    log () {
+      >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
+    }
 
+    err () {
+      >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
+      exit 1
+    }
+
+    log "Starting wait loops"
+    log "Done"
+
+  make-snapshot.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
+    log () {
+      >&2 echo "$THIS_SERVICE-make-snapshot: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-make-snapshot: $@"
+      exit 1
     }
 
     this_node=ndau
     this_app=tm
+    BUCKET={{ .Values.aws.snapshotBucket }}
+    NETWORK={{ .Values.networkName }}
 
     # wait for redis
-    errcho "Pinging redis."
+    log "Pinging redis."
     while true ; do
       # get redis readiness
-      if ! /bin/bash /root/redis-cli.sh -h $R_HOST PING; then
-        errcho "Waiting for redis to pong."
+      if ! redis_cli PING; then
+        log "Waiting for redis to pong."
         sleep 1
       else
-        errcho "Redis is ready."
+        log "Redis is ready."
         break
       fi
     done
 
     # wait for height value
-    while [ "$height" == "-1" ] || [ -z "$height" ]; do
-      sleep 2
-      height=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$CHAIN-height")
-    done
-    errcho "Got height: $height"
-
-    # wait until noms snapshot is finished
-    tries_left=60 # approx 2 minutes
-    errcho "waiting for $CHAIN noms snapshot to finish" # TODO standardize errcho/log/err etx
-    while [ "$noms_snapshot_resp" != "-1" ] || (( $tries_left == 0 )); do
-      noms_snapshot_resp=$(timeout -t 1 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$CHAIN-noms")
-      sleep 1
-      (($tries_left--))
-      errcho "Waiting $tries more times."
-    done
-    errcho "done waiting"
-    if [ "$noms_snapshot_resp" == "-1" ]; then
-      errcho "$CHAIN noms snapshot didn't finish"
-    fi
+    height="$(get_height $CHAIN)"
 
     # upload the tendermint databases
 
@@ -97,9 +99,9 @@ data:
     s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/${this_node}-${height}/${tar_file}"
 
     if curl_response=$(curl -I -f "http://s3.amazonaws.com$s3_path"); then
-      errcho "Snapshot $s3_path already exists. Will not upload."
+      log "Snapshot $s3_path already exists. Will not upload."
     else
-      errcho "Uploading snapshot $s3_path."
+      log "Uploading snapshot $s3_path."
 
       (
         cd /tendermint/data
@@ -124,7 +126,7 @@ data:
     s3_upload "/root/$tar_file" "$tar_file"
 
     # delete service flag
-    /bin/bash /root/redis-cli.sh -h $R_HOST DEL "snapshot-$THIS_SERVICE"
+    redis_cli DEL "snapshot-$THIS_SERVICE"
 
     # create a manifest file
     jq --arg date "$(date)" \
@@ -133,7 +135,7 @@ data:
       .[\"date\"]=\$date | \
       .[\"height\"]=\$height " \
       <<< '{}' > /root/manifest.json
-    errcho "Created manifest file: $(cat /root/manifest.json)"
+    log "Created manifest file: $(cat /root/manifest.json)"
 
     s3_upload "/root/manifest.json" "${this_node}-manifest.json"
 

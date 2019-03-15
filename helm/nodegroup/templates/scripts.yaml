@@ -1,0 +1,16 @@
+
+kind: ConfigMap
+metadata:
+  name: {{ template "nodegroup.fullname" . }}-scripts
+  labels:
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+apiVersion: v1
+data:
+  {{ $root := . }}
+  {{ range $path, $bytes := .Files.Glob "lib/**.sh" }}
+  {{ base $path }}: |
+{{ $root.Files.Get $path | indent 4 }}
+  {{ end }}

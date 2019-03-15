@@ -30,39 +30,20 @@ spec:
       - name: waits
         image: "{{ .Values.chaos.deployUtils.image.repository }}:{{ .Values.chaos.deployUtils.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.deployUtils.image.pullPolicy }}
-        command:
-          - sh
-          - -c
-          - |-
-            # wait for redis
-            echo starting redis wait loop
-            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}; do
-              echo waiting for {{ template "nodegroup.fullname" . }}-chaos-redis-service
-              sleep 2
-            done
-
-            # wait for noms
-            echo starting noms wait loop
-            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-chaos-noms-service {{ .Values.chaos.noms.port }}; do
-              echo waiting for {{ template "nodegroup.fullname" . }}-chaos-noms-service
-              sleep 2
-            done
-
-            # wait for node app
-            echo starting node app wait loop
-            until nc -z -w 1 {{ template "nodegroup.fullname" . }}-chaosnode-service {{ .Values.chaosnode.port }}; do
-              echo waiting for {{ template "nodegroup.fullname" . }}-chaosnode-service {{ .Values.chaosnode.port }}
-              sleep 2
-            done
-
+        command: ["/bin/bash", "/root/startup-waits.sh"]
+        volumeMounts:
+        - mountPath: /root/startup-waits.sh
+          name: chaos-tendermint-config
+          subPath: startup-waits.sh
+        - mountPath: /root/lib
+          name: script-lib
       - name: hash
         image: "{{ .Values.chaosnode.image.repository }}:{{ .Values.chaosnode.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.tendermint.image.pullPolicy }}
-        command: ["/bin/sh"]
-        args: [
-          "-c",
-          "/bin/chaosnode -echo-hash -spec http://{{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/app_hash",
-        ]
+        command:
+          - /bin/sh
+          - -c
+          - /bin/chaosnode -echo-hash -spec http://{{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} >&1 | tail -n 1 | tr -d '[:space:]' > /tendermint/app_hash
         env:
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
@@ -71,11 +52,12 @@ spec:
         volumeMounts:
         - name: tendermint-home-volume
           mountPath: /tendermint
+        - mountPath: /root/lib
+          name: script-lib
       containers:
       - name: tendermint
         image: "{{ .Values.chaos.tendermint.image.repository }}:{{ .Values.chaos.tendermint.image.tag }}"
-        command: ["/bin/sh"]
-        args: ["/root/tendermint-start.sh"]
+        command: ["/bin/bash", "/root/tendermint-start.sh"]
         imagePullPolicy: {{ .Values.chaos.tendermint.image.pullPolicy }}
         ports:
           - containerPort: {{ .Values.chaos.tendermint.ports.p2p }}
@@ -83,49 +65,60 @@ spec:
         volumeMounts:
         - mountPath: /tendermint
           name: tendermint-home-volume
+        - mountPath: /root/lib
+          name: script-lib
 
         # scripts
-        - name: make-snapshot-sh
-          mountPath: /root/make-snapshot.sh
+        - mountPath: /root/liveness-decoy.sh
+          name: nodegroup-config
+          subPath: liveness-decoy.sh
+        - mountPath: /root/shutdown-waits.sh
+          name: chaos-tendermint-config
+          subPath: shutdown-waits.sh
+        - mountPath: /root/startup-waits.sh
+          name: chaos-tendermint-config
+          subPath: startup-waits.sh
+        - mountPath: /root/make-snapshot.sh
+          name: chaos-tendermint-config
           subPath: make-snapshot.sh
-        - name: tendermint-init-sh
-          mountPath: /root/tendermint-init.sh
+        - mountPath: /root/tendermint-init.sh
+          name: nodegroup-config
           subPath: tendermint-init.sh
-        - name: tendermint-start-sh
-          mountPath: /root/tendermint-start.sh
+        - mountPath: /root/tendermint-start.sh
+          name: nodegroup-config
           subPath: tendermint-start.sh
-        - name: restore-snapshot-sh
-          mountPath: /root/restore-snapshot.sh
+        - mountPath: /root/restore-snapshot.sh
+          name: nodegroup-config
           subPath: restore-snapshot.sh
-        - name: redis-cli-sh
-          mountPath: /root/redis-cli.sh
+        - mountPath: /root/redis-cli.sh
+          name: nodegroup-config
           subPath: redis-cli.sh
 
         # read only config files
-        - name: genesis-json
-          mountPath: /root/config-ro/genesis.json
+        - mountPath: /root/config-ro/genesis.json
+          name: chaos-tendermint-config
           subPath: genesis.json
-        - name: node-key-json
-          mountPath: /root/config-ro/node_key.json
+        - mountPath: /root/config-ro/node_key.json
+          name: chaos-tendermint-config
           subPath: node_key.json
-        - name: priv-validator-key-json
-          mountPath: /root/config-ro/priv_validator_key.json
+        - mountPath: /root/config-ro/priv_validator_key.json
+          name: chaos-tendermint-config
           subPath: priv_validator_key.json
-        - name: priv-validator-state-json
-          mountPath: /root/data-ro/priv_validator_state.json
+        - mountPath: /root/data-ro/priv_validator_state.json
+          name: chaos-tendermint-config
           subPath: priv_validator_state.json
-        - name: config-toml
-          mountPath: /root/config-ro/config.toml
+        - mountPath: /root/config-ro/config.toml
+          name: chaos-tendermint-config
           subPath: config.toml
         readinessProbe:
           tcpSocket:
             port: {{ .Values.chaos.tendermint.ports.p2p }}
-          initialDelaySeconds: 10
+          initialDelaySeconds: 30
           periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.chaos.tendermint.ports.p2p }}
-          initialDelaySeconds: 10
+          initialDelaySeconds: 30
           periodSeconds: 10
 
         env:
@@ -143,6 +136,8 @@ spec:
           value: chaos-tm
         - name: CHAIN # for downloading snapshots
           value: "chaos"
+        - name: P2P_PORT
+          value: {{ .Values.chaos.tendermint.ports.p2p | quote }}
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
@@ -160,70 +155,15 @@ spec:
         - name: tendermint-home-volume
           persistentVolumeClaim:
             claimName: {{ template "nodegroup.fullname" . }}-chaos-tendermint-claim
-
-        # read only config files
-        - name: config-toml
+        - name: script-lib
+          configMap:
+            name: {{ template "nodegroup.fullname" . }}-scripts
+        - name: chaos-tendermint-config
           configMap:
             name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
-            items:
-            - key: config.toml
-              path: config.toml
-        - name: genesis-json
-          configMap:
-            name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
-            items:
-            - key: genesis.json
-              path: genesis.json
-        - name: priv-validator-key-json
-          configMap:
-            name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
-            items:
-            - key: priv_validator_key.json
-              path: priv_validator_key.json
-        - name: priv-validator-state-json
-          configMap:
-            name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
-            items:
-            - key: priv_validator_state.json
-              path: priv_validator_state.json
-        - name: node-key-json
-          configMap:
-            name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
-            items:
-            - key: node_key.json
-              path: node_key.json
-
-        # Scripts
-        - name: make-snapshot-sh
-          configMap:
-            name: {{ template "nodegroup.fullname" . }}-chaos-tendermint-config
-            items:
-            - key: make-snapshot.sh
-              path: make-snapshot.sh
-        - name: restore-snapshot-sh
+        - name: nodegroup-config
           configMap:
             name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-            items:
-            - key: restore-snapshot.sh
-              path: restore-snapshot.sh
-        - name: redis-cli-sh
-          configMap:
-            name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-            items:
-            - key: redis-cli.sh
-              path: redis-cli.sh
-        - name: tendermint-init-sh
-          configMap:
-            name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-            items:
-            - key: tendermint-init.sh
-              path: tendermint-init.sh
-        - name: tendermint-start-sh
-          configMap:
-            name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-            items:
-            - key: tendermint-start.sh
-              path: tendermint-start.sh
       resources:
         requests:
           memory: {{ .Values.chaos.tendermint.resources.requests.memory }}

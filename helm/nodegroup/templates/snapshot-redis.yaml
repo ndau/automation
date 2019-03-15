@@ -32,11 +32,9 @@ spec:
         ports:
         - containerPort: {{ .Values.snapshot.redis.port }}
         command:
-          - /bin/sh
+          - /bin/bash
           - -c
           - |-
-            set -x
-
             # add aws-cli
             apk add groff less python py-pip --no-cache
             pip install awscli
@@ -49,27 +47,28 @@ spec:
 
             shutdown() {
               echo "Shutting down"
-              kill $pid
-              while kill -0 $pid; do echo "waiting for $THIS_SERVICE to stop"; sleep 1; done;
-              echo "done waiting"
+              >&2 /bin/bash /root/shutdown-waits.sh
+              kill_and_wait $pid $THIS_SERVICE
               exit 0
             }
 
             # wait for a sigterm and run shutdown
             trap shutdown SIGTERM
 
-            /bin/bash -x /root/listener.sh >&1 &
+            >&2 /bin/bash /root/listener.sh &
 
             while true; do
               sleep 42
             done
 
         volumeMounts:
-        - name: start-sh
-          mountPath: /root/start.sh
+        - mountPath: /root/start.sh
+          name: snapshot-config
           subPath: start.sh
-        - name: listener-sh
-          mountPath: /root/listener.sh
+        - mountPath: /root/lib
+          name: script-lib
+        - mountPath: /root/listener.sh
+          name: snapshot-config
           subPath: listener.sh
         env:
           - name: AWS_ACCESS_KEY_ID
@@ -77,18 +76,12 @@ spec:
           - name: AWS_SECRET_ACCESS_KEY
             value: {{ .Values.aws.secretAccessKey }}
       volumes:
-      - name: start-sh
+      - name: snapshot-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-snapshot-config
-          items:
-          - key: start.sh
-            path: start.sh
-      - name: listener-sh
+      - name: script-lib
         configMap:
-          name: {{ template "nodegroup.fullname" . }}-snapshot-config
-          items:
-          - key: listener.sh
-            path: listener.sh
+          name: {{ template "nodegroup.fullname" . }}-scripts
       resources:
         requests:
           memory: {{ .Values.snapshot.redis.resources.requests.memory }}

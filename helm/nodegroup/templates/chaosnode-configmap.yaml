@@ -1,0 +1,115 @@
+{{ if .Values.chaos.enabled }}
+
+kind: ConfigMap
+metadata:
+  name: {{ template "nodegroup.fullname" . }}-chaosnode-config
+  labels:
+    app: {{ template "nodegroup.name" . }}
+    chart: {{ template "nodegroup.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+apiVersion: v1
+data:
+  chaosnode-start.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
+    log () {
+      >&2 echo "$THIS_SERVICE-start: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-start: $@"
+      exit 1
+    }
+
+    startup() {
+      log "Starting"
+
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # if snapshot is taking place, wait until done
+        wait_until_key_gone "snapshot-snapping" || err "previous snapshot never finished"
+      fi
+
+      >&2 /bin/bash /root/startup-waits.sh
+
+      # start chaosnode
+      log "starting chaosnode"
+      chaosnode --set-ndaunode $(cat /root/.ndau/ndau-address)
+      chaosnode \
+        -spec http://{{ template "nodegroup.fullname" . }}-chaos-noms-service:{{ .Values.chaos.noms.port }} \
+        -addr 0.0.0.0:{{ required ".Values.chaosnode.port required" .Values.chaosnode.port }} \
+        -index {{ template "nodegroup.fullname" . }}-chaos-redis-service:{{ .Values.chaos.redis.port }} &
+      pid=$! # get chaosnode pid
+      [ "$SNAPSHOTGUN_ENABLED" == "true" ] && redis_cli DEL "snapshot-$THIS_SERVICE-down"
+      log "chaosnode started $pid"
+    }
+
+    shutdown() {
+      log "Shutting down"
+      >&2 /bin/bash /root/shutdown-waits.sh
+      kill_and_wait $pid $THIS_SERVICE
+      # no need to set a -down flag here. This is not for backups.
+      exit 0
+    }
+
+    startup
+
+    # wait for a sigterm and run shutdown
+    trap shutdown SIGTERM
+
+    # main loop
+    log "starting main loop"
+    while true; do
+      if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
+        # snapshot if this service has been told to snapshot by redis
+        sleep 2
+        res=$(redis_cli GET "snapshot-$THIS_SERVICE")
+        if [ "$res" == "1" ]; then
+          DECOY_PORT={{ .Values.chaosnode.port }} make_service_snapshot
+        fi
+      else
+        sleep 42
+      fi
+    done
+
+
+  startup-waits.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
+    log () {
+      >&2 echo "$THIS_SERVICE-startup-waits: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-startup-waits: $@"
+      exit 1
+    }
+
+    log "Starting wait loops"
+    wait_for_connection redis {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}
+    wait_for_connection noms {{ template "nodegroup.fullname" . }}-chaos-noms-service {{ .Values.chaos.noms.port }}
+    log "Done"
+
+  shutdown-waits.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
+    log () {
+      >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-shutdown-waits: $@"
+      exit 1
+    }
+
+    log "Starting wait loops"
+    wait_until_down chaos-tm
+    log "Done"
+
+{{ end }}

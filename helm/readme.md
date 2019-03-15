@@ -42,6 +42,31 @@ When executing `gen_node_groups.py`, the `SNAPSHOTS_ENABLED=true` setting will g
 
 Snapshots can be triggered in one of two ways. Either by shelling in and executing the `/root/start.sh` script manually on the `snapshot-redis` pod, or via a network call to the `snapshot-redis` service at the configured listener port. `echo "snap" | nc {{ template "nodegroup.fullname" . }}-snapshot-redis {{ .Values.snapshot.cron.listener.port }}`
 
+## Sequences
+
+### Start up
+
+> thing (should wait for)
+
+chaos-noms chaos-redis ndau-noms ndau-redis
+chaosnode (chaos-noms, chaos-redis)
+chaos-tm (chaosnode)
+ndaunode (ndau-noms, ndau-redis, chaos-tm)
+ndau-tm (ndaunode)
+
+### Shut down
+
+> thing (should wait for)
+
+ndau-tm
+ndaunode (ndau-tm)
+ndau-noms (ndaunode)
+ndau-redis (ndaunode)
+chaos-tm (ndaunode)
+chaosnode (chaos-tm)
+chaos-noms (chaosnode)
+chaos-redis (chaosnode)
+
 ## Troubleshooting
 
 ### genesis.json

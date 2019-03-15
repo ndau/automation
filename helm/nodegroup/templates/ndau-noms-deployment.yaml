@@ -28,19 +28,17 @@ spec:
       - name: noms
         image: "{{ .Values.ndau.noms.image.repository }}:{{ .Values.ndau.noms.image.tag }}"
         imagePullPolicy: {{ .Values.ndau.noms.image.pullPolicy }}
-        command:
-          - /bin/bash
-          - /root/noms-start.sh
+        command: [ "/bin/bash", "/root/noms-start.sh" ]
         readinessProbe:
           tcpSocket:
             port: {{ .Values.ndau.noms.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.ndau.noms.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
         env:
         - name: SNAPSHOTGUN_ENABLED
           value: "{{ .Values.snapshot.enabled }}"
@@ -54,55 +52,48 @@ spec:
           value: ndau-noms
         - name: CHAIN
           value: "ndau"
+        - name: NOMS_PORT
+          value: {{ .Values.chaos.noms.port | quote }}
         - name: SNAPSHOT_CODE
           value: {{ .Values.ndau.noms.snapshotCode }}
         ports:
         - containerPort: {{ .Values.ndau.noms.port }}
         volumeMounts:
-        - name: noms-start-sh
-          mountPath: /root/noms-start.sh
-          subPath: noms-start.sh
-        - name: make-snapshot-sh
-          mountPath: /root/make-snapshot.sh
-          subPath: make-snapshot.sh
-        - name: restore-snapshot-sh
-          mountPath: /root/restore-snapshot.sh
-          subPath: restore-snapshot.sh
-        - name: redis-cli-sh
-          mountPath: /root/redis-cli.sh
-          subPath: redis-cli.sh
         - name: noms-volume
           mountPath: /noms
+        - mountPath: /root/lib
+          name: script-lib
+        - mountPath: /root/liveness-decoy.sh
+          name: nodegroup-config
+          subPath: liveness-decoy.sh
+        - mountPath: /root/shutdown-waits.sh
+          name: ndau-noms-config
+          subPath: shutdown-waits.sh
+        - mountPath: /root/noms-start.sh
+          name: nodegroup-config
+          subPath: noms-start.sh
+        - mountPath: /root/make-snapshot.sh
+          name: ndau-noms-config
+          subPath: make-snapshot.sh
+        - mountPath: /root/restore-snapshot.sh
+          name: nodegroup-config
+          subPath: restore-snapshot.sh
+        - mountPath: /root/redis-cli.sh
+          name: nodegroup-config
+          subPath: redis-cli.sh
       volumes:
-      - name: noms-start-sh
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: noms-start.sh
-            path: noms-start.sh
-
       - name: noms-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-ndau-noms-claim
-      # scripts
-      - name: make-snapshot-sh
+      - name: script-lib
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-scripts
+      - name: ndau-noms-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-ndau-noms-config
-          items:
-          - key: make-snapshot.sh
-            path: make-snapshot.sh
-      - name: restore-snapshot-sh
+      - name: nodegroup-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: restore-snapshot.sh
-            path: restore-snapshot.sh
-      - name: redis-cli-sh
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: redis-cli.sh
-            path: redis-cli.sh
       resources:
         requests:
           memory: {{ .Values.ndau.noms.resources.requests.memory }}

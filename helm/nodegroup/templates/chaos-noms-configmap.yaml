@@ -12,6 +12,9 @@ apiVersion: v1
 data:
   make-snapshot.sh: |
 
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
     log () {
       >&2 echo "chaos-noms-make-snapshot: $@"
     }
@@ -21,35 +24,10 @@ data:
       exit 1
     }
 
-    # s3_upload takes the first argument as the full local file path and uploads it to s3
-    # at the location defined by the local variable $s3_path
-    s3_upload() {
-
-      local local_file=$1
-      local s3_file=$2
-
-      # puts the snapshot somewhere safe while it's being built.
-      temp_token=$(/bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-temp-token")
-
-      # prepare headers and signature
-      the_date=$(date -R)
-      s3_path="/{{ .Values.aws.snapshotBucket }}/{{ .Values.networkName }}/${temp_token}/${this_node}-${height}/$s3_file"
-      content_type="application/octet-stream"
-      signable_bytes="PUT\n\n${content_type}\n${the_date}\n${s3_path}"
-      signature=$(echo -en $signable_bytes | openssl sha1 -hmac $AWS_SECRET -binary | base64)
-
-      # upload the local file
-      curl -X PUT -T "$local_file" \
-        -H "Host: s3.amazonaws.com" \
-        -H "Date: $the_date" \
-        -H "Content-Type: $content_type" \
-        -H "Authorization: AWS $AWS_KEY:$signature" \
-        "http://s3.amazonaws.com$s3_path"
-
-    }
-
     this_node=chaos
     this_app=noms
+    BUCKET={{ .Values.aws.snapshotBucket }}
+    NETWORK={{ .Values.networkName }}
 
     # begin making snapshot
 
@@ -57,7 +35,7 @@ data:
     log "Pinging redis."
     while true ; do
       # get redis readiness
-      if ! /bin/bash /root/redis-cli.sh -h $R_HOST PING; then
+      if ! redis_cli PING; then
         log "Waiting for redis to pong."
         sleep 1
       else
@@ -67,12 +45,7 @@ data:
     done
 
     # wait for height value
-    while [ "$height" == "-1" ] || [ -z "$height" ]; do
-      sleep 2
-      height=$(timeout -t 2 /bin/bash /root/redis-cli.sh -h $R_HOST get "snapshot-$CHAIN-height")
-    done
-
-    log "height is $height"
+    height="$(get_height $CHAIN)"
 
     # upload the database
 
@@ -95,7 +68,24 @@ data:
     fi
 
     # delete service flag
-    /bin/bash /root/redis-cli.sh -h $R_HOST DEL "snapshot-$THIS_SERVICE"
+    redis_cli DEL "snapshot-$THIS_SERVICE"
 
+  shutdown-waits.sh: |
+
+    # import lib scripts
+    for f in /root/lib/*.sh; do source $f; done
+
+    log () {
+      >&2 echo "$THIS_SERVICE-shutdown: $@"
+    }
+
+    err () {
+      >&2 echo "$THIS_SERVICE-shutdown: $@"
+      exit 1
+    }
+
+    log "Starting wait loops"
+    wait_until_down chaosnode
+    log "Done"
 
 {{ end }}

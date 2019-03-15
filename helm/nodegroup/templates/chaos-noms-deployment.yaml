@@ -29,19 +29,17 @@ spec:
       - name: noms
         image: "{{ .Values.chaos.noms.image.repository }}:{{ .Values.chaos.noms.image.tag }}"
         imagePullPolicy: {{ .Values.chaos.noms.image.pullPolicy }}
-        command:
-          - /bin/bash
-          - /root/noms-start.sh
+        command: ["/bin/bash", "/root/noms-start.sh"]
         readinessProbe:
           tcpSocket:
             port: {{ .Values.chaos.noms.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
         livenessProbe:
           tcpSocket:
             port: {{ .Values.chaos.noms.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
         env:
         - name: SNAPSHOTGUN_ENABLED
           value: "{{ .Values.snapshot.enabled }}"
@@ -55,54 +53,48 @@ spec:
           value: "chaos"
         - name: THIS_SERVICE
           value: chaos-noms
+        - name: NOMS_PORT
+          value: {{ .Values.chaos.noms.port | quote }}
         - name: SNAPSHOT_CODE
           value: {{ .Values.chaos.noms.snapshotCode }}
         ports:
         - containerPort: {{ .Values.chaos.noms.port }}
         volumeMounts:
-        - name: noms-start-sh
-          mountPath: /root/noms-start.sh
-          subPath: noms-start.sh
-        - name: make-snapshot-sh
-          mountPath: /root/make-snapshot.sh
-          subPath: make-snapshot.sh
-        - name: restore-snapshot-sh
-          mountPath: /root/restore-snapshot.sh
-          subPath: restore-snapshot.sh
-        - name: redis-cli-sh
-          mountPath: /root/redis-cli.sh
-          subPath: redis-cli.sh
         - name: noms-volume
           mountPath: /noms
+        - mountPath: /root/lib
+          name: script-lib
+        - mountPath: /root/liveness-decoy.sh
+          name: nodegroup-config
+          subPath: liveness-decoy.sh
+        - mountPath: /root/shutdown-waits.sh
+          name: chaos-noms-config
+          subPath: shutdown-waits.sh
+        - mountPath: /root/noms-start.sh
+          name: nodegroup-config
+          subPath: noms-start.sh
+        - mountPath: /root/make-snapshot.sh
+          name: chaos-noms-config
+          subPath: make-snapshot.sh
+        - mountPath: /root/restore-snapshot.sh
+          name: nodegroup-config
+          subPath: restore-snapshot.sh
+        - mountPath: /root/redis-cli.sh
+          name: nodegroup-config
+          subPath: redis-cli.sh
       volumes:
-      - name: noms-start-sh
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: noms-start.sh
-            path: noms-start.sh
       - name: noms-volume
         persistentVolumeClaim:
           claimName: {{ template "nodegroup.fullname" . }}-chaos-noms-claim
-      # scripts
-      - name: restore-snapshot-sh
+      - name: script-lib
         configMap:
-          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: restore-snapshot.sh
-            path: restore-snapshot.sh
-      - name: redis-cli-sh
-        configMap:
-          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-          items:
-          - key: redis-cli.sh
-            path: redis-cli.sh
-      - name: make-snapshot-sh
+          name: {{ template "nodegroup.fullname" . }}-scripts
+      - name: chaos-noms-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-chaos-noms-config
-          items:
-          - key: make-snapshot.sh
-            path: make-snapshot.sh
+      - name: nodegroup-config
+        configMap:
+          name: {{ template "nodegroup.fullname" . }}-nodegroup-config
       resources:
         requests:
           memory: {{ .Values.chaos.noms.resources.requests.memory }}
