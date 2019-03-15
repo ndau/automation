@@ -42,7 +42,7 @@ data:
         -addr 0.0.0.0:{{ required ".Values.chaosnode.port required" .Values.chaosnode.port }} \
         -index {{ template "nodegroup.fullname" . }}-chaos-redis-service:{{ .Values.chaos.redis.port }} &
       pid=$! # get chaosnode pid
-      redis_cli DEL "snapshot-$THIS_SERVICE-down"
+      [ "$SNAPSHOTGUN_ENABLED" == "true" ] && redis_cli DEL "snapshot-$THIS_SERVICE-down"
       log "chaosnode started $pid"
     }
 

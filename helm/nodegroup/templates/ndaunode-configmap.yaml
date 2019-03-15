@@ -126,7 +126,7 @@ data:
         -addr 0.0.0.0:{{ required ".Values.ndaunode.port required" .Values.ndaunode.port }} \
         -index {{ template "nodegroup.fullname" . }}-ndau-redis-service:{{ .Values.ndau.redis.port }} &
       pid=$! # get ndaunode pid
-      redis_cli DEL "snapshot-$THIS_SERVICE-down"
+      [ "$SNAPSHOTGUN_ENABLED" == "true" ] && redis_cli DEL "snapshot-$THIS_SERVICE-down"
     }
 
     shutdown() {

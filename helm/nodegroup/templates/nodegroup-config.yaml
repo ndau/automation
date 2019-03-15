@@ -223,7 +223,7 @@ data:
         --p2p.persistent_peers "$PERSISTENT_PEERS" \
         --log_level="*:debug" &
       pid=$!
-      redis_cli DEL "snapshot-$THIS_SERVICE-down"
+      [ "$SNAPSHOTGUN_ENABLED" == "true" ] && redis_cli DEL "snapshot-$THIS_SERVICE-down"
     }
 
     shutdown() {
@@ -316,7 +316,7 @@ data:
       # start noms
       noms serve /noms/data --port=$NOMS_PORT &
       pid=$! # get noms pid
-      redis_cli DEL "snapshot-$THIS_SERVICE-down"
+      [ "$SNAPSHOTGUN_ENABLED" == "true" ] && redis_cli DEL "snapshot-$THIS_SERVICE-down"
     }
 
     shutdown() {
@@ -388,7 +388,7 @@ data:
         --tcp-backlog 128 \
         --port $REDIS_PORT &
       pid=$!
-      redis_cli DEL "snapshot-$THIS_SERVICE-down"
+      [ "$SNAPSHOTGUN_ENABLED" == "true" ] && redis_cli DEL "snapshot-$THIS_SERVICE-down"
     }
 
     shutdown() {
