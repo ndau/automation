@@ -10,7 +10,7 @@ if [ -z "$release" ]; then
 fi
 
 # get snapshot pod name from release
-snapshot_pod=$(kubectl get pod -l release="$release",app="nodegroup-snapshot-redis" -o=jsonpath='{.items[0].metadata.name}')
+snapshot_pod=$(kubectl get pod -l "release=$release,app=nodegroup-snapshot-redis" -o=jsonpath='{.items[0].metadata.name}')
 
 # execute snapshot script on snapshot pod
 kubectl exec "$snapshot_pod" -- /bin/bash /root/start.sh
