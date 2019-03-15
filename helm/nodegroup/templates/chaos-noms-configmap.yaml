@@ -26,6 +26,8 @@ data:
 
     this_node=chaos
     this_app=noms
+    BUCKET={{ .Values.aws.snapshotBucket }}
+    NETWORK={{ .Values.networkName }}
 
     # begin making snapshot
 
