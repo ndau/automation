@@ -6,7 +6,10 @@ get_height() {
   local tag="get_height"
  	local tries_left="${TRIES:-30}" # 30 = approx 1 minutes
   while [ "$height" == "-1" ]; do
-    [[ "$tries_left" -lt "1" ]] && break
+    if [[ "$tries_left" -lt "1" ]]; then
+      log "Could not get $CHAIN height."
+      return 1
+    fi
     log "$tag: Waiting for $CHAIN height... $tries_left tries left."
     sleep 1
     height=$(redis_cli GET "snapshot-$CHAIN-height")

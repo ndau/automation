@@ -215,7 +215,7 @@ data:
 
       if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
         # if snapshot is taking place, wait until done
-        wait_until_key_gone "snapshot-snapping"
+        wait_until_key_gone "snapshot-snapping" || err "previous snapshot never finished"
       fi
 
       >&2 /bin/bash /root/startup-waits.sh
@@ -301,16 +301,7 @@ data:
 
       if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
         # if snapshot is taking place, wait until done
-        tries_left=30 # approx 1 minute
-        log "waiting for snapshot to finish"
-        # wait until done snapping, or, timed out
-        until [ "$resp" == "-1" ]; do
-          [[ "$tries_left" -lt "1" ]] && break
-          resp=$(redis_cli GET "snapshot-snapping")
-          sleep 1
-          tries_left=$((tries_left-1))
-          log "Waiting $tries_left more times."
-        done
+        wait_until_key_gone "snapshot-snapping" || err "previous snapshot never finished"
       fi
 
       # start noms
@@ -370,16 +361,7 @@ data:
 
       if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
         # if snapshot is taking place, wait until done
-        tries_left=30 # approx 1 minute
-        log "waiting for snapshot to finish"
-        # wait until done snapping, or, timed out
-        until [ "$resp" == "-1" ]; do
-          [[ "$tries_left" -lt "1" ]] && break
-          resp=$(redis_cli GET "snapshot-snapping")
-          sleep 1
-          tries_left=$((tries_left-1))
-          log "Waiting $tries_left more times."
-        done
+        wait_until_key_gone "snapshot-snapping" || err "previous snapshot never finished"
       fi
 
       redis-server \

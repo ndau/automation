@@ -29,7 +29,7 @@ data:
 
       if [ "$SNAPSHOTGUN_ENABLED" == "true" ]; then
         # if snapshot is taking place, wait until done
-        wait_until_key_gone "snapshot-snapping"
+        wait_until_key_gone "snapshot-snapping" || err "previous snapshot never finished"
       fi
 
       >&2 /bin/bash /root/startup-waits.sh

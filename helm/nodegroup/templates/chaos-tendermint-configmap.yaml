@@ -95,22 +95,6 @@ data:
     # wait for height value
     height="$(get_height $CHAIN)"
 
-    # wait until noms snapshot is finished
-    tries_left=60 # approx 2 minutes
-    log "waiting for $CHAIN noms snapshot to finish"
-    noms_snapshot_resp="1"
-    until [ "$noms_snapshot_resp" == "-1" ]; do
-      [[ "$tries_left" -lt "1" ]] && break
-      noms_snapshot_resp=$(redis_cli GET "snapshot-$CHAIN-noms")
-      sleep 1
-      tries_left=$((tries_left-1))
-      log "Waiting $tries_left more times."
-    done
-    log "done waiting"
-    if [ "$noms_snapshot_resp" == "-1" ]; then
-      log "$CHAIN noms snapshot didn't finish"
-    fi
-
     # upload the tendermint databases
 
     # check to see if the snapshot is already there
