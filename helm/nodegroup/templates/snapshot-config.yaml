@@ -61,11 +61,6 @@ data:
     wait_for_connection ndau-tm {{ template "nodegroup.fullname" . }}-ndau-tendermint-service {{ .Values.ndau.tendermint.ports.p2p }}
     wait_for_connection ndaunode {{ template "nodegroup.fullname" . }}-ndaunode-service {{ .Values.ndaunode.port }}
 
-    wait_for_connection chaos-redis {{ template "nodegroup.fullname" . }}-chaos-redis-service {{ .Values.chaos.redis.port }}
-    wait_for_connection chaos-noms {{ template "nodegroup.fullname" . }}-chaos-noms-service {{ .Values.chaos.noms.port }}
-    wait_for_connection chaos-tm {{ template "nodegroup.fullname" . }}-chaos-tendermint-service {{ .Values.chaos.tendermint.ports.p2p }}
-    wait_for_connection chaosnode {{ template "nodegroup.fullname" . }}-chaosnode-service {{ .Values.chaosnode.port }}
-
     # try to set snapping flag if not set. If set, get it.
     # Everything expires after 120 seconds. If things get hung up, it's possible to restart.
     snap_res=$(redis-cli SET "snapshot-snapping" 1 EX 120 NX)
@@ -87,10 +82,6 @@ data:
       redis-cli SET snapshot-ndau-noms 1 EX 120
       redis-cli SET snapshot-ndau-redis 1 EX 120
       redis-cli SET snapshot-ndaunode 1 EX 120
-      redis-cli SET snapshot-chaos-tm 1 EX 120
-      redis-cli SET snapshot-chaos-noms 1 EX 120
-      redis-cli SET snapshot-chaos-redis 1 EX 120
-      redis-cli SET snapshot-chaosnode 1 EX 120
 
     else
       # could return either 1 or 0 on second run
@@ -100,7 +91,7 @@ data:
     fi
 
     # wait until everyone is done, then remove snapping key
-    # Don't check chaosnode and ndaunode, they don't backup anything
+    # Don't check ndaunode, it doesn't backup anything
     resp="1"
 
     # keep waiting while the key is not there
@@ -114,30 +105,19 @@ data:
       status_ndau_tm=$(redis-cli GET snapshot-ndau-tm)
       status_ndau_redis=$(redis-cli GET snapshot-ndau-redis)
       status_ndau_noms=$(redis-cli GET snapshot-ndau-noms)
-      status_chaos_tm=$(redis-cli GET snapshot-chaos-tm)
-      status_chaos_redis=$(redis-cli GET snapshot-chaos-redis)
-      status_chaos_noms=$(redis-cli GET snapshot-chaos-noms)
 
       log "ndau_tm: $status_ndau_tm"
       log "ndau_redis: $status_ndau_redis"
       log "ndau_noms: $status_ndau_noms"
-      log "chaos_tm: $status_chaos_tm"
-      log "chaos_redis: $status_chaos_redis"
-      log "chaos_noms: $status_chaos_noms"
 
       resp="\
         $status_ndau_tm \
         $status_ndau_redis \
-        $status_ndau_noms \
-        $status_chaos_tm \
-        $status_chaos_redis \
-        $status_chaos_noms"
+        $status_ndau_noms
     done
     log "No more snapshot jobs detected."
 
-    chaos_height=$(redis-cli GET snapshot-chaos-height)
     ndau_height=$(redis-cli GET snapshot-ndau-height)
-    log "chaos chain height: $chaos_height"
     log "ndau chain height: $ndau_height"
 
     # verify the snapshot
@@ -147,11 +127,7 @@ data:
       aws s3 ls "$BP/$temp_token/ndau-$ndau_height/ndau-genesis.tgz" && \
       aws s3 ls "$BP/$temp_token/ndau-$ndau_height/ndau-tm.tgz" && \
       aws s3 ls "$BP/$temp_token/ndau-$ndau_height/ndau-noms.tgz" && \
-      aws s3 ls "$BP/$temp_token/ndau-$ndau_height/ndau-redis.tgz" && \
-      aws s3 ls "$BP/$temp_token/chaos-$chaos_height/chaos-genesis.tgz" && \
-      aws s3 ls "$BP/$temp_token/chaos-$chaos_height/chaos-tm.tgz" && \
-      aws s3 ls "$BP/$temp_token/chaos-$chaos_height/chaos-noms.tgz" && \
-      aws s3 ls "$BP/$temp_token/chaos-$chaos_height/chaos-redis.tgz"; then
+      aws s3 ls "$BP/$temp_token/ndau-$ndau_height/ndau-redis.tgz"
 
       log "Snapshot verified"
 
@@ -160,11 +136,6 @@ data:
       aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-noms.tgz" "s3://$BP/ndau-$ndau_height/ndau-noms.tgz"
       aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-redis.tgz" "s3://$BP/ndau-$ndau_height/ndau-redis.tgz"
       aws s3 mv "s3://$BP/$temp_token/ndau-$ndau_height/ndau-manifest.json" "s3://$BP/ndau-$ndau_height/ndau-manifest.json"
-      aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-tm.tgz" "s3://$BP/chaos-$chaos_height/chaos-tm.tgz"
-      aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-genesis.tgz" "s3://$BP/chaos-$chaos_height/chaos-genesis.tgz"
-      aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-noms.tgz" "s3://$BP/chaos-$chaos_height/chaos-noms.tgz"
-      aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-redis.tgz" "s3://$BP/chaos-$chaos_height/chaos-redis.tgz"
-      aws s3 mv "s3://$BP/$temp_token/chaos-$chaos_height/chaos-manifest.json" "s3://$BP/chaos-$chaos_height/chaos-manifest.json"
     else
       log "Error: snapshot at s3://$BP/$temp_token could not be verified."
     fi
@@ -173,10 +144,8 @@ data:
     log "Cleaning up temporary keys."
     redis-cli DEL \
       snapshot-snapping \
-      snapshot-chaos-height \
       snapshot-ndau-height \
       snapshot-temp-token \
-      snapshot-chaosnode \
       snapshot-ndaunode \
 
     log "Done"

@@ -1,8 +1,8 @@
 # AWS
 
-This document will detail the cloud environments we deploy to as well as the installation of chaos and ndau nodes.
+This document will detail the cloud environments we deploy to as well as the installation of ndaunodes.
 
-The clusters that are set up this way are accessible through the `*.cluster.ndau.tech`. That is, `kubectl` will point to that address. The chaos node api itself, however, is accessible through the ip address of any of the node machines `kubectl get nodes -o wide`. The configured p2p and rpc ports will allow you to connect to either tendermint endpoint.
+The clusters that are set up this way are accessible through the `*.cluster.ndau.tech`. That is, `kubectl` will point to that address. The ndaunode api itself, however, is accessible through the ip address of any of the node machines `kubectl get nodes -o wide`. The configured p2p and rpc ports will allow you to connect to either tendermint endpoint.
 
 # tldr;
 
@@ -14,8 +14,8 @@ The clusters that are set up this way are accessible through the `*.cluster.ndau
 export CLUSTER_SUBDOMAIN=cluster.ndau.tech
 ./subdomain.sh
 
-# Set up a cluster at dev-chaos.cluster.ndau.tech in us-east-1
-export CLUSTER_NAME=dev-chaos
+# Set up a cluster at dev.cluster.ndau.tech in us-east-1
+export CLUSTER_NAME=dev
 export REGION=us-east-1
 export AZ=us-east-1b
 ./bootstrap-cluster.sh

@@ -1,4 +1,3 @@
-{{ if .Values.ndau.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -53,7 +52,7 @@ spec:
         - name: CHAIN
           value: "ndau"
         - name: NOMS_PORT
-          value: {{ .Values.chaos.noms.port | quote }}
+          value: {{ .Values.ndau.noms.port | quote }}
         - name: SNAPSHOT_CODE
           value: {{ .Values.ndau.noms.snapshotCode }}
         ports:
@@ -101,5 +100,3 @@ spec:
         limits:
           memory: {{ .Values.ndau.noms.resources.limits.memory }}
           cpu: {{ .Values.ndau.noms.resources.limits.cpu }}
-
-{{ end }}

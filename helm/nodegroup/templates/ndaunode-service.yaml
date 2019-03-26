@@ -1,5 +1,3 @@
-{{ if .Values.ndau.enabled }}
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -17,5 +15,3 @@ spec:
   selector:
     app: {{ template "nodegroup.name" . }}-ndaunode
     release: {{ .Release.Name }}
-
-{{ end }}

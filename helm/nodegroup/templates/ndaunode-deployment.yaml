@@ -1,5 +1,3 @@
-{{ if .Values.ndau.enabled }}
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,30 +30,6 @@ spec:
           subPath: startup-waits.sh
         - mountPath: /root/lib
           name: script-lib
-      - name: config
-        image: "{{ .Values.ndau.deployUtils.image.repository }}:{{ .Values.ndau.deployUtils.image.tag }}"
-        imagePullPolicy: {{ .Values.ndau.deployUtils.image.pullPolicy }}
-        command: ["/bin/bash", "/root/init.sh"]
-        env:
-        - name: NDAUHOME
-          value: "/root/.ndau"
-        volumeMounts:
-        - mountPath: "/root/.ndau"
-          name: ndau-home-volume
-        - mountPath: /root/lib
-          name: script-lib
-        - mountPath: /root/shutdown-waits.sh
-          name: ndaunode-config
-          subPath: shutdown-waits.sh
-        - mountPath: /root/startup-waits.sh
-          name: ndaunode-config
-          subPath: startup-waits.sh
-        - mountPath: /root/init.sh
-          name: ndaunode-config
-          subPath: init.sh
-        - mountPath: /root/config-ro/config.toml
-          name: ndaunode-config
-          subPath: config.toml
       containers:
       - name: ndaunode
         image: "{{ .Values.ndaunode.image.repository }}:{{ .Values.ndaunode.image.tag }}"
@@ -65,7 +39,7 @@ spec:
         - containerPort: {{ .Values.ndaunode.port }}
         env:
         - name: THIS_SERVICE
-          value: chaosnode
+          value: ndaunode
         - name: HONEYCOMB_KEY
           value: {{ .Values.honeycomb.key }}
         - name: HONEYCOMB_DATASET
@@ -85,17 +59,23 @@ spec:
         - mountPath: /root/ndaunode-start.sh
           name: ndaunode-config
           subPath: ndaunode-start.sh
+        - mountPath: /root/startup-waits.sh
+          name: ndaunode-config
+          subPath: startup-waits.sh
+        - mountPath: /root/shutdown-waits.sh
+          name: ndaunode-config
+          subPath: shutdown-waits.sh
         - mountPath: /root/redis-cli.sh
           name: nodegroup-config
           subPath: redis-cli.sh
         readinessProbe:
           tcpSocket:
-            port: {{ .Values.chaosnode.port }}
+            port: {{ .Values.ndaunode.port }}
           initialDelaySeconds: 30
           periodSeconds: 10
         livenessProbe:
           tcpSocket:
-            port: {{ .Values.chaosnode.port }}
+            port: {{ .Values.ndaunode.port }}
           initialDelaySeconds: 30
           periodSeconds: 10
         resources:
@@ -118,5 +98,3 @@ spec:
       - name: nodegroup-config
         configMap:
           name: {{ template "nodegroup.fullname" . }}-nodegroup-config
-
-{{ end }}

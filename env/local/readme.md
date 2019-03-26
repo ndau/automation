@@ -135,7 +135,7 @@ or you can use kubetail to see both with different colors
 ```shell
 brew tap johanhaleby/kubetail && brew install kubetail
 t_pod=$(kubectl get pods --selector=app=tendermint -o json | jq -r ".items[0].metadata.name")
-c_pod=$(kubectl get pods --selector=app=chaosnode -o json | jq -r ".items[0].metadata.name")
+c_pod=$(kubectl get pods --selector=app=ndaunode -o json | jq -r ".items[0].metadata.name")
 kubetail $c_pod,$t_pod
 ```
 
