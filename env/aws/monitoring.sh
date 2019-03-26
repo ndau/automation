@@ -8,14 +8,14 @@ set -e # exit on error
 helm install --tls stable/prometheus --name prom \
   --set alertmanager.enabled=false \
   --set server.ingress.enabled=true \
-  --set server.ingress.hosts[0]=prometheus.dev-chaos.ndau.tech
+  --set server.ingress.hosts[0]=prometheus.api.ndau.tech
 
 helm install --tls stable/grafana --name graf \
   --set persistence.enabled=true \
   --set persistence.size=1Gi \
   --set persistence.accessModes[0]=ReadWriteOnce \
   --set ingress.enabled=true \
-  --set ingress.hosts[0]=grafana.dev-chaos.ndau.tech
+  --set ingress.hosts[0]=grafana.api.ndau.tech
 
 # Install a workaround for version 5.1.3
 # https://github.com/grafana/grafana-docker/issues/167
