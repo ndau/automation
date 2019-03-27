@@ -337,7 +337,7 @@ def initNodegroup(nodes):
         # JSG we need the node ID for persistent peers
         ret = run_command(
             f"{c.DOCKER_RUN} -e TMHOME=/tendermint "
-            f"{c.ECR}tendermint:{c.CHAOS_TM_TAG} show_node_id"
+            f"{c.ECR}tendermint:{c.NDAU_TM_TAG} show_node_id"
         )
         node.ndau_node_id = ret.stdout.strip()
         vprint(f"ndau node ID: {node.ndau_node_id}")
@@ -552,10 +552,6 @@ def main():
     preconf_cmd = textwrap.dedent(f"""#!/bin/bash\n\n
         NETWORK_NAME="{c.RELEASE}" \\
         SNAPSHOT_REDIS_TAG="{c.SNAPSHOT_REDIS_TAG}" \\
-        CHAOSNODE_TAG="{c.CHAOSNODE_TAG}" \\
-        CHAOS_REDIS_TAG="{c.CHAOS_REDIS_TAG}" \\
-        CHAOS_NOMS_TAG="{c.CHAOS_NOMS_TAG}" \\
-        CHAOS_TM_TAG="{c.CHAOS_TM_TAG}" \\
         NDAUNODE_TAG="{c.NDAUNODE_TAG}" \\
         NDAU_REDIS_TAG="{c.NDAU_REDIS_TAG}" \\
         NDAU_NOMS_TAG="{c.NDAU_NOMS_TAG}" \\

@@ -23,7 +23,7 @@ The above script installs the # of node groups given by the number arg (in this 
 
 The docker image tags are gathered automatically from the commands repo and ECR. You may specify image tags for Noms, Tendermint, chaosnode, ndaunode, or the commands repo. If you specify `COMMANDS_TAG`, then that gets applied to chaosnode, ndaunode, and ndauapi. Give their close relationship, ndauapi always uses ndaunode's tag.
 
-Although they are usually the same, noms and tendermint tags can be specified for ndaunode and chaosnode separately with `CHAOS_TM_TAG`, `NDAU_NOMS_TAG`, etc. See `gen_node_groups.py` for a complete list.
+Although they are usually the same, noms and tendermint tags can be specified separately with `NDAU_TM_TAG`, `NDAU_NOMS_TAG`, etc. See `gen_node_groups.py` for a complete list.
 
 ## Changing the install
 
