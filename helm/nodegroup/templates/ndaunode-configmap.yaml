@@ -107,6 +107,3 @@ data:
     log "Starting wait loops"
     wait_until_down ndau-tm
     log "Done"
-
-
-{{ end }}
