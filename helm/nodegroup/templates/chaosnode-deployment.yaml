@@ -103,6 +103,7 @@ spec:
             port: {{ .Values.chaosnode.port }}
           initialDelaySeconds: 30
           periodSeconds: 10
+          failureThreshold: 6
         resources:
           requests:
             memory: {{ .Values.chaosnode.resources.requests.memory }}
