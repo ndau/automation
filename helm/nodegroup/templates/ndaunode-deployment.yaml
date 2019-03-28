@@ -78,6 +78,7 @@ spec:
             port: {{ .Values.ndaunode.port }}
           initialDelaySeconds: 30
           periodSeconds: 10
+          failureThreshold: 6
         resources:
           requests:
             memory: {{ .Values.ndaunode.resources.requests.memory }}
