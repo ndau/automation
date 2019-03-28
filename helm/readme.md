@@ -4,7 +4,7 @@ For instructions on installing helm securely to your cluster use the following g
 
 # helm charts
 
-These helm charts are largely similar, but different enough to make it worth while to keep the separate. Updating them is a pain, yes. Usually, I make a change in one and use a diff tool. But installing is complicated enough without having to specify whether it's a chaos node or ndau node, and then giving each chart the ability to know how to do each. Scripts are good for that level of abstraction. Hence the testnet scripts.
+TODO update
 
 ## Upgrading tendermint
 
@@ -26,7 +26,7 @@ Scripts that run inside the pods are used to trigger a backup sequence that is c
 * `snapshot-{node}-height` - Indicates the current height of the blockchain. Is set when tendermint shuts down. All other snapshot processes will wait until this value is available.
 * `snapshot-temp-token` - This is set when the snapshot process begins. It is used to coordinate the uploads of each individual snapshot to a temporary directory on s3. When each individual database's snapshot is verified, the file is moved to the correct directory.
 
-In sequence, the `snapshot-snapping` key is set to `1` and each of the application keys is set to `1`. The tendermint pod immediately shuts down tendermint and gets the current height. The tendermints then wait until noms is done, and then upload their snapshots. When each noms, redis, tendermint for chaosnode and ndaunode complete and verified, they are moved into a directory that allows them to be indexed by height (e.g. `ndau-42`).
+In sequence, the `snapshot-snapping` key is set to `1` and each of the application keys is set to `1`. The tendermint pod immediately shuts down tendermint and gets the current height. The tendermints then wait until noms is done, and then upload their snapshots. When noms, redis and tendermint completes and verifies, they are moved into a directory that allows them to be indexed by height (e.g. `ndau-42`).
 
 The keys are all set with the `NX 120` option, meaning that if they fail or take longer than 2 minutes to snapshot, then those keys get cleaned up and the process may begin again. If an application does not finish backing up, it will not be verified in the final step and not be indexed by height.
 
@@ -48,10 +48,8 @@ Snapshots can be triggered in one of two ways. Either by shelling in and executi
 
 > thing (should wait for)
 
-chaos-noms chaos-redis ndau-noms ndau-redis
-chaosnode (chaos-noms, chaos-redis)
-chaos-tm (chaosnode)
-ndaunode (ndau-noms, ndau-redis, chaos-tm)
+ndau-noms ndau-redis
+ndaunode (ndau-noms, ndau-redis)
 ndau-tm (ndaunode)
 
 ### Shut down
@@ -62,10 +60,6 @@ ndau-tm
 ndaunode (ndau-tm)
 ndau-noms (ndaunode)
 ndau-redis (ndaunode)
-chaos-tm (ndaunode)
-chaosnode (chaos-tm)
-chaos-noms (chaosnode)
-chaos-redis (chaosnode)
 
 ## Troubleshooting
 
@@ -73,7 +67,7 @@ chaos-redis (chaosnode)
 
 This file needs to be immutable once the block chain is running, ie. once blocks are being generated.
 
-The tricky part of genesis.json is the `app_hash`. The `app_hash` value in genesis.json must match the generated app hash from either chaosnode or ndaunode at block 0. If at block 0, the hash does not say the exact same thing tendermint will panic and exit with an error.
+The tricky part of genesis.json is the `app_hash`. The `app_hash` value in genesis.json must match the generated app hash from ndaunode at block 0. If at block 0, the hash does not say the exact same thing tendermint will panic and exit with an error.
 
 The `chain_id` is also important because it is included in tendermint block headers.
 

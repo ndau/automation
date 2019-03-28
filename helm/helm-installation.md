@@ -38,7 +38,7 @@ State or Province Name (full name) []:MA
 Locality Name (eg, city) []:Boston
 Organization Name (eg, company) []:Ndev
 Organizational Unit Name (eg, section) []:
-Common Name (eg, fully qualified host name) []:dev-chaos-tiller-server
+Common Name (eg, fully qualified host name) []:dev-tiller-server
 Email Address []:
 
 Please enter the following 'extra' attributes
@@ -75,7 +75,7 @@ Sign the certs.
 ```
 openssl x509 -req -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -in tiller.csr.pem -out tiller.cert.pem -days 365
 Signature ok
-subject=/C=US/ST=MA/L=Boston/O=Ndev/CN=dev-chaos-tiller-server
+subject=/C=US/ST=MA/L=Boston/O=Ndev/CN=dev-tiller-server
 Getting CA Private Key
 openssl x509 -req -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -in helm.csr.pem -out helm.cert.pem  -days 365
 ```

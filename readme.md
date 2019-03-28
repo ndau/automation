@@ -1,27 +1,13 @@
-# Kubernetes
-
-This repo is for material related to kubernetes deployments.
-
 ## Environments
 
-In order to deploy the chaos or ndau nodes, you first need to have a running kubernetes cluster.
+In order to deploy ndaunodes, you first need to have a running kubernetes cluster.
 
 * [AWS](./env/aws/readme.md)
 * [Local (minikube)](./env/local/readme.md)
 
-## Installation
+## Getting started
 
-Once `helm` and `kubectl` are configured, it's really quite easy. (see below for instructions)
-
-```
-helm install helm/chaosnode --name my-chaos-node --tls
-```
-
-```
-helm install helm/ndaunode --name my-ndau-node --tls
-```
-
-The output of those commands will provide details about how to connect to those nodes.
+TODO: Update
 
 ### Requirements
 
@@ -91,7 +77,7 @@ RELEASE=my-mainnet ELB_SUBDOMAIN=api.ndau.tech ./testnet/gen_node_groups.py 5 30
 * The argument 30000 is the starting port number. This number is used to sequentially assign ports to Tendermint's P2P and RPC ports for each nodegroup. Note: if you are installing more than one set of nodegroups, care will have to be taken to ensure the allocated ports do not overlap. The acceptible range is a kubernetes' default of `30000`-`32767`.
 
 
-Under the hood, the script will use the ECR images from the most recent master build of each dependency (`chaosnode`, `ndaunode`, etc.).
+Under the hood, the script will use the ECR images from the most recent master build of each dependency (`ndaunode`, etc.).
 
 For detailed information about each configuration option, please see the comments in `gen_node_groups.py`.
 
@@ -182,7 +168,7 @@ Helm is a client/server pair of applications. To begin using helm, the tiller mu
 
 #### Security
 
-For a helm security overview. Look to 1password for `dev-chaos-helm-tiller-certs.zip` which contains documentation on authorization and usage of our dev cluster.
+For a helm security overview. Look to 1password for `deploy-security.tgz` which contains documentation on authorization and usage of our clusters.
 
 # Resources
 

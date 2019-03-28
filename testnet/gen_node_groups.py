@@ -67,12 +67,8 @@ class Conf:
 
         Environment variables that map to image tags in ECR. Optional.
         Fetched automatically.
-        CHAOSNODE_TAG       chaosnode ABCI app.
         NDAUNODE_TAG        ndaunode ABCI app.
         SNAPSHOT_REDIS_TAG  snapshot coordinator's redis.
-        CHAOS_REDIS_TAG     chaosnode's redis.
-        CHAOS_NOMS_TAG      chaosnode's nomsdb.
-        CHAOS_TM_TAG        chaosnode's tendermint.
         NDAU_REDIS_TAG      ndaunode's redis.
         NDAU_NOMS_TAG       ndaunode's nomsdb.
         NDAU_TM_TAG         ndaunode's tendermint.
@@ -129,9 +125,8 @@ class Conf:
         if self.RELEASE is None:
             abortClean(f"RELEASE env var not set.")
 
-        # let commands tag override chaosnode and ndaunode tags
+        # let commands tag override the ndaunode tag
         self.COMMANDS_TAG = os.environ.get("COMMANDS_TAG")
-        self.CHAOSNODE_TAG = os.environ.get("CHAOSNODE_TAG")
         self.NDAUNODE_TAG = os.environ.get("NDAUNODE_TAG")
 
         if self.COMMANDS_TAG is None:
@@ -139,8 +134,6 @@ class Conf:
                 self.COMMANDS_TAG = fetch_master_sha(
                     "https://github.com/oneiro-ndev/commands"
                 )
-                if self.CHAOSNODE_TAG is None:
-                    self.CHAOSNODE_TAG = self.COMMANDS_TAG
                 if self.NDAUNODE_TAG is None:
                     self.NDAUNODE_TAG = self.COMMANDS_TAG
             except OSError as e:
@@ -148,8 +141,6 @@ class Conf:
                     f"COMMANDS_TAG env var empty and could not fetch version: {e}"
                 )
         else:
-            if self.CHAOSNODE_TAG is None:
-                self.CHAOSNODE_TAG = self.COMMANDS_TAG
             if self.NDAUNODE_TAG is None:
                 self.NDAUNODE_TAG = self.COMMANDS_TAG
 
@@ -160,34 +151,6 @@ class Conf:
             except OSError as e:
                 abortClean(
                     f"SNAPSHOT_REDIS_TAG env var empty and could not fetch version: {e}"
-                )
-
-        # chaos noms and tendermint
-        self.CHAOS_NOMS_TAG = os.environ.get("CHAOS_NOMS_TAG")
-        if self.CHAOS_NOMS_TAG is None:
-            try:
-                self.CHAOS_NOMS_TAG = highest_version_tag("noms")
-            except OSError as e:
-                abortClean(
-                    f"CHAOS_NOMS_TAG env var empty and could not fetch version: {e}"
-                )
-
-        self.CHAOS_REDIS_TAG = os.environ.get("CHAOS_REDIS_TAG")
-        if self.CHAOS_REDIS_TAG is None:
-            try:
-                self.CHAOS_REDIS_TAG = highest_version_tag("redis")
-            except OSError as e:
-                abortClean(
-                    f"CHAOS_REDIS_TAG env var empty and could not fetch version: {e}"
-                )
-
-        self.CHAOS_TM_TAG = os.environ.get("CHAOS_TM_TAG")
-        if self.CHAOS_TM_TAG is None:
-            try:
-                self.CHAOS_TM_TAG = highest_version_tag("tendermint")
-            except OSError as e:
-                abortClean(
-                    f"CHAOS_TM_TAG env var empty and could not fetch version: {e}"
                 )
 
         # ndau noms and tendermint
@@ -340,7 +303,6 @@ class Node:
     def __init__(self, name):
         """Creates a node."""
         self.name = name
-        self.chaos = {"port": {"p2p": ports.alloc(), "rpc": ports.alloc()}}
         self.ndau = {"port": {"p2p": ports.alloc(), "rpc": ports.alloc()}}
 
 
@@ -350,42 +312,6 @@ def initNodegroup(nodes):
     # Initialize tendermint
     for node in nodes:
         steprint(f"\nGenerating config for {node.name}")
-
-        steprint(f"Initializing chaosnode's tendermint")
-        ret = run_command(
-            f"{c.DOCKER_RUN} -e TMHOME=/tendermint "
-            f"{c.ECR}tendermint:{c.CHAOS_TM_TAG} init"
-        )
-        vprint(f"tendermint init: {ret.stdout}")
-
-        steprint(f"Getting priv_validator_key.json")
-        ret = run_command(
-            f"{c.DOCKER_RUN} busybox cat /tendermint/config/priv_validator_key.json"
-        )
-        # JSG strip all output from above cat until the first brace,
-        # when this is run on circle there is extraneous output generated
-        # by the first load of busybox image
-        priv_val = ret.stdout[ret.stdout.index("{") :]
-        vprint(f"priv_validator: {priv_val}")
-        node.chaos_priv = json.loads(priv_val)
-
-        steprint(f"Getting node_key.json")
-        ret = run_command(
-            f"{c.DOCKER_RUN} busybox cat /tendermint/config/node_key.json"
-        )
-        vprint(f"node_key.json: {ret.stdout}")
-        node.chaos_nodeKey = json.loads(ret.stdout)
-
-        # JSG we need the node ID for persistent peers
-        ret = run_command(
-            f"{c.DOCKER_RUN} -e TMHOME=/tendermint "
-            f"{c.ECR}tendermint:{c.CHAOS_TM_TAG} show_node_id"
-        )
-        node.chaos_node_id = ret.stdout.strip()
-        vprint(f"chaos node ID: {node.chaos_node_id}")
-
-        steprint("Removing tendermint's config directory")
-        run_command(f"{c.DOCKER_RUN} busybox rm -rf /tendermint/config")
 
         steprint(f"Initializing ndaunode's tendermint")
         ret = run_command(
@@ -411,7 +337,7 @@ def initNodegroup(nodes):
         # JSG we need the node ID for persistent peers
         ret = run_command(
             f"{c.DOCKER_RUN} -e TMHOME=/tendermint "
-            f"{c.ECR}tendermint:{c.CHAOS_TM_TAG} show_node_id"
+            f"{c.ECR}tendermint:{c.NDAU_TM_TAG} show_node_id"
         )
         node.ndau_node_id = ret.stdout.strip()
         vprint(f"ndau node ID: {node.ndau_node_id}")
@@ -472,21 +398,6 @@ def main():
     nodes = [Node(f"{c.RELEASE}-{i}") for i in range(c.QUANTITY)]
     initNodegroup(nodes)
 
-    steprint("Getting chaos's genesis.json")
-    run_command(
-        f"{c.DOCKER_RUN} -e TMHOME=/tendermint "
-        f"{c.ECR}tendermint:{c.CHAOS_TM_TAG} init"
-    )
-    ret = run_command(
-        f"{c.DOCKER_RUN} busybox cat /tendermint/config/genesis.json"
-    ).stdout
-
-    vprint(f"chaos genesis.json: {ret}")
-    chaos_genesis = conf_genesis_json(json.loads(ret), "chaos", nodes)
-
-    steprint("Removing tendermint's config directory")
-    run_command(f"{c.DOCKER_RUN} busybox rm -rf /tendermint/config")
-
     steprint("Getting ndau's genesis.json")
     run_command(
         f"{c.DOCKER_RUN} -e TMHOME=/tendermint {c.ECR}tendermint:{c.NDAU_TM_TAG} init"
@@ -498,7 +409,6 @@ def main():
     vprint(f"ndau's genesis.json: {ret}")
     ndau_genesis = conf_genesis_json(json.loads(ret), "ndau", nodes)
 
-    vprint(f"chaos genesis.json: {chaos_genesis}")
     vprint(f"ndau genesis.json: {ndau_genesis}")
 
     network_dir = os.path.join(c.SCRIPT_DIR, f"network-{c.RELEASE}")
@@ -524,12 +434,6 @@ def main():
     f.close()
     os.chmod(ndau_gen_path, 0o644)
 
-    chaos_gen_path = os.path.join(network_dir, "chaos-genesis.json")
-    f = open(chaos_gen_path, "w")
-    f.write(json.dumps(chaos_genesis))
-    f.close()
-    os.chmod(chaos_gen_path, 0o644)
-
     up_cmd = """#!/bin/bash\n\nif [ -z "$HELM_CHART_PATH" ]; then
         >&2 echo HELM_CHART_PATH required; exit 1; fi\n\n
         DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
@@ -548,21 +452,6 @@ def main():
         # excludes self
         otherNodes = list(filter(lambda peer: peer.name != node.name, nodes))
 
-        # create a string of chaos peers in tendermint's formats
-        def chaos_peer(peer):
-            return (
-                f'{peer.chaos_node_id}@{c.MASTER_IP}:'
-                f'{peer.chaos["port"]["p2p"]}'
-            )
-
-        chaosPeers = ",".join(list(map(chaos_peer, otherNodes)))
-        chaosPeerIds = ",".join(
-            list(map(lambda peer: peer.chaos_priv["address"], otherNodes))
-        )
-
-        vprint(f"chaos peers: {chaosPeers}")
-        vprint(f"chaos peer ids: {chaosPeerIds}")
-
         # create a string of ndau peers in tendermint's formats
         def ndau_peer(peer):
             return (
@@ -577,37 +466,6 @@ def main():
 
         vprint(f"ndau peers: {ndauPeers}")
         vprint(f"ndau peer ids: {ndauPeerIds}")
-
-        chaos_args = make_args(
-            {
-                "chaosnode": {"image": {"tag": "$CHAOSNODE_TAG"}},
-                "chaos": {
-                    "genesis": jsonB64(chaos_genesis),
-                    "nodeKey": jsonB64(node.chaos_nodeKey),
-                    "privValidatorKey": jsonB64(node.chaos_priv),
-                    "noms": {
-                        "snapshotCode": c.SNAPSHOT_CODE,
-                        "image": {"tag": "$CHAOS_NOMS_TAG"},
-                    },
-                    "redis": {
-                        "image": {"tag": "$CHAOS_REDIS_TAG"},
-                    },
-                    "tendermint": {
-                        "moniker": node.name,
-                        "persistentPeers": b64(chaosPeers),
-                        "image": {"tag": "$CHAOS_TM_TAG"},
-                        "nodePorts": {
-                            "enabled": "true",
-                            "p2p": node.chaos["port"]["p2p"],
-                            "rpc": node.chaos["port"]["rpc"],
-                        },
-                    },
-                },
-            }
-        )
-
-        steprint(f'{node.name} chaos P2P port: {node.chaos["port"]["p2p"]}')
-        steprint(f'{node.name} chaos RPC port: {node.chaos["port"]["rpc"]}')
 
         ndau_args = make_args(
             {
@@ -660,7 +518,6 @@ def main():
         # This big line-continuation is ugly but the alternative of
         # concatenated fstrings is worse.
         helm_command = f'helm install --name {node.name} $HELM_CHART_PATH \
-            {chaos_args} \
             {ndau_args} \
             --set networkName="$NETWORK_NAME" \
             {snapshot_enabled} \
@@ -670,7 +527,6 @@ def main():
             --set aws.accessKeyID="$AWS_ACCESS_KEY_ID" \
             --set aws.secretAccessKey="$AWS_SECRET_ACCESS_KEY" \
             --set ndau.deployUtils.image.tag="0.0.4" \
-            --set chaos.deployUtils.image.tag="0.0.4" \
             --set ndauapi.ingress.enabled=true \
             --set-string ndauapi.ingress.host="{node.name}.{c.ELB_SUBDOMAIN}" \
             --set-string ndauapi.image.tag="$NDAUNODE_TAG" \
@@ -696,10 +552,6 @@ def main():
     preconf_cmd = textwrap.dedent(f"""#!/bin/bash\n\n
         NETWORK_NAME="{c.RELEASE}" \\
         SNAPSHOT_REDIS_TAG="{c.SNAPSHOT_REDIS_TAG}" \\
-        CHAOSNODE_TAG="{c.CHAOSNODE_TAG}" \\
-        CHAOS_REDIS_TAG="{c.CHAOS_REDIS_TAG}" \\
-        CHAOS_NOMS_TAG="{c.CHAOS_NOMS_TAG}" \\
-        CHAOS_TM_TAG="{c.CHAOS_TM_TAG}" \\
         NDAUNODE_TAG="{c.NDAUNODE_TAG}" \\
         NDAU_REDIS_TAG="{c.NDAU_REDIS_TAG}" \\
         NDAU_NOMS_TAG="{c.NDAU_NOMS_TAG}" \\
@@ -821,18 +673,10 @@ def conf_genesis_json(gj, chain, nodes):
     "Config genesis.json"
     gj["genesis_time"] = c.GENESIS_TIME.isoformat().replace("+00:00", "") + "Z"
     gj["chain_id"] = chain
-    if chain == "chaos":
-        gj["validators"] = [
-            {"name": node.name, "address": node.chaos_priv["address"], "pub_key": node.chaos_priv["pub_key"], "power": "10"}
-            for node in nodes
-        ]
-    else:
-        gj["validators"] = [
-            {"name": node.name, "address": node.ndau_priv["address"], "pub_key": node.ndau_priv["pub_key"], "power": "10"}
-            for node in nodes
-        ]
-
-
+    gj["validators"] = [
+        {"name": node.name, "address": node.ndau_priv["address"], "pub_key": node.ndau_priv["pub_key"], "power": "10"}
+        for node in nodes
+    ]
     return gj
 
 

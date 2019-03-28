@@ -9,9 +9,7 @@ ip=$(kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="Exter
 
 n_p2p=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"p2p\")].nodePort}" {{ template "nodegroup.fullname" . }}-ndau-tendermint-service)
 n_rpc=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"rpc\")].nodePort}" {{ template "nodegroup.fullname" . }}-ndau-tendermint-service)
-c_p2p=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"p2p\")].nodePort}" {{ template "nodegroup.fullname" . }}-chaos-tendermint-service)
-c_rpc=$(kubectl get service --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name==\"rpc\")].nodePort}" {{ template "nodegroup.fullname" . }}-chaos-tendermint-service)
-echo -e "ndau-P2P\tndau-RPC\tchaos-P2P\tchaos-RPC\n${ip}:${n_p2p}\t${ip}:${n_rpc}\t${ip}:${c_p2p}\t${ip}:${c_rpc}" | column -t
+echo -e "ndau-P2P\tndau-RPC\n${ip}:${n_p2p}\t${ip}:${n_rpc}" | column -t
 ```
 
 Minikube also provides a simpler way to get the ip and ports but doesn't specify which is which.

@@ -1,5 +1,3 @@
-{{ if .Values.chaos.enabled }}
-
 kind: ConfigMap
 metadata:
   name: {{ template "nodegroup.fullname" . }}-ndau-redis
@@ -85,5 +83,3 @@ data:
     log "Starting wait loops"
     wait_until_down ndaunode {{ template "nodegroup.fullname" . }}-ndaunode-service {{ .Values.ndaunode.port }}
     log "Done"
-
-{{ end }}
