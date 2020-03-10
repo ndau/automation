@@ -245,7 +245,7 @@ fi
 # if there's no NDAUNODE_TAG specified, use these
 if [ -z "$NDAUNODE_TAG" ] || [ -z "$CHAOSNODE_TAG" ]; then
 
-	COMMANDS_TAG=$(git ls-remote https://github.com/oneiro-ndev/commands |\
+	COMMANDS_TAG=$(git ls-remote https://github.com/ndau/commands |\
         grep 'refs/heads/master' | \
         awk '{{print $1}}' | \
         cut -c1-7)

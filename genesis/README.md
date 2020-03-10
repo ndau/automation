@@ -7,12 +7,12 @@ This script will start docker containers that will be used to create the genesis
 nodegroup.sh uses the genesis tool, both of which you must install with the following commands:
 
 ```shell
-go get github.com/oneiro-ndev/commands
-cd $GOPATH/github.com/oneiro-ndev/commands
+go get github.com/ndau/commands
+cd $GOPATH/github.com/ndau/commands
 go dep ensure
-cd $GOPATH/src/github.com/oneiro-ndev/commands/cmd/generate
+cd $GOPATH/src/github.com/ndau/commands/cmd/generate
 go install .
-cd $GOPATH/src/github.com/oneiro-ndev/commands/cmd/genesis
+cd $GOPATH/src/github.com/ndau/commands/cmd/genesis
 go install .
 ```
 

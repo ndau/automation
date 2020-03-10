@@ -35,7 +35,7 @@ fi
 
 # if there's no NDAUNODE_TAG specified, use these
 if [ -z "$NDAUNODE_TAG" ]; then
-	NDAUNODE_TAG=$(git ls-remote https://github.com/oneiro-ndev/ndau |\
+	NDAUNODE_TAG=$(git ls-remote https://github.com/ndau/ndau |\
         grep 'refs/heads/master' | \
         awk '{{print $1}}' | \
         cut -c1-7)

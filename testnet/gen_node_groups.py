@@ -141,7 +141,7 @@ class Conf:
         if self.COMMANDS_TAG is None:
             try:
                 self.COMMANDS_TAG = fetch_master_sha(
-                    "https://github.com/oneiro-ndev/commands"
+                    "https://github.com/ndau/commands"
                 )
                 if self.NDAUNODE_TAG is None:
                     self.NDAUNODE_TAG = self.COMMANDS_TAG
